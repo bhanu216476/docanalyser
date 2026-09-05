@@ -1,0 +1,6 @@
+# Example configuration with placeholder secrets
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:docanalyser}
+    username: ${DB_USER:placeholder_user}
+    password: ${DB_PASSWORD:placeholder_password}
