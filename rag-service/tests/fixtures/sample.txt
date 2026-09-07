@@ -1,0 +1,6 @@
+DocAnalyser Ingestion Pipeline
+
+This is a sample plain text document used for loader verification.
+It contains multiple paragraphs to ensure paragraph boundaries and spacing are preserved.
+
+The loader should safely read UTF-8 content without applying aggressive transformations.
