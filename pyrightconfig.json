@@ -1,0 +1,17 @@
+{
+  "include": [
+    "rag-service"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "rag-service/.venv",
+    "hybrid-rag"
+  ],
+  "venvPath": "rag-service",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "extraPaths": [
+    "rag-service"
+  ]
+}

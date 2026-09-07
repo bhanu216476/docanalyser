@@ -8,7 +8,8 @@ def test_query_request_valid():
 
 def test_query_request_missing_query():
     with pytest.raises(ValidationError):
-        QueryRequest()
+        QueryRequest.model_validate({})
+
 
 def test_query_request_empty_query():
     with pytest.raises(ValidationError) as exc_info:
