@@ -5,3 +5,4 @@ dependencies:
   - pip
   - pip:
       - -r rag-service/requirements.txt
+      - -r hybrid-rag/rag-service/requirements.txt
