@@ -44,3 +44,11 @@ class Document(BaseModel):
     )
 
     model_config = {"frozen": True}
+
+    def to_canonical_metadata(self) -> Any:
+        """
+        Convert this Document instance into canonical DocumentMetadata.
+        """
+        from app.ingestion.metadata_normalizer import MetadataNormalizer
+
+        return MetadataNormalizer.from_document(self)
