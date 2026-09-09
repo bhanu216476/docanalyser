@@ -6,10 +6,13 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
 
+from app.ingestion.processor import process_documents
+
+
 def load_pdf(file_path: str) -> list[Document]:
     """Load each page of a local PDF as a LangChain document.
 
-    Loader-provided page metadata is retained for future citations.
+    Loader-provided page metadata is retained, cleaned, and processed for future citations.
     """
     path = Path(file_path)
 
@@ -24,4 +27,4 @@ def load_pdf(file_path: str) -> list[Document]:
     for document in documents:
         document.metadata.setdefault("source", str(path))
 
-    return documents
+    return process_documents(documents, source_type="pdf")
