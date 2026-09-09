@@ -13,9 +13,19 @@ Exports:
     - normalize_file_type: Canonical file extension normalizer.
     - infer_mime_type: MIME type resolver.
     - normalize_source: Cross-platform source path normalizer.
+    - Chunk: Canonical chunk model.
+    - BaseChunker: Abstract base chunker class.
+    - FixedSizeChunker: Fixed-size sliding window chunker.
+    - RecursiveChunker: Recursive structure-aware chunker.
 """
 
 from app.ingestion.base import BaseLoader
+from app.ingestion.chunking import (
+    BaseChunker,
+    Chunk,
+    FixedSizeChunker,
+    RecursiveChunker,
+)
 from app.ingestion.markdown_loader import MarkdownLoader
 from app.ingestion.metadata import DocumentMetadata, DocumentStatus
 from app.ingestion.metadata_normalizer import (
@@ -40,4 +50,8 @@ __all__ = [
     "normalize_file_type",
     "infer_mime_type",
     "normalize_source",
+    "Chunk",
+    "BaseChunker",
+    "FixedSizeChunker",
+    "RecursiveChunker",
 ]
