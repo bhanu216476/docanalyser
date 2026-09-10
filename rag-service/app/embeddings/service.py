@@ -47,11 +47,11 @@ Usage example::
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 import logging
 import math
 import random
 import time
-from typing import Sequence
 
 from app.embeddings.exceptions import (
     EmbeddingProviderError,
@@ -62,6 +62,7 @@ from app.embeddings.exceptions import (
 from app.embeddings.models import EmbeddingRequest, EmbeddingResult
 from app.embeddings.providers import EmbeddingProvider
 from app.embeddings.token_counter import TokenCounter, make_token_counter
+from app.ingestion.chunking.models import Chunk
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +123,7 @@ class EmbeddingService:
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_base_delay: float = DEFAULT_RETRY_BASE_DELAY,
         token_counter: TokenCounter | None = None,
-        sleep_fn: "Callable[[float], None] | None" = None,  # type: ignore[name-defined]
+        sleep_fn: Callable[[float], None] | None = None,
     ) -> None:
         # Validate configuration eagerly so misconfiguration is caught at
         # construction time rather than silently at runtime.
@@ -209,7 +210,7 @@ class EmbeddingService:
         )
         return results
 
-    def embed_chunks(self, chunks: "Sequence[Chunk]") -> list[EmbeddingResult]:  # type: ignore[name-defined]
+    def embed_chunks(self, chunks: Sequence[Chunk]) -> list[EmbeddingResult]:
         """
         Generate embeddings for a sequence of ``Chunk`` objects.
 
@@ -226,9 +227,6 @@ class EmbeddingService:
         Raises:
             Same as ``embed_texts()``.
         """
-        # Import here to avoid circular imports at module level
-        from app.ingestion.chunking.models import Chunk  # noqa: PLC0415
-
         if not chunks:
             logger.debug("embed_chunks: empty input — returning []")
             return []
@@ -492,7 +490,7 @@ class EmbeddingService:
 
 def create_embedding_service(
     *,
-    sleep_fn: "Callable[[float], None] | None" = None,  # type: ignore[name-defined]
+    sleep_fn: Callable[[float], None] | None = None,
 ) -> EmbeddingService:
     """
     Convenience factory that creates an ``EmbeddingService`` using the
@@ -513,9 +511,8 @@ def create_embedding_service(
         If no real provider can be instantiated (missing API key / SDK),
         a warning is logged and ``FakeEmbeddingProvider`` is used.
     """
-    from app.core.config import settings  # noqa: PLC0415
-    from app.embeddings.providers import FakeEmbeddingProvider, OpenAIEmbeddingProvider  # noqa: PLC0415
-    from app.embeddings.token_counter import make_token_counter  # noqa: PLC0415
+    from app.core.config import settings
+    from app.embeddings.providers import FakeEmbeddingProvider, OpenAIEmbeddingProvider
 
     provider: EmbeddingProvider
 
