@@ -100,3 +100,16 @@ class EmbeddingResult(BaseModel):
     )
 
     model_config = ConfigDict(frozen=True)
+
+
+class EmbeddedChunk(EmbeddingResult):
+    """An embedding whose source chunk identity and metadata remain attached."""
+
+    chunk_id: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+    @property
+    def vector(self) -> list[float]:
+        """Alias for the embedding vector used by downstream vector stores."""
+        return self.embedding

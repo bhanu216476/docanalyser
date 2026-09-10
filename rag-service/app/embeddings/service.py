@@ -59,10 +59,9 @@ from app.embeddings.exceptions import (
     EmbeddingTokenLimitError,
     EmbeddingValidationError,
 )
-from app.embeddings.models import EmbeddingRequest, EmbeddingResult
+from app.embeddings.models import EmbeddedChunk, EmbeddingRequest, EmbeddingResult
 from app.embeddings.providers import EmbeddingProvider
 from app.embeddings.token_counter import TokenCounter, make_token_counter
-from app.ingestion.chunking.models import Chunk
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +201,7 @@ class EmbeddingService:
 
         # Sort by original index to guarantee input order preservation
         results.sort(key=lambda r: r.index)
+        self._validate_result_dimensions(results)
 
         logger.info(
             "embed_texts: completed %d embeddings across %d batch(es)",
@@ -210,7 +210,20 @@ class EmbeddingService:
         )
         return results
 
-    def embed_chunks(self, chunks: Sequence[Chunk]) -> list[EmbeddingResult]:
+    @staticmethod
+    def _validate_result_dimensions(results: Sequence[EmbeddingResult]) -> None:
+        """Ensure vectors from every batch share one dimension."""
+        if not results:
+            return
+        dimension = len(results[0].embedding)
+        if any(len(result.embedding) != dimension for result in results):
+            raise EmbeddingProviderError(
+                "Embedding provider returned inconsistent vector dimensions across batches. "
+                f"All vectors must have dimension {dimension}.",
+                is_transient=False,
+            )
+
+    def embed_chunks(self, chunks: Sequence[object]) -> list[EmbeddedChunk]:
         """
         Generate embeddings for a sequence of ``Chunk`` objects.
 
@@ -221,8 +234,9 @@ class EmbeddingService:
             chunks: Sequence of ``Chunk`` instances from the chunking stage.
 
         Returns:
-            List of ``EmbeddingResult`` objects in input order (matching
-            the chunk list position, not ``chunk_index``).
+            List of ``EmbeddedChunk`` objects in input order (matching
+            the chunk list position, not ``chunk_index``), with source
+            content and metadata attached to each vector.
 
         Raises:
             Same as ``embed_texts()``.
@@ -231,8 +245,46 @@ class EmbeddingService:
             logger.debug("embed_chunks: empty input — returning []")
             return []
 
-        texts = [chunk.content for chunk in chunks]
-        return self.embed_texts(texts)
+        chunk_records: list[tuple[str, str, dict[str, object]]] = []
+        seen_ids: set[str] = set()
+        for index, chunk in enumerate(chunks):
+            content = getattr(chunk, "content", None)
+            if content is None:
+                content = getattr(chunk, "page_content", None)
+            metadata = dict(getattr(chunk, "metadata", {}) or {})
+            chunk_id = metadata.get("chunk_id") or getattr(chunk, "chunk_id", None)
+            if not isinstance(content, str) or not content.strip():
+                raise EmbeddingValidationError(
+                    f"Chunk at index {index} has empty or invalid content"
+                )
+            if not isinstance(chunk_id, str) or not chunk_id:
+                raise EmbeddingValidationError(
+                    f"Chunk at index {index} is missing a non-empty chunk_id"
+                )
+            if chunk_id in seen_ids:
+                raise EmbeddingValidationError(
+                    f"Duplicate chunk_id in embedding batch: {chunk_id}"
+                )
+            seen_ids.add(chunk_id)
+            metadata.setdefault("chunk_id", chunk_id)
+            for field in ("document_id", "chunk_index", "total_chunks"):
+                value = getattr(chunk, field, None)
+                if value is not None:
+                    metadata.setdefault(field, value)
+            chunk_records.append((chunk_id, content, metadata))
+
+        results = self.embed_texts([content for _, content, _ in chunk_records])
+        return [
+            EmbeddedChunk(
+                index=result.index,
+                embedding=result.embedding,
+                token_count=result.token_count,
+                chunk_id=chunk_records[result.index][0],
+                content=chunk_records[result.index][1],
+                metadata=chunk_records[result.index][2],
+            )
+            for result in results
+        ]
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -465,6 +517,20 @@ class EmbeddingService:
                     f"non-numeric values. Provider contract violation.",
                     is_transient=False,
                 )
+            if not all(math.isfinite(float(v)) for v in vector):
+                raise EmbeddingProviderError(
+                    f"Batch {batch_idx}, embedding {vec_idx}: embedding contains "
+                    f"NaN or infinity. Provider contract violation.",
+                    is_transient=False,
+                )
+
+        dimension = len(raw_embeddings[0])
+        if any(len(vector) != dimension for vector in raw_embeddings):
+            raise EmbeddingProviderError(
+                f"Batch {batch_idx}: provider returned vectors with inconsistent dimensions. "
+                f"All vectors must have dimension {dimension}.",
+                is_transient=False,
+            )
 
     def _calculate_delay(self, attempt: int) -> float:
         """

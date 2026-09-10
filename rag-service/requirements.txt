@@ -3,6 +3,9 @@ uvicorn[standard]==0.30.1
 pydantic==2.7.1
 pydantic-settings==2.2.1
 pytest==8.2.0
+langchain-core==1.6.2
+langchain-text-splitters==1.1.2
+numpy==2.5.3
 
 # Optional dependencies for OpenAI embeddings and exact BPE token counting:
 # openai>=1.0.0
