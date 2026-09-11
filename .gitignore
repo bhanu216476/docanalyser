@@ -10,10 +10,12 @@ mvnw.cmd
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
 .venv/
 venv/
 env/
 .env
+
 
 # Node
 node_modules/

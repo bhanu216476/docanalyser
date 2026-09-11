@@ -43,7 +43,7 @@ from app.embeddings.exceptions import (
     EmbeddingTokenLimitError,
     EmbeddingValidationError,
 )
-from app.embeddings.models import EmbeddingRequest, EmbeddingResult
+from app.embeddings.models import EmbeddedChunk, EmbeddingRequest, EmbeddingResult
 from app.embeddings.providers import (
     EmbeddingProvider,
     FakeEmbeddingProvider,
@@ -75,6 +75,7 @@ __all__ = [
     # Models
     "EmbeddingRequest",
     "EmbeddingResult",
+    "EmbeddedChunk",
     # Token Counting
     "TokenCounter",
     "CharApproxTokenCounter",
