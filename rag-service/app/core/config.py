@@ -51,6 +51,18 @@ class Settings(BaseSettings):
     # Leave empty when using FakeEmbeddingProvider (testing / no credentials).
     openai_api_key: str = ""
 
+    # ------------------------------------------------------------------
+    # Dense Retrieval Configuration
+    # ------------------------------------------------------------------
+    # Default number of top-K chunks returned per retrieval request.
+    # Can be overridden per-request via RetrievalRequest.top_k.
+    retrieval_default_top_k: int = 10
+
+    # Hard upper bound on top_k to prevent unbounded vector searches.
+    # Requests with top_k > retrieval_max_top_k are rejected with a
+    # validation error rather than silently clamped.
+    retrieval_max_top_k: int = 100
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
