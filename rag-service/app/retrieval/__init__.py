@@ -15,6 +15,7 @@ Dense retrieval:
 Models:
     RetrievalFilter
     RetrievalRequest
+    RetrievalProvenance
     RetrievalResult
 
 Exceptions:
@@ -38,6 +39,7 @@ from app.retrieval.exceptions import (
 )
 from app.retrieval.models import (
     RetrievalFilter,
+    RetrievalProvenance,
     RetrievalRequest,
     RetrievalResult,
 )
@@ -56,6 +58,7 @@ __all__ = [
     # Models
     "RetrievalFilter",
     "RetrievalRequest",
+    "RetrievalProvenance",
     "RetrievalResult",
     # Exceptions
     "RetrievalError",

@@ -11,14 +11,11 @@ Pipeline position:
     RetrievalResult[]   ← typed results with scores and chunk metadata
 
 Design:
-    - RetrievalFilter wraps the existing VectorStoreFilter fields without
-      duplicating filter logic. It is converted to VectorStoreFilter
-      inside DenseRetriever before being sent to Qdrant.
-    - RetrievalRequest enforces query non-emptiness and top_k bounds via
-      Pydantic validators, consistent with project conventions.
-    - RetrievalResult maps 1-to-1 from Qdrant ScoredPoint payloads using
-      the VectorPayload schema stored with each vector point, while
-      also supporting in-memory retrieval candidates and ranking.
+    - RetrievalFilter wraps the existing VectorStoreFilter fields and
+      additionally supports page_number filtering.
+    - RetrievalRequest enforces query non-emptiness and top_k bounds.
+    - RetrievalResult preserves chunk identity, content, similarity score,
+      metadata, rich source metadata, and typed provenance.
     - All models are frozen (immutable) consistent with project conventions.
 """
 
@@ -36,14 +33,13 @@ class RetrievalFilter(BaseModel):
     """
     Optional metadata filter for dense retrieval.
 
-    Maps directly to the VectorStoreFilter fields indexed by Qdrant.
     Multiple specified fields are combined with logical AND.
-    Filter push-down is performed inside Qdrant — not in Python.
 
     Attributes:
         document_id:  Filter by one or more document IDs.
         file_type:    Filter by one or more file types (e.g. 'md', 'txt').
         source:       Filter by exact normalized source path.
+        page_number:  Filter by 1-based page number.
         chunk_index:  Filter by exact 0-based chunk index.
         file_name:    Filter by source file name.
         section:      Filter by Markdown section heading.
@@ -63,6 +59,11 @@ class RetrievalFilter(BaseModel):
         default=None,
         description="Filter by exact normalized source path.",
     )
+    page_number: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Filter by 1-based source page number.",
+    )
     chunk_index: Optional[int] = Field(
         default=None,
         ge=0,
@@ -77,17 +78,40 @@ class RetrievalFilter(BaseModel):
         description="Filter by Markdown section heading.",
     )
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+    )
+
+    @field_validator("document_id", "file_type", "source")
+    @classmethod
+    def validate_non_blank(
+        cls,
+        value: str | list[str] | None,
+    ) -> str | list[str] | None:
+        """Reject whitespace-only string filter values."""
+
+        if value is None:
+            return None
+
+        values = value if isinstance(value, list) else [value]
+
+        if any(not item.strip() for item in values):
+            raise ValueError("filter values cannot be blank")
+
+        return value
 
     @property
     def is_empty(self) -> bool:
         """Return True if no filter fields are set."""
+
         return all(
-            v is None
-            for v in (
+            value is None
+            for value in (
                 self.document_id,
                 self.file_type,
                 self.source,
+                self.page_number,
                 self.chunk_index,
                 self.file_name,
                 self.section,
@@ -102,12 +126,7 @@ class RetrievalRequest(BaseModel):
     Validation rules:
         - query: stripped; must not be empty after stripping.
         - top_k: must be >= 1 and <= settings.retrieval_max_top_k.
-        - filters: optional; all filter fields are optional individually.
-
-    Attributes:
-        query:   The user's search query string.
-        top_k:   Number of nearest-neighbour chunks to retrieve.
-        filters: Optional metadata filters pushed down to Qdrant.
+        - filters: optional metadata filters.
     """
 
     query: str = Field(
@@ -119,40 +138,62 @@ class RetrievalRequest(BaseModel):
     top_k: int = Field(
         default=10,
         ge=1,
-        description="Number of top similar chunks to retrieve. Must be >= 1.",
+        description="Number of top similar chunks to retrieve.",
     )
     filters: Optional[RetrievalFilter] = Field(
         default=None,
-        description="Optional metadata filters applied server-side in Qdrant.",
+        description="Optional metadata filters applied during retrieval.",
     )
 
     model_config = ConfigDict(frozen=True)
 
     @field_validator("query", mode="before")
     @classmethod
-    def strip_and_validate_query(cls, v: str) -> str:
+    def strip_and_validate_query(cls, value: str) -> str:
         """Strip surrounding whitespace and reject empty queries."""
-        if not isinstance(v, str):
+
+        if not isinstance(value, str):
             raise ValueError("query must be a string")
-        stripped = v.strip()
+
+        stripped = value.strip()
+
         if not stripped:
             raise ValueError(
                 "query cannot be empty or whitespace-only. "
                 "Provide a meaningful search query."
             )
+
         return stripped
 
     @field_validator("top_k", mode="before")
     @classmethod
-    def validate_top_k_upper_bound(cls, v: int) -> int:
-        """Reject top_k that exceeds the configured maximum."""
+    def validate_top_k_upper_bound(cls, value: int) -> int:
+        """Reject top_k values exceeding the configured maximum."""
+
         max_top_k = settings.retrieval_max_top_k
-        if isinstance(v, int) and v > max_top_k:
+
+        if isinstance(value, int) and value > max_top_k:
             raise ValueError(
-                f"top_k={v} exceeds the maximum allowed value of {max_top_k}. "
-                f"Reduce top_k to avoid unbounded vector searches."
+                f"top_k={value} exceeds the maximum allowed value of "
+                f"{max_top_k}. Reduce top_k to avoid unbounded vector searches."
             )
-        return v
+
+        return value
+
+
+class RetrievalProvenance(BaseModel):
+    """Typed provenance extracted from a candidate's metadata."""
+
+    document_id: str | None = None
+    chunk_id: str
+    page: int | None = None
+    page_number: int | None = None
+    page_numbers: list[int] | None = None
+    headings: list[str] | None = None
+    source: str | None = None
+    file_type: str | None = None
+
+    model_config = ConfigDict(frozen=True)
 
 
 class RetrievalResult(BaseModel):
@@ -160,11 +201,11 @@ class RetrievalResult(BaseModel):
     Dense retrieval result from an embedded chunk or Qdrant ScoredPoint.
 
     Preserves the source chunk's identity, content, similarity score,
-    and metadata for downstream RAG stages.
+    metadata, and provenance for downstream RAG stages.
 
     Score semantics:
         For Cosine distance: score ∈ [−1, 1] where 1.0 is identical.
-        For Dot product: score is the raw dot product (unbounded above).
+        For Dot product: score is the raw dot product.
         For Euclidean distance: score is negated Euclidean distance.
         Results are returned in descending similarity order.
     """
@@ -192,6 +233,8 @@ class RetrievalResult(BaseModel):
         default_factory=dict,
         description="Additional custom chunk metadata.",
     )
+
+    # Rich source metadata used by the Qdrant/vector-store pipeline.
     document_id: str = Field(
         default="",
         description="Source document identifier.",
@@ -207,7 +250,7 @@ class RetrievalResult(BaseModel):
     )
     file_type: str = Field(
         default="",
-        description="Canonical lowercase file extension (e.g. 'md', 'txt').",
+        description="Canonical lowercase file extension.",
     )
     source: str = Field(
         default="",
@@ -228,12 +271,17 @@ class RetrievalResult(BaseModel):
         description="Ending character offset in source document.",
     )
 
+    # Typed provenance extracted from metadata.
+    provenance: RetrievalProvenance | None = None
+
     model_config = ConfigDict(frozen=True)
 
     @field_validator("score")
     @classmethod
     def validate_score(cls, value: float) -> float:
         """Reject non-finite similarity scores."""
+
         if not math.isfinite(value):
             raise ValueError("score must be finite")
+
         return value
