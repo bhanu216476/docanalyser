@@ -29,3 +29,9 @@ The RAG service provides three modular document chunking strategies:
 3. **Semantic chunking (`semantic`)** groups sentence and paragraph units using cosine distance between injected embedding vectors.
 
 All strategies preserve source metadata and add deterministic chunk tracking fields including `chunk_id`, `chunk_index`, `total_chunks`, `chunking_strategy`, and `page_numbers`.
+
+## Dense Retrieval
+
+Dense retrieval accepts a query vector and candidate vectors from the embedding pipeline. It compares each candidate with the query using cosine similarity, ranks candidates by descending score, keeps at most the configured `top_k` results, and then applies an optional inclusive score threshold (`score >= score_threshold`).
+
+Each retrieval result preserves the candidate `chunk_id`, content, metadata, similarity score, and rank. The threshold is configurable because an appropriate minimum similarity depends on the embedding model and document collection; no single value is universally correct.

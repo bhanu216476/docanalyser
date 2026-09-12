@@ -6,23 +6,25 @@ Pipeline position:
         ↓
     RetrievalRequest    ← validated input with query + top_k + filters
         ↓
-    DenseRetriever
+    DenseRetriever / DenseRetrievalService
         ↓
     RetrievalResult[]   ← typed results with scores and chunk metadata
 
 Design:
     - RetrievalFilter wraps the existing VectorStoreFilter fields without
-      duplicating filter logic.  It is converted to VectorStoreFilter
+      duplicating filter logic. It is converted to VectorStoreFilter
       inside DenseRetriever before being sent to Qdrant.
     - RetrievalRequest enforces query non-emptiness and top_k bounds via
-      Pydantic validators, consistent with the project's validation conventions.
+      Pydantic validators, consistent with project conventions.
     - RetrievalResult maps 1-to-1 from Qdrant ScoredPoint payloads using
-      the VectorPayload schema already stored with each vector point.
+      the VectorPayload schema stored with each vector point, while
+      also supporting in-memory retrieval candidates and ranking.
     - All models are frozen (immutable) consistent with project conventions.
 """
 
 from __future__ import annotations
 
+import math
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -53,7 +55,9 @@ class RetrievalFilter(BaseModel):
     )
     file_type: Optional[str | list[str]] = Field(
         default=None,
-        description="Filter by single file type or list of file types (e.g. 'md', 'txt').",
+        description=(
+            "Filter by single file type or list of file types (e.g. 'md')."
+        ),
     )
     source: Optional[str] = Field(
         default=None,
@@ -96,8 +100,8 @@ class RetrievalRequest(BaseModel):
     Validated dense retrieval request.
 
     Validation rules:
-        - query: stripped of surrounding whitespace; must not be empty after stripping.
-        - top_k: must be >= 1 and <= settings.retrieval_max_top_k (default 100).
+        - query: stripped; must not be empty after stripping.
+        - top_k: must be >= 1 and <= settings.retrieval_max_top_k.
         - filters: optional; all filter fields are optional individually.
 
     Attributes:
@@ -108,7 +112,9 @@ class RetrievalRequest(BaseModel):
 
     query: str = Field(
         ...,
-        description="User search query. Stripped of surrounding whitespace; must not be empty.",
+        description=(
+            "User search query. Stripped of whitespace; must not be empty."
+        ),
     )
     top_k: int = Field(
         default=10,
@@ -125,7 +131,7 @@ class RetrievalRequest(BaseModel):
     @field_validator("query", mode="before")
     @classmethod
     def strip_and_validate_query(cls, v: str) -> str:
-        """Strip surrounding whitespace and reject empty/whitespace-only queries."""
+        """Strip surrounding whitespace and reject empty queries."""
         if not isinstance(v, str):
             raise ValueError("query must be a string")
         stripped = v.strip()
@@ -151,7 +157,7 @@ class RetrievalRequest(BaseModel):
 
 class RetrievalResult(BaseModel):
     """
-    A single dense retrieval result mapped from a Qdrant ScoredPoint.
+    Dense retrieval result from an embedded chunk or Qdrant ScoredPoint.
 
     Preserves the source chunk's identity, content, similarity score,
     and metadata for downstream RAG stages.
@@ -160,54 +166,51 @@ class RetrievalResult(BaseModel):
         For Cosine distance: score ∈ [−1, 1] where 1.0 is identical.
         For Dot product: score is the raw dot product (unbounded above).
         For Euclidean distance: score is negated Euclidean distance.
-        Results are returned in Qdrant's native ranking order (highest first).
-
-    Attributes:
-        chunk_id:    Original deterministic chunk identifier.
-        score:       Qdrant similarity score for this result.
-        document_id: Source document identifier.
-        chunk_index: 0-based sequential chunk index within the document.
-        content:     Chunk text content (stored in Qdrant payload).
-        file_name:   Basename of the source document file.
-        file_type:   Canonical lowercase file extension ('md', 'txt', etc.).
-        source:      Normalized source path.
-        section:     Markdown section heading (if available).
-        start_char:  Start character offset in source document (if available).
-        end_char:    End character offset in source document (if available).
-        metadata:    Additional custom chunk metadata from the payload.
+        Results are returned in descending similarity order.
     """
 
     chunk_id: str = Field(
         ...,
+        min_length=1,
         description="Original deterministic chunk identifier.",
-    )
-    score: float = Field(
-        ...,
-        description="Qdrant similarity score. Higher is more similar for Cosine/Dot.",
-    )
-    document_id: str = Field(
-        ...,
-        description="Source document identifier.",
-    )
-    chunk_index: int = Field(
-        ...,
-        ge=0,
-        description="0-based sequential index of the chunk within the document.",
     )
     content: str = Field(
         ...,
+        min_length=1,
         description="Text content of the chunk.",
     )
-    file_name: str = Field(
+    score: float = Field(
         ...,
+        description="Similarity score. Higher is more similar.",
+    )
+    rank: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="1-based rank position in retrieval results.",
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional custom chunk metadata.",
+    )
+    document_id: str = Field(
+        default="",
+        description="Source document identifier.",
+    )
+    chunk_index: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="0-based sequential index of chunk within document.",
+    )
+    file_name: str = Field(
+        default="",
         description="Basename of the source document file.",
     )
     file_type: str = Field(
-        ...,
+        default="",
         description="Canonical lowercase file extension (e.g. 'md', 'txt').",
     )
     source: str = Field(
-        ...,
+        default="",
         description="Normalized source location or path.",
     )
     section: Optional[str] = Field(
@@ -224,9 +227,13 @@ class RetrievalResult(BaseModel):
         ge=0,
         description="Ending character offset in source document.",
     )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional custom chunk metadata.",
-    )
 
     model_config = ConfigDict(frozen=True)
+
+    @field_validator("score")
+    @classmethod
+    def validate_score(cls, value: float) -> float:
+        """Reject non-finite similarity scores."""
+        if not math.isfinite(value):
+            raise ValueError("score must be finite")
+        return value
