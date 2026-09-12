@@ -5,8 +5,20 @@ class Settings(BaseSettings):
     project_name: str = "DocAnalyser RAG Service"
     version: str = "1.0.0"
 
-    # Placeholder for future config
+    # ------------------------------------------------------------------
+    # Vector Store (Qdrant) Configuration
+    # ------------------------------------------------------------------
     qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str = ""
+    qdrant_collection_name: str = "documents"
+    qdrant_vector_size: int = 1536  # Matches text-embedding-3-small
+    qdrant_distance: str = "Cosine"
+    qdrant_timeout: float = 10.0
+    qdrant_batch_size: int = 64
+    qdrant_max_retries: int = 3
+    qdrant_retry_base_delay: float = 0.5
+
+    # Redis URL (placeholder for future caching/celery)
     redis_url: str = "redis://localhost:6379"
 
     # ------------------------------------------------------------------
