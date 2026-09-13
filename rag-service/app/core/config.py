@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -63,6 +64,42 @@ class Settings(BaseSettings):
     # validation error rather than silently clamped.
     retrieval_max_top_k: int = 100
 
+    # ------------------------------------------------------------------
+    # BM25 Lexical Retrieval Configuration
+    # ------------------------------------------------------------------
+    # Term-frequency saturation parameter (k1 >= 0.0, default 1.2).
+    bm25_k1: float = 1.2
+
+    # Document length normalization parameter (0.0 <= b <= 1.0, default 0.75).
+    bm25_b: float = 0.75
+
+    # Default number of top-K chunks returned per BM25 retrieval request.
+    bm25_default_top_k: int = 10
+
+    # Maximum allowed top-K for BM25 retrieval requests.
+    bm25_max_top_k: int = 100
+
+    @field_validator("bm25_k1")
+    @classmethod
+    def validate_bm25_k1(cls, v: float) -> float:
+        if v < 0.0:
+            raise ValueError(f"bm25_k1 must be non-negative (got {v})")
+        return v
+
+    @field_validator("bm25_b")
+    @classmethod
+    def validate_bm25_b(cls, v: float) -> float:
+        if not (0.0 <= v <= 1.0):
+            raise ValueError(f"bm25_b must be between 0.0 and 1.0 inclusive (got {v})")
+        return v
+
+    @field_validator("bm25_default_top_k", "bm25_max_top_k")
+    @classmethod
+    def validate_positive_int(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError(f"top_k bounds must be positive (got {v})")
+        return v
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
@@ -70,4 +107,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
 

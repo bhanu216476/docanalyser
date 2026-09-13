@@ -109,3 +109,15 @@ class RetrievalQdrantError(RetrievalError):
     ) -> None:
         super().__init__(message, details=details)
         self.is_transient = is_transient
+
+
+class RetrievalIndexError(RetrievalError):
+    """
+    Raised when an error occurs during lexical index construction or retrieval.
+
+    Examples:
+        - Corrupt index data
+        - Incompatible chunk formatting
+        - Internal indexing failures
+    """
+
