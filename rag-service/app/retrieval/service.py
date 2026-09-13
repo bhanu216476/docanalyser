@@ -8,7 +8,8 @@ from numbers import Real
 
 from app.embeddings.models import EmbeddedChunk
 from app.embeddings.service import EmbeddingService
-from app.retrieval.models import RetrievalResult
+from app.retrieval.metadata import extract_provenance, matches_filter
+from app.retrieval.models import RetrievalFilter, RetrievalResult
 from app.retrieval.similarity import cosine_similarity
 
 
@@ -22,6 +23,7 @@ class DenseRetrievalService:
         *,
         top_k: int = 5,
         score_threshold: Real | None = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[RetrievalResult]:
         """Return ranked candidates after top-k selection and thresholding.
 
@@ -31,9 +33,12 @@ class DenseRetrievalService:
         """
         self._validate_top_k(top_k)
         threshold = self._validate_threshold(score_threshold)
+        retrieval_filter = filters or RetrievalFilter()
 
         ranked: list[tuple[int, EmbeddedChunk, float]] = []
         for input_index, candidate in enumerate(candidates):
+            if not matches_filter(candidate, retrieval_filter):
+                continue
             score = cosine_similarity(query_vector, candidate.vector)
             ranked.append((input_index, candidate, score))
 
@@ -47,6 +52,7 @@ class DenseRetrievalService:
                 chunk_id=candidate.chunk_id,
                 content=candidate.content,
                 metadata=dict(candidate.metadata),
+                provenance=extract_provenance(candidate),
                 score=score,
                 rank=rank,
             )
@@ -61,6 +67,7 @@ class DenseRetrievalService:
         *,
         top_k: int = 5,
         score_threshold: Real | None = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[RetrievalResult]:
         """Embed a text query with the existing service, then retrieve."""
         query_result = embedding_service.embed_texts([query])[0]
@@ -69,6 +76,7 @@ class DenseRetrievalService:
             candidates,
             top_k=top_k,
             score_threshold=score_threshold,
+            filters=filters,
         )
 
     @staticmethod

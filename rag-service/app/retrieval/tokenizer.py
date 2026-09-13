@@ -1,5 +1,5 @@
 """
-Deterministic tokenization and text preprocessing for BM25 lexical retrieval.
+Deterministic tokenization and preprocessing for BM25 lexical retrieval.
 
 Guarantees:
     - Identical preprocessing applied to documents and search queries.
@@ -20,19 +20,25 @@ _TOKEN_PATTERN = re.compile(r"\b\w+\b", re.UNICODE)
 
 class BM25Tokenizer:
     """
-    Deterministic tokenizer and preprocessor for BM25 lexical indexing and retrieval.
+    Deterministic tokenizer and preprocessor for BM25 lexical search.
 
     Args:
-        stopwords: Optional collection of words to filter out during tokenization.
-                   Defaults to None (all non-empty tokens preserved).
+        stopwords: Optional collection of words to filter out during
+                   tokenization. Defaults to None.
     """
 
-    def __init__(self, stopwords: Optional[Sequence[str] | Set[str]] = None) -> None:
-        self.stopwords: set[str] = {w.lower() for w in stopwords} if stopwords else set()
+    def __init__(
+        self,
+        stopwords: Optional[Sequence[str] | Set[str]] = None,
+    ) -> None:
+        if stopwords:
+            self.stopwords: set[str] = {w.lower() for w in stopwords}
+        else:
+            self.stopwords = set()
 
     def tokenize(self, text: str) -> list[str]:
         """
-        Tokenize and normalize input text into a deterministic sequence of terms.
+        Tokenize input text into a deterministic sequence of terms.
 
         Pipeline:
             1. Handle None / empty / whitespace input safely.

@@ -7,7 +7,12 @@ from pydantic import ValidationError
 
 from app.embeddings import EmbeddingService, FakeEmbeddingProvider
 from app.embeddings.models import EmbeddedChunk
-from app.retrieval import DenseRetrievalService, RetrievalResult, cosine_similarity
+from app.retrieval import (
+    DenseRetrievalService,
+    RetrievalFilter,
+    RetrievalResult,
+    cosine_similarity,
+)
 
 
 @pytest.fixture
@@ -15,14 +20,23 @@ def service() -> DenseRetrievalService:
     return DenseRetrievalService()
 
 
-def _chunk(chunk_id: str, vector: list[float], content: str | None = None) -> EmbeddedChunk:
+def _chunk(
+    chunk_id: str,
+    vector: list[float],
+    content: str | None = None,
+    metadata: dict[str, object] | None = None,
+) -> EmbeddedChunk:
+    chunk_metadata = metadata if metadata is not None else {
+        "source": "test.md",
+        "chunk_id": chunk_id,
+    }
     return EmbeddedChunk(
         index=0,
         embedding=vector,
         token_count=1,
         chunk_id=chunk_id,
         content=content or f"Content for {chunk_id}",
-        metadata={"source": "test.md", "chunk_id": chunk_id},
+        metadata=chunk_metadata,
     )
 
 
@@ -161,3 +175,157 @@ def test_retrieve_text_reuses_existing_embedding_service(
 
     assert [result.chunk_id for result in results] == ["query-chunk"]
     assert provider.call_count == 2
+
+
+def test_no_filters_return_all_candidates(service: DenseRetrievalService) -> None:
+    candidates = [_chunk("one", [1.0, 0.0]), _chunk("two", [0.9, 0.4358898944])]
+
+    results = service.retrieve([1.0, 0.0], candidates, top_k=5, filters=RetrievalFilter())
+
+    assert [result.chunk_id for result in results] == ["one", "two"]
+
+
+@pytest.mark.parametrize(
+    ("filters", "expected"),
+    [
+        (RetrievalFilter(document_id="doc-1"), ["one", "three"]),
+        (RetrievalFilter(file_type="pdf"), ["one", "four"]),
+        (RetrievalFilter(source="report.pdf"), ["one"]),
+        (RetrievalFilter(document_id="doc-1", file_type="pdf"), ["one"]),
+    ],
+)
+def test_metadata_filters_use_deterministic_and_semantics(
+    service: DenseRetrievalService,
+    filters: RetrievalFilter,
+    expected: list[str],
+) -> None:
+    candidates = [
+        _chunk("one", [1.0, 0.0], metadata={
+            "document_id": "doc-1", "file_type": "pdf", "source": "report.pdf"
+        }),
+        _chunk("two", [0.9, 0.4358898944], metadata={
+            "document_id": "doc-2", "file_type": "md", "source": "notes.md"
+        }),
+        _chunk("three", [0.8, 0.6], metadata={
+            "document_id": "doc-1", "file_type": "md", "source": "notes.md"
+        }),
+        _chunk("four", [0.7, 0.7141428429], metadata={
+            "document_id": "doc-3", "file_type": "pdf", "source": "other.pdf"
+        }),
+    ]
+
+    results = service.retrieve([1.0, 0.0], candidates, top_k=5, filters=filters)
+
+    assert [result.chunk_id for result in results] == expected
+
+
+def test_missing_metadata_does_not_match(service: DenseRetrievalService) -> None:
+    candidates = [
+        _chunk("missing", [1.0, 0.0], metadata={"source": "test.md"}),
+        _chunk("present", [0.9, 0.4358898944], metadata={"document_id": "doc-1"}),
+    ]
+
+    results = service.retrieve(
+        [1.0, 0.0], candidates, filters=RetrievalFilter(document_id="doc-1")
+    )
+
+    assert [result.chunk_id for result in results] == ["present"]
+
+
+def test_page_filter_matches_page_number_and_spanned_page_membership(
+    service: DenseRetrievalService,
+) -> None:
+    candidates = [
+        _chunk("single", [1.0, 0.0], metadata={"page_number": 5, "page": 4}),
+        _chunk("spanned", [0.9, 0.4358898944], metadata={"page_numbers": [3, 5]}),
+        _chunk("other", [0.8, 0.6], metadata={"page_number": 2, "page": 1}),
+    ]
+
+    results = service.retrieve(
+        [1.0, 0.0], candidates, filters=RetrievalFilter(page_number=5)
+    )
+
+    assert [result.chunk_id for result in results] == ["single", "spanned"]
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"document_id": ""},
+        {"document_id": "   "},
+        {"file_type": ""},
+        {"source": "   "},
+        {"page_number": 0},
+        {"unsupported": "value"},
+    ],
+)
+def test_invalid_retrieval_filters_are_rejected(kwargs: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        RetrievalFilter(**kwargs)
+
+
+def test_filters_do_not_mutate_original_metadata(service: DenseRetrievalService) -> None:
+    metadata = {"document_id": "doc-1", "page_numbers": [1, 2]}
+    original = {"document_id": "doc-1", "page_numbers": [1, 2]}
+    candidate = _chunk("one", [1.0, 0.0], metadata=metadata)
+
+    service.retrieve([1.0, 0.0], [candidate], filters=RetrievalFilter(page_number=2))
+
+    assert metadata == original
+    assert candidate.metadata == original
+
+
+def test_provenance_extracts_supported_metadata_without_losing_original(
+    service: DenseRetrievalService,
+) -> None:
+    metadata = {
+        "document_id": "doc-1",
+        "page": 4,
+        "page_number": 5,
+        "page_numbers": [4, 5],
+        "headings": ["Results"],
+        "source": "report.pdf",
+        "file_type": "pdf",
+        "custom": {"keep": True},
+    }
+    result = service.retrieve([1.0, 0.0], [_chunk("chunk-1", [1.0, 0.0], metadata=metadata)])[0]
+
+    assert result.provenance is not None
+    assert result.provenance.document_id == "doc-1"
+    assert result.provenance.chunk_id == "chunk-1"
+    assert result.provenance.page == 4
+    assert result.provenance.page_number == 5
+    assert result.provenance.page_numbers == [4, 5]
+    assert result.provenance.headings == ["Results"]
+    assert result.provenance.source == "report.pdf"
+    assert result.provenance.file_type == "pdf"
+    assert result.metadata == metadata
+    assert result.metadata is not metadata
+
+
+def test_missing_optional_provenance_is_safe(service: DenseRetrievalService) -> None:
+    result = service.retrieve([1.0, 0.0], [_chunk("minimal", [1.0, 0.0], metadata={})])[0]
+
+    assert result.provenance is not None
+    assert result.provenance.chunk_id == "minimal"
+    assert result.provenance.document_id is None
+    assert result.provenance.page_numbers is None
+    assert result.provenance.headings is None
+
+
+def test_filters_apply_before_top_k_and_threshold(service: DenseRetrievalService) -> None:
+    candidates = [
+        _chunk("excluded-high", [1.0, 0.0], metadata={"document_id": "other"}),
+        _chunk("kept-high", [0.95, 0.3122498999], metadata={"document_id": "doc-1"}),
+        _chunk("kept-low", [0.7, 0.7141428429], metadata={"document_id": "doc-1"}),
+    ]
+
+    results = service.retrieve(
+        [1.0, 0.0],
+        candidates,
+        top_k=2,
+        score_threshold=0.8,
+        filters=RetrievalFilter(document_id="doc-1"),
+    )
+
+    assert [result.chunk_id for result in results] == ["kept-high"]

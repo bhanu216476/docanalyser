@@ -66,7 +66,8 @@ class RetrievalEmbeddingError(RetrievalError):
 
     Attributes:
         is_transient: True if the failure is likely temporary (rate limit,
-                      timeout). False for permanent failures (auth, bad config).
+                      timeout). False for permanent failures
+                      (auth, bad config).
     """
 
     def __init__(
@@ -120,4 +121,3 @@ class RetrievalIndexError(RetrievalError):
         - Incompatible chunk formatting
         - Internal indexing failures
     """
-

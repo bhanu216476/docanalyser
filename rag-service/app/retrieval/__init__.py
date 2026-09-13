@@ -1,5 +1,6 @@
 """
-Retrieval package — dense vector and BM25 lexical retrieval for the RAG pipeline.
+Retrieval package — dense vector and BM25 lexical retrieval
+for the RAG pipeline.
 
 Public API
 ----------
@@ -22,6 +23,7 @@ BM25 lexical retrieval:
 Models:
     RetrievalFilter
     RetrievalRequest
+    RetrievalProvenance
     RetrievalResult
 
 Exceptions:
@@ -52,6 +54,7 @@ from app.retrieval.exceptions import (
 )
 from app.retrieval.models import (
     RetrievalFilter,
+    RetrievalProvenance,
     RetrievalRequest,
     RetrievalResult,
 )
@@ -77,6 +80,7 @@ __all__ = [
     # Models
     "RetrievalFilter",
     "RetrievalRequest",
+    "RetrievalProvenance",
     "RetrievalResult",
     # Exceptions
     "RetrievalError",

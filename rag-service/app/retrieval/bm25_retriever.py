@@ -29,9 +29,16 @@ from typing import Any, Optional, Sequence
 
 from app.core.config import settings
 from app.retrieval.bm25_index import BM25Index
-from app.retrieval.exceptions import RetrievalIndexError, RetrievalQueryError
-from app.retrieval.models import RetrievalFilter, RetrievalRequest, RetrievalResult
-from app.retrieval.tokenizer import BM25Tokenizer, tokenize
+from app.retrieval.exceptions import (
+    RetrievalIndexError,
+    RetrievalQueryError,
+)
+from app.retrieval.models import (
+    RetrievalFilter,
+    RetrievalRequest,
+    RetrievalResult,
+)
+from app.retrieval.tokenizer import BM25Tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +68,18 @@ class BM25Retriever:
         self.index = index if index is not None else BM25Index()
         self.k1 = k1 if k1 is not None else settings.bm25_k1
         self.b = b if b is not None else settings.bm25_b
-        self.max_top_k = max_top_k if max_top_k is not None else settings.bm25_max_top_k
+        self.max_top_k = (
+            max_top_k
+            if max_top_k is not None
+            else settings.bm25_max_top_k
+        )
         self.tokenizer = tokenizer or BM25Tokenizer()
 
         self._validate_parameters(self.k1, self.b, self.max_top_k)
 
         logger.info(
-            "BM25Retriever initialized: k1=%.2f, b=%.2f, max_top_k=%d, corpus_size=%d",
+            "BM25Retriever initialized: k1=%.2f, b=%.2f, max_top_k=%d, "
+            "corpus_size=%d",
             self.k1,
             self.b,
             self.max_top_k,
@@ -89,11 +101,11 @@ class BM25Retriever:
 
         Flow:
             query -> validate -> tokenize -> pre-filter eligible -> BM25 score
-                  -> deterministic sort (-score, chunk_id) -> top_k -> RetrievalResult[]
+                  -> deterministic sort (-score, chunk_id) -> top_k -> results
 
         Args:
-            query: User search query string (must be non-empty after stripping).
-            top_k: Maximum number of results to return (1 <= top_k <= max_top_k).
+            query: User search query (must be non-empty after stripping).
+            top_k: Maximum results to return (1 <= top_k <= max_top_k).
             filters: Optional metadata filters applied before ranking.
 
         Returns:
@@ -115,16 +127,22 @@ class BM25Retriever:
 
         query_terms = self.tokenizer.tokenize(validated_query)
         if not query_terms:
-            logger.info("BM25 query produced no tokens after preprocessing: returning []")
+            logger.info(
+                "BM25 query produced no tokens after preprocessing: "
+                "returning []"
+            )
             return []
 
         # 1. Pre-filter candidate documents based on metadata filter
         eligible_indices = self._filter_eligible_indices(filters)
         if eligible_indices is not None and len(eligible_indices) == 0:
-            logger.info("BM25 retrieval: filter matched 0 chunks; returning []")
+            logger.info(
+                "BM25 retrieval: filter matched 0 chunks; returning []"
+            )
             return []
 
         # 2. Score candidate documents via BM25 inverted index
+
         try:
             scored_candidates = self.index.search(
                 query_terms=query_terms,
@@ -140,8 +158,8 @@ class BM25Retriever:
             logger.info("BM25 retrieval: no positive-scoring chunks found")
             return []
 
-        # 3. Deterministic tie-breaking: primary key -score, secondary key chunk_id
-        # We look up chunk_id for each doc_idx to sort stably
+        # 3. Deterministic tie-breaking: primary key -score,
+        # secondary key chunk_id
         enriched_candidates = [
             (doc_idx, score, self.index.get_record(doc_idx).chunk_id)
             for doc_idx, score in scored_candidates
@@ -175,7 +193,8 @@ class BM25Retriever:
 
         elapsed_ms = (time.monotonic() - t_start) * 1000
         logger.info(
-            "BM25 retrieval finished: returned %d results for top_k=%d in %.2f ms",
+            "BM25 retrieval finished: returned %d results for top_k=%d "
+            "in %.2f ms",
             len(results),
             validated_top_k,
             elapsed_ms,
@@ -183,7 +202,9 @@ class BM25Retriever:
 
         return results
 
-    def retrieve_from_request(self, request: RetrievalRequest) -> list[RetrievalResult]:
+    def retrieve_from_request(
+        self, request: RetrievalRequest
+    ) -> list[RetrievalResult]:
         """Convenience method accepting a validated RetrievalRequest."""
         return self.retrieve(
             query=request.query,
@@ -199,7 +220,9 @@ class BM25Retriever:
     # Private helpers
     # -----------------------------------------------------------------------
 
-    def _validate_parameters(self, k1: float, b: float, max_top_k: int) -> None:
+    def _validate_parameters(
+        self, k1: float, b: float, max_top_k: int
+    ) -> None:
         if k1 < 0.0:
             raise ValueError(f"k1 must be >= 0.0 (got {k1})")
         if not (0.0 <= b <= 1.0):
@@ -212,15 +235,20 @@ class BM25Retriever:
             raise RetrievalQueryError("query must be a string")
         stripped = query.strip()
         if not stripped:
-            raise RetrievalQueryError("query cannot be empty or whitespace-only")
+            raise RetrievalQueryError(
+                "query cannot be empty or whitespace-only"
+            )
         return stripped
 
     def _validate_top_k(self, top_k: int) -> int:
         if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k <= 0:
-            raise RetrievalQueryError(f"top_k must be a positive integer >= 1, got {top_k!r}")
+            raise RetrievalQueryError(
+                f"top_k must be a positive integer >= 1, got {top_k!r}"
+            )
         if top_k > self.max_top_k:
             raise RetrievalQueryError(
-                f"top_k={top_k} exceeds the maximum allowed value of {self.max_top_k}"
+                f"top_k={top_k} exceeds the maximum allowed value of "
+                f"{self.max_top_k}"
             )
         return top_k
 
@@ -232,7 +260,7 @@ class BM25Retriever:
         Evaluate metadata filter against all indexed chunks before scoring.
 
         Returns:
-            Set of document indices eligible for scoring, or None if no filters.
+            Set of document indices eligible for scoring, or None if no filter.
         """
         if filters is None or filters.is_empty:
             return None
@@ -258,16 +286,37 @@ class BM25Retriever:
 
             if doc_id_set is not None and rec.document_id not in doc_id_set:
                 continue
-            if file_type_set is not None and rec.file_type.lower() not in file_type_set:
+            if (
+                file_type_set is not None
+                and rec.file_type.lower() not in file_type_set
+            ):
                 continue
             if filters.source is not None and rec.source != filters.source:
                 continue
-            if filters.chunk_index is not None and rec.chunk_index != filters.chunk_index:
+            if (
+                filters.chunk_index is not None
+                and rec.chunk_index != filters.chunk_index
+            ):
                 continue
-            if filters.file_name is not None and rec.file_name != filters.file_name:
+            if (
+                filters.file_name is not None
+                and rec.file_name != filters.file_name
+            ):
                 continue
             if filters.section is not None and rec.section != filters.section:
                 continue
+            if filters.page_number is not None:
+                p_num = filters.page_number
+                meta = rec.metadata or {}
+                p_numbers = meta.get("page_numbers")
+                if isinstance(p_numbers, list) and p_num in p_numbers:
+                    pass
+                elif meta.get("page_number") == p_num:
+                    pass
+                elif meta.get("page") == p_num - 1:
+                    pass
+                else:
+                    continue
 
             eligible.add(doc_idx)
 

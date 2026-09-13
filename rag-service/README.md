@@ -32,6 +32,12 @@ All strategies preserve source metadata and add deterministic chunk tracking fie
 
 ## Dense Retrieval
 
-Dense retrieval accepts a query vector and candidate vectors from the embedding pipeline. It compares each candidate with the query using cosine similarity, ranks candidates by descending score, keeps at most the configured `top_k` results, and then applies an optional inclusive score threshold (`score >= score_threshold`).
+Dense retrieval accepts a query vector and candidate vectors from the embedding pipeline. The storage-independent pipeline is:
 
-Each retrieval result preserves the candidate `chunk_id`, content, metadata, similarity score, and rank. The threshold is configurable because an appropriate minimum similarity depends on the embedding model and document collection; no single value is universally correct.
+`metadata filters -> cosine similarity -> descending ranking -> top-k -> score threshold -> provenance extraction`
+
+Optional metadata filters support `document_id`, `file_type`, `source`, and 1-based `page_number`. Multiple supplied fields use AND semantics; candidates missing a requested field do not match. A page filter matches `page_number`, a member of `page_numbers`, or the equivalent zero-based `page` value.
+
+The optional score threshold is inclusive (`score >= score_threshold`) and must be a finite numeric value. It is applied after top-k, preserving the existing retrieval contract and deterministic tie-breaking.
+
+Each retrieval result preserves the candidate `chunk_id`, content, full metadata, similarity score, and rank. It also exposes extracted provenance when available: `document_id`, `chunk_id`, page fields, headings, source, and file type. The threshold is configurable because an appropriate minimum similarity depends on the embedding model and document collection; no single value is universally correct.

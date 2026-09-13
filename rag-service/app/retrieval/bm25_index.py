@@ -20,7 +20,7 @@ import math
 from typing import Any, Optional, Sequence
 
 from app.retrieval.exceptions import RetrievalIndexError
-from app.retrieval.tokenizer import BM25Tokenizer, tokenize
+from app.retrieval.tokenizer import BM25Tokenizer
 
 
 class IndexedChunkRecord:
@@ -78,7 +78,7 @@ class BM25Index:
     BM25 Inverted Index over a collection of document chunks.
 
     Maintains corpus statistics (N, avgdl, df, tf) and provides scoring
-    functions parameterized by k1 (term saturation) and b (length normalization).
+    functions parameterized by k1 (saturation) and b (length normalization).
     """
 
     def __init__(
@@ -114,7 +114,10 @@ class BM25Index:
         """Return token length |D| of document at index doc_idx."""
         if 0 <= doc_idx < len(self._records):
             return self._records[doc_idx].doc_len
-        raise IndexError(f"Document index {doc_idx} out of range (0..{len(self._records)-1})")
+        raise IndexError(
+            f"Document index {doc_idx} out of range "
+            f"(0..{len(self._records)-1})"
+        )
 
     def get_df(self, term: str) -> int:
         """Return document frequency df(t) for term."""
@@ -132,13 +135,13 @@ class BM25Index:
 
     def idf(self, term: str) -> float:
         """
-        Calculate BM25 Robertson-Spärck Jones Inverse Document Frequency (IDF) with +1 smoothing:
+        Calculate BM25 Robertson-Spärck Jones IDF with +1 smoothing:
 
             IDF(t) = ln(1 + (N - df(t) + 0.5) / (df(t) + 0.5))
 
         Edge cases:
-            - Term not in corpus (df == 0) or empty corpus (N == 0): returns 0.0
-            - Term in all documents (df == N): strictly positive (> 0.0)
+            - Term not in corpus or empty corpus: returns 0.0
+            - Term in all documents: strictly positive (> 0.0)
         """
         n = self.num_documents
         df = self.get_df(term)
@@ -157,7 +160,7 @@ class BM25Index:
         Index a sequence of chunks into the BM25 inverted index.
 
         Accepts:
-            - Chunk instances (app.ingestion.chunking.models or app.chunking.models)
+            - Chunk instances (ingestion or chunking models)
             - EmbeddedChunk instances (app.embeddings.models)
             - LangChain Document instances
             - Dictionaries with 'chunk_id', 'content', 'metadata', etc.
@@ -174,7 +177,7 @@ class BM25Index:
             self._avgdl = 0.0
 
     def _add_single_chunk(self, chunk: Any) -> None:
-        """Extract attributes, tokenize, update inverted index and corpus statistics."""
+        """Extract attributes, tokenize, and update inverted index."""
         data = self._extract_chunk_attributes(chunk)
         chunk_id = data["chunk_id"]
 
@@ -215,42 +218,76 @@ class BM25Index:
             self._df[term] += 1
 
     def _extract_chunk_attributes(self, chunk: Any) -> dict[str, Any]:
-        """Extract canonical attributes from various supported chunk representations."""
+        """Extract canonical attributes from supported representations."""
         if isinstance(chunk, dict):
-            metadata = dict(chunk.get("metadata", {}))
+            meta = dict(chunk.get("metadata", {}))
+            cid = str(chunk.get("chunk_id", "") or meta.get("chunk_id", ""))
+            text = str(
+                chunk.get("content", "")
+                or chunk.get("page_content", "")
+                or chunk.get("text", "")
+            )
+            doc_id = str(
+                chunk.get("document_id", "") or meta.get("document_id", "")
+            )
             return {
-                "chunk_id": str(chunk.get("chunk_id", "") or metadata.get("chunk_id", "")),
-                "content": str(chunk.get("content", "") or chunk.get("page_content", "") or chunk.get("text", "")),
-                "document_id": str(chunk.get("document_id", "") or metadata.get("document_id", "")),
-                "chunk_index": chunk.get("chunk_index", metadata.get("chunk_index")),
-                "file_name": str(chunk.get("file_name", "") or metadata.get("file_name", "")),
-                "file_type": str(chunk.get("file_type", "") or metadata.get("file_type", "")),
-                "source": str(chunk.get("source", "") or metadata.get("source", "")),
-                "section": chunk.get("section", metadata.get("section")),
-                "start_char": chunk.get("start_char", metadata.get("start_char")),
-                "end_char": chunk.get("end_char", metadata.get("end_char")),
-                "metadata": metadata,
+                "chunk_id": cid,
+                "content": text,
+                "document_id": doc_id,
+                "chunk_index": chunk.get(
+                    "chunk_index", meta.get("chunk_index")
+                ),
+                "file_name": str(
+                    chunk.get("file_name", "") or meta.get("file_name", "")
+                ),
+                "file_type": str(
+                    chunk.get("file_type", "") or meta.get("file_type", "")
+                ),
+                "source": str(
+                    chunk.get("source", "") or meta.get("source", "")
+                ),
+                "section": chunk.get("section", meta.get("section")),
+                "start_char": chunk.get("start_char", meta.get("start_char")),
+                "end_char": chunk.get("end_char", meta.get("end_char")),
+                "metadata": meta,
             }
 
         # Object representation (Chunk, EmbeddedChunk, Document)
         chunk_id = getattr(chunk, "chunk_id", None)
-        content = getattr(chunk, "content", None) or getattr(chunk, "page_content", None) or getattr(chunk, "text", "")
+        content = (
+            getattr(chunk, "content", None)
+            or getattr(chunk, "page_content", None)
+            or getattr(chunk, "text", "")
+        )
         metadata = dict(getattr(chunk, "metadata", {}) or {})
 
         if not chunk_id:
             chunk_id = metadata.get("chunk_id", "")
 
-        document_id = getattr(chunk, "document_id", "") or metadata.get("document_id", "")
+        document_id = (
+            getattr(chunk, "document_id", "")
+            or metadata.get("document_id", "")
+        )
         chunk_index = getattr(chunk, "chunk_index", None)
         if chunk_index is None:
             chunk_index = metadata.get("chunk_index")
 
-        file_name = getattr(chunk, "file_name", "") or metadata.get("file_name", "")
-        file_type = getattr(chunk, "file_type", "") or metadata.get("file_type", "")
-        source = getattr(chunk, "source", "") or metadata.get("source", "")
+        file_name = (
+            getattr(chunk, "file_name", "") or metadata.get("file_name", "")
+        )
+        file_type = (
+            getattr(chunk, "file_type", "") or metadata.get("file_type", "")
+        )
+        source = (
+            getattr(chunk, "source", "") or metadata.get("source", "")
+        )
         section = getattr(chunk, "section", None) or metadata.get("section")
-        start_char = getattr(chunk, "start_char", None) or metadata.get("start_char")
-        end_char = getattr(chunk, "end_char", None) or metadata.get("end_char")
+        start_char = (
+            getattr(chunk, "start_char", None) or metadata.get("start_char")
+        )
+        end_char = (
+            getattr(chunk, "end_char", None) or metadata.get("end_char")
+        )
 
         return {
             "chunk_id": str(chunk_id),
@@ -276,18 +313,11 @@ class BM25Index:
         """
         Calculate BM25 score for a single document against query terms:
 
-            BM25(D, Q) = sum_{q in Q} IDF(q) * [ TF(q, D) * (k1 + 1) ] / [ TF(q, D) + k1 * (1 - b + b * |D| / avgdl) ]
-
-        Args:
-            doc_idx: Document index in records.
-            query_terms: Sequence of tokenized query terms.
-            k1: Term frequency saturation parameter (>= 0).
-            b: Length normalization parameter (0 <= b <= 1).
-
-        Returns:
-            Computed raw BM25 score (float >= 0.0).
+            BM25(D, Q) = sum_{q} IDF(q) * [TF * (k1+1)] / [TF + k1 * len_norm]
         """
-        if not (0 <= doc_idx < len(self._records)) or not query_terms or self.num_documents == 0:
+        if not (0 <= doc_idx < len(self._records)) or not query_terms:
+            return 0.0
+        if self.num_documents == 0:
             return 0.0
 
         record = self._records[doc_idx]
@@ -319,11 +349,11 @@ class BM25Index:
         b: float = 0.75,
     ) -> list[tuple[int, float]]:
         """
-        Search inverted index for matching documents and return raw BM25 scores.
+        Search inverted index for matching documents and return BM25 scores.
 
         Args:
             query_terms: Tokenized query terms.
-            eligible_indices: Optional pre-filtered set of document indices allowed to match.
+            eligible_indices: Optional pre-filtered set of document indices.
             k1: BM25 saturation parameter.
             b: BM25 length normalization parameter.
 
@@ -334,12 +364,8 @@ class BM25Index:
             return []
 
         avgdl = self._avgdl if self._avgdl > 0.0 else 1.0
-
-        # Accumulator: doc_idx -> score
         scores: dict[int, float] = {}
 
-        # Query terms can have repeats, but each unique term's IDF is weighted once per occurrence in query,
-        # or we iterate term by term. Standard BM25 sums over terms q in query.
         for term in query_terms:
             idf_val = self.idf(term)
             if idf_val <= 0.0:
@@ -347,7 +373,10 @@ class BM25Index:
 
             postings = self._inverted_index.get(term, [])
             for doc_idx, tf in postings:
-                if eligible_indices is not None and doc_idx not in eligible_indices:
+                if (
+                    eligible_indices is not None
+                    and doc_idx not in eligible_indices
+                ):
                     continue
 
                 record = self._records[doc_idx]
