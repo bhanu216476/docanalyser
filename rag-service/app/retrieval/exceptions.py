@@ -66,7 +66,8 @@ class RetrievalEmbeddingError(RetrievalError):
 
     Attributes:
         is_transient: True if the failure is likely temporary (rate limit,
-                      timeout). False for permanent failures (auth, bad config).
+                      timeout). False for permanent failures
+                      (auth, bad config).
     """
 
     def __init__(
@@ -109,3 +110,14 @@ class RetrievalQdrantError(RetrievalError):
     ) -> None:
         super().__init__(message, details=details)
         self.is_transient = is_transient
+
+
+class RetrievalIndexError(RetrievalError):
+    """
+    Raised when an error occurs during lexical index construction or retrieval.
+
+    Examples:
+        - Corrupt index data
+        - Incompatible chunk formatting
+        - Internal indexing failures
+    """

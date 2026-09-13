@@ -1,5 +1,6 @@
 """
-Retrieval package — dense vector retrieval for the RAG pipeline.
+Retrieval package — dense vector and BM25 lexical retrieval
+for the RAG pipeline.
 
 Public API
 ----------
@@ -12,6 +13,13 @@ Dense retrieval:
     DenseRetrievalService
     cosine_similarity
 
+BM25 lexical retrieval:
+    BM25Retriever
+    create_bm25_retriever
+    BM25Index
+    BM25Tokenizer
+    tokenize
+
 Models:
     RetrievalFilter
     RetrievalRequest
@@ -23,10 +31,16 @@ Exceptions:
     RetrievalQueryError
     RetrievalEmbeddingError
     RetrievalQdrantError
+    RetrievalIndexError
 """
 
 from __future__ import annotations
 
+from app.retrieval.bm25_index import BM25Index
+from app.retrieval.bm25_retriever import (
+    BM25Retriever,
+    create_bm25_retriever,
+)
 from app.retrieval.dense_retriever import (
     DenseRetriever,
     create_dense_retriever,
@@ -34,6 +48,7 @@ from app.retrieval.dense_retriever import (
 from app.retrieval.exceptions import (
     RetrievalEmbeddingError,
     RetrievalError,
+    RetrievalIndexError,
     RetrievalQdrantError,
     RetrievalQueryError,
 )
@@ -46,6 +61,7 @@ from app.retrieval.models import (
 from app.retrieval.retriever import Retriever
 from app.retrieval.service import DenseRetrievalService
 from app.retrieval.similarity import cosine_similarity
+from app.retrieval.tokenizer import BM25Tokenizer, tokenize
 
 __all__ = [
     # Protocol
@@ -55,6 +71,12 @@ __all__ = [
     "create_dense_retriever",
     "DenseRetrievalService",
     "cosine_similarity",
+    # BM25 lexical retrieval
+    "BM25Retriever",
+    "create_bm25_retriever",
+    "BM25Index",
+    "BM25Tokenizer",
+    "tokenize",
     # Models
     "RetrievalFilter",
     "RetrievalRequest",
@@ -65,4 +87,5 @@ __all__ = [
     "RetrievalQueryError",
     "RetrievalEmbeddingError",
     "RetrievalQdrantError",
+    "RetrievalIndexError",
 ]

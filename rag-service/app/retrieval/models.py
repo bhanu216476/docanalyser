@@ -175,13 +175,15 @@ class RetrievalRequest(BaseModel):
         if isinstance(value, int) and value > max_top_k:
             raise ValueError(
                 f"top_k={value} exceeds the maximum allowed value of "
-                f"{max_top_k}. Reduce top_k to avoid unbounded vector searches."
+                f"{max_top_k}. Reduce top_k to avoid unbounded vector "
+                f"searches."
             )
 
         return value
 
 
 class RetrievalProvenance(BaseModel):
+
     """Typed provenance extracted from a candidate's metadata."""
 
     document_id: str | None = None
@@ -284,4 +286,4 @@ class RetrievalResult(BaseModel):
         if not math.isfinite(value):
             raise ValueError("score must be finite")
 
-        return value
+        return value
