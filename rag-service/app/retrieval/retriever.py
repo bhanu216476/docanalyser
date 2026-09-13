@@ -38,9 +38,9 @@ class Retriever(Protocol):
 
     Current implementations:
         - DenseRetriever  (app.retrieval.dense_retriever)
+        - BM25Retriever   (app.retrieval.bm25_retriever)
 
     Planned implementations (future tasks):
-        - BM25Retriever
         - HybridRetriever
     """
 

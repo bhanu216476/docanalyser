@@ -11,16 +11,30 @@ from app.retrieval.models import RetrievalFilter, RetrievalProvenance
 
 def matches_filter(candidate: EmbeddedChunk, filters: RetrievalFilter) -> bool:
     """Return whether a candidate satisfies every supplied filter."""
-    metadata = candidate.metadata
+    return matches_metadata_filter(candidate.metadata, filters)
+
+
+def matches_metadata_filter(
+    metadata: Mapping[str, Any], filters: RetrievalFilter
+) -> bool:
+    """Return whether metadata satisfies every supplied retrieval filter."""
     for field_name in ("document_id", "file_type", "source"):
         expected = getattr(filters, field_name)
-        if expected is not None and metadata.get(field_name) != expected:
+        if expected is not None and not _matches_value(
+            metadata.get(field_name), expected
+        ):
             return False
 
     if filters.page_number is not None and not _matches_page_number(
         metadata, filters.page_number
     ):
         return False
+
+    for field_name in ("chunk_index", "file_name", "section"):
+        expected = getattr(filters, field_name)
+        if expected is not None and metadata.get(field_name) != expected:
+            return False
+
     return True
 
 
@@ -47,6 +61,13 @@ def _matches_page_number(metadata: Mapping[str, Any], page_number: int) -> bool:
     if metadata.get("page_number") == page_number:
         return True
     return metadata.get("page") == page_number - 1
+
+
+def _matches_value(actual: Any, expected: Any) -> bool:
+    """Match a scalar value against a scalar or multi-value filter."""
+    if isinstance(expected, list):
+        return actual in expected
+    return actual == expected
 
 
 def _optional_string(value: Any) -> str | None:
