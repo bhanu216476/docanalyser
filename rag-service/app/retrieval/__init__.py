@@ -20,7 +20,6 @@ BM25 lexical retrieval:
     BM25Tokenizer
     tokenize
 
-<<<<<<< HEAD
 Hybrid retrieval:
     HybridRetriever
     create_hybrid_retriever
@@ -28,7 +27,7 @@ Hybrid retrieval:
     run_k_experiment
     KExperimentRecord
     format_k_comparison_table
-=======
+
 Evaluation:
     BenchmarkComparison
     BenchmarkQuery
@@ -36,7 +35,6 @@ Evaluation:
     compare_dense_and_bm25
     format_comparison
     run_synthetic_benchmark
->>>>>>> origin/main
 
 Models:
     RetrievalFilter
@@ -57,11 +55,6 @@ Exceptions:
 
 from __future__ import annotations
 
-from app.retrieval.bm25_index import BM25Index
-from app.retrieval.bm25_retriever import (
-    BM25Retriever,
-    create_bm25_retriever,
-)
 from app.retrieval.benchmark import (
     BenchmarkComparison,
     BenchmarkQuery,
@@ -69,6 +62,11 @@ from app.retrieval.benchmark import (
     compare_dense_and_bm25,
     format_comparison,
     run_synthetic_benchmark,
+)
+from app.retrieval.bm25_index import BM25Index
+from app.retrieval.bm25_retriever import (
+    BM25Retriever,
+    create_bm25_retriever,
 )
 from app.retrieval.dense_retriever import (
     DenseRetriever,
@@ -121,7 +119,7 @@ __all__ = [
     "BM25Index",
     "BM25Tokenizer",
     "tokenize",
-<<<<<<< HEAD
+
     # Hybrid retrieval & RRF
     "HybridRetriever",
     "create_hybrid_retriever",
@@ -129,7 +127,6 @@ __all__ = [
     "run_k_experiment",
     "KExperimentRecord",
     "format_k_comparison_table",
-=======
 
     # Evaluation
     "BenchmarkComparison",
@@ -139,27 +136,19 @@ __all__ = [
     "format_comparison",
     "run_synthetic_benchmark",
 
->>>>>>> origin/main
     # Models
     "RetrievalFilter",
     "RetrievalRequest",
     "RetrievalProvenance",
     "RetrievalResult",
-<<<<<<< HEAD
     "HybridRetrievalRequest",
     "HybridRetrievalResult",
-=======
 
->>>>>>> origin/main
     # Exceptions
     "RetrievalError",
     "RetrievalQueryError",
     "RetrievalEmbeddingError",
     "RetrievalQdrantError",
     "RetrievalIndexError",
-<<<<<<< HEAD
     "HybridRetrievalError",
 ]
-=======
-]
->>>>>>> origin/main

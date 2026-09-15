@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from app.reranking.base import BaseReranker, Reranker
 from app.reranking.experiment import RerankingExperimentFramework
-from app.reranking.metrics import compute_ranking_metrics
+from app.reranking.metrics import compute_latency, compute_ranking_metrics
 from app.reranking.mock_reranker import MockReranker
 from app.reranking.models import (
     LatencyMetrics,
@@ -62,5 +62,6 @@ __all__ = [
     "RerankExperimentResult",
     "RerankExperimentBatchReport",
     # Metrics
+    "compute_latency",
     "compute_ranking_metrics",
 ]

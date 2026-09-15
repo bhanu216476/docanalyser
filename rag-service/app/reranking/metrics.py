@@ -12,7 +12,11 @@ from collections.abc import Sequence
 from typing import Optional
 
 from app.retrieval.models import RetrievalResult
-from app.reranking.models import RankingChangeMetrics, RerankedResult
+from app.reranking.models import (
+    LatencyMetrics,
+    RankingChangeMetrics,
+    RerankedResult,
+)
 
 
 def _spearman_correlation(rank_a: list[int], rank_b: list[int]) -> Optional[float]:
@@ -116,10 +120,10 @@ def compute_latency(
     retrieval_ms: float,
     reranking_ms: float,
     total_ms: float,
-) -> "LatencyMetrics":  # type: ignore[name-defined]  # imported lazily
-    from app.reranking.models import LatencyMetrics
+) -> LatencyMetrics:
     return LatencyMetrics(
         retrieval_latency_ms=round(retrieval_ms, 4),
         reranking_latency_ms=round(reranking_ms, 4),
         total_latency_ms=round(total_ms, 4),
     )
+
