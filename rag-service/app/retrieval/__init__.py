@@ -20,6 +20,7 @@ BM25 lexical retrieval:
     BM25Tokenizer
     tokenize
 
+<<<<<<< HEAD
 Hybrid retrieval:
     HybridRetriever
     create_hybrid_retriever
@@ -27,6 +28,15 @@ Hybrid retrieval:
     run_k_experiment
     KExperimentRecord
     format_k_comparison_table
+=======
+Evaluation:
+    BenchmarkComparison
+    BenchmarkQuery
+    RetrievalMetrics
+    compare_dense_and_bm25
+    format_comparison
+    run_synthetic_benchmark
+>>>>>>> origin/main
 
 Models:
     RetrievalFilter
@@ -51,6 +61,14 @@ from app.retrieval.bm25_index import BM25Index
 from app.retrieval.bm25_retriever import (
     BM25Retriever,
     create_bm25_retriever,
+)
+from app.retrieval.benchmark import (
+    BenchmarkComparison,
+    BenchmarkQuery,
+    RetrievalMetrics,
+    compare_dense_and_bm25,
+    format_comparison,
+    run_synthetic_benchmark,
 )
 from app.retrieval.dense_retriever import (
     DenseRetriever,
@@ -90,17 +108,20 @@ from app.retrieval.tokenizer import BM25Tokenizer, tokenize
 __all__ = [
     # Protocol
     "Retriever",
+
     # Dense retrieval
     "DenseRetriever",
     "create_dense_retriever",
     "DenseRetrievalService",
     "cosine_similarity",
+
     # BM25 lexical retrieval
     "BM25Retriever",
     "create_bm25_retriever",
     "BM25Index",
     "BM25Tokenizer",
     "tokenize",
+<<<<<<< HEAD
     # Hybrid retrieval & RRF
     "HybridRetriever",
     "create_hybrid_retriever",
@@ -108,18 +129,37 @@ __all__ = [
     "run_k_experiment",
     "KExperimentRecord",
     "format_k_comparison_table",
+=======
+
+    # Evaluation
+    "BenchmarkComparison",
+    "BenchmarkQuery",
+    "RetrievalMetrics",
+    "compare_dense_and_bm25",
+    "format_comparison",
+    "run_synthetic_benchmark",
+
+>>>>>>> origin/main
     # Models
     "RetrievalFilter",
     "RetrievalRequest",
     "RetrievalProvenance",
     "RetrievalResult",
+<<<<<<< HEAD
     "HybridRetrievalRequest",
     "HybridRetrievalResult",
+=======
+
+>>>>>>> origin/main
     # Exceptions
     "RetrievalError",
     "RetrievalQueryError",
     "RetrievalEmbeddingError",
     "RetrievalQdrantError",
     "RetrievalIndexError",
+<<<<<<< HEAD
     "HybridRetrievalError",
 ]
+=======
+]
+>>>>>>> origin/main
