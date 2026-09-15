@@ -121,3 +121,15 @@ class RetrievalIndexError(RetrievalError):
         - Incompatible chunk formatting
         - Internal indexing failures
     """
+
+
+class HybridRetrievalError(RetrievalError):
+    """
+    Raised when hybrid retrieval or Reciprocal Rank Fusion fails.
+
+    Examples:
+        - Dense or BM25 retrieval sub-operation fails and allow_degraded is False
+        - All retrieval sources fail in degraded mode
+        - Incompatible or corrupted ranking inputs
+    """
+

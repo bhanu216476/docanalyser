@@ -286,4 +286,140 @@ class RetrievalResult(BaseModel):
         if not math.isfinite(value):
             raise ValueError("score must be finite")
 
-        return value
+        return value
+
+
+class HybridRetrievalResult(RetrievalResult):
+    """
+    Hybrid retrieval result produced by Reciprocal Rank Fusion (RRF).
+
+    Extends RetrievalResult by recording the fused RRF score, individual
+    source ranks (e.g. dense_rank, bm25_rank), and a mapping of all source
+    rank contributions.
+    """
+
+    rrf_score: float = Field(
+        ...,
+        description="Fused Reciprocal Rank Fusion score.",
+    )
+    dense_rank: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="1-based rank position in dense retrieval results, if present.",
+    )
+    bm25_rank: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="1-based rank position in BM25 lexical retrieval results, if present.",
+    )
+    source_ranks: dict[str, int] = Field(
+        default_factory=dict,
+        description="Mapping of retrieval source name to 1-based rank position.",
+    )
+
+    model_config = ConfigDict(frozen=True)
+
+    @field_validator("rrf_score")
+    @classmethod
+    def validate_rrf_score(cls, value: float) -> float:
+        """Reject non-finite RRF scores."""
+        if not math.isfinite(value):
+            raise ValueError("rrf_score must be finite")
+        return value
+
+
+class HybridRetrievalRequest(BaseModel):
+    """
+    Validated hybrid retrieval request combining Dense and BM25 strategies with RRF.
+
+    Validation rules:
+        - query: stripped; must not be empty after stripping.
+        - top_k: must be >= 1 and <= settings.hybrid_max_top_k.
+        - k: ranking constant > 0 (defaults to settings.rrf_k).
+        - dense_top_k: candidate pool size from dense retriever.
+        - bm25_top_k: candidate pool size from BM25 retriever.
+        - allow_degraded: whether to allow fallback if one retriever fails.
+    """
+
+    query: str = Field(
+        ...,
+        description="User search query. Stripped of whitespace; must not be empty.",
+    )
+    top_k: int = Field(
+        default=10,
+        ge=1,
+        description="Number of top hybrid chunks to return.",
+    )
+    filters: Optional[RetrievalFilter] = Field(
+        default=None,
+        description="Optional metadata filters applied to both retrievers before fusion.",
+    )
+    k: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="RRF ranking constant (defaults to settings.rrf_k).",
+    )
+    dense_top_k: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Number of candidate chunks from dense retrieval before fusion.",
+    )
+    bm25_top_k: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Number of candidate chunks from BM25 retrieval before fusion.",
+    )
+    allow_degraded: bool = Field(
+        default=False,
+        description="If True, return partial results if one retriever encounters an error.",
+    )
+
+    model_config = ConfigDict(frozen=True)
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def strip_and_validate_query(cls, value: str) -> str:
+        """Strip surrounding whitespace and reject empty queries."""
+        if not isinstance(value, str):
+            raise ValueError("query must be a string")
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError(
+                "query cannot be empty or whitespace-only. "
+                "Provide a meaningful search query."
+            )
+        return stripped
+
+    @field_validator("top_k", mode="before")
+    @classmethod
+    def validate_top_k_upper_bound(cls, value: int) -> int:
+        """Reject top_k values exceeding the configured maximum."""
+        max_top_k = settings.hybrid_max_top_k
+        if isinstance(value, int) and value > max_top_k:
+            raise ValueError(
+                f"top_k={value} exceeds the maximum allowed value of {max_top_k}."
+            )
+        return value
+
+    @field_validator("dense_top_k", mode="before")
+    @classmethod
+    def validate_dense_top_k(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None:
+            max_val = settings.retrieval_max_top_k
+            if isinstance(value, int) and value > max_val:
+                raise ValueError(
+                    f"dense_top_k={value} exceeds maximum allowed value of {max_val}."
+                )
+        return value
+
+    @field_validator("bm25_top_k", mode="before")
+    @classmethod
+    def validate_bm25_top_k(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None:
+            max_val = settings.bm25_max_top_k
+            if isinstance(value, int) and value > max_val:
+                raise ValueError(
+                    f"bm25_top_k={value} exceeds maximum allowed value of {max_val}."
+                )
+        return value
+

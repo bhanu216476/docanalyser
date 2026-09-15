@@ -27,12 +27,22 @@ from fastapi import APIRouter, HTTPException, status
 from app.retrieval.bm25_retriever import BM25Retriever, create_bm25_retriever
 from app.retrieval.dense_retriever import create_dense_retriever
 from app.retrieval.exceptions import (
+    HybridRetrievalError,
     RetrievalEmbeddingError,
     RetrievalIndexError,
     RetrievalQdrantError,
     RetrievalQueryError,
 )
-from app.retrieval.models import RetrievalRequest, RetrievalResult
+from app.retrieval.hybrid_retriever import (
+    HybridRetriever,
+    create_hybrid_retriever,
+)
+from app.retrieval.models import (
+    HybridRetrievalRequest,
+    HybridRetrievalResult,
+    RetrievalRequest,
+    RetrievalResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +50,22 @@ router = APIRouter(prefix="/api/retrieval", tags=["retrieval"])
 
 # Global BM25 retriever instance (injected or default)
 _bm25_retriever: Optional[BM25Retriever] = None
+# Global Hybrid retriever instance (injected or default)
+_hybrid_retriever: Optional[HybridRetriever] = None
+
+
+def get_hybrid_retriever() -> HybridRetriever:
+    """Return the active HybridRetriever instance, creating default if not set."""
+    global _hybrid_retriever
+    if _hybrid_retriever is None:
+        _hybrid_retriever = create_hybrid_retriever()
+    return _hybrid_retriever
+
+
+def set_hybrid_retriever(retriever: HybridRetriever) -> None:
+    """Set or override the active HybridRetriever instance (useful for testing)."""
+    global _hybrid_retriever
+    _hybrid_retriever = retriever
 
 
 def get_bm25_retriever() -> BM25Retriever:
@@ -172,3 +198,62 @@ def bm25_retrieve(request: RetrievalRequest) -> list[RetrievalResult]:
         request.top_k,
     )
     return results
+
+
+@router.post(
+    "/hybrid",
+    response_model=list[HybridRetrievalResult],
+    summary="Hybrid retrieval with Reciprocal Rank Fusion",
+    description=(
+        "Execute a hybrid search combining dense vector retrieval and BM25 "
+        "lexical retrieval using Reciprocal Rank Fusion (RRF). "
+        "Returns the top-K highest-scoring chunks ordered by descending RRF score. "
+        "Optionally filters by document_id, file_type, source, or other metadata fields."
+    ),
+    status_code=status.HTTP_200_OK,
+)
+def hybrid_retrieve(request: HybridRetrievalRequest) -> list[HybridRetrievalResult]:
+    """
+    Hybrid retrieval endpoint.
+
+    Flow:
+        query → DenseRetriever & BM25Retriever → RRF → HybridRetrievalResult[]
+    """
+    logger.info(
+        "POST /api/retrieval/hybrid: query_len=%d, top_k=%d, k=%s, has_filter=%s",
+        len(request.query),
+        request.top_k,
+        request.k,
+        request.filters is not None,
+    )
+
+    retriever = get_hybrid_retriever()
+
+    try:
+        results = retriever.retrieve_from_request(request)
+    except RetrievalQueryError as exc:
+        logger.warning("Hybrid retrieval query validation failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except HybridRetrievalError as exc:
+        logger.error("Hybrid retrieval failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Hybrid retrieval service unavailable: {exc}",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error during hybrid retrieval: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during hybrid retrieval.",
+        ) from exc
+
+    logger.info(
+        "POST /api/retrieval/hybrid: returned %d results for top_k=%d",
+        len(results),
+        request.top_k,
+    )
+    return results
+
