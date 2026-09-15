@@ -79,6 +79,33 @@ class Settings(BaseSettings):
     # Maximum allowed top-K for BM25 retrieval requests.
     bm25_max_top_k: int = 100
 
+    # ------------------------------------------------------------------
+    # Hybrid Retrieval (RRF) Configuration
+    # ------------------------------------------------------------------
+    # Ranking constant k for Reciprocal Rank Fusion (k > 0, default 60).
+    rrf_k: int = 60
+
+    # Default number of top-K chunks returned per hybrid retrieval request.
+    hybrid_default_top_k: int = 10
+
+    # Maximum allowed top-K for hybrid retrieval requests.
+    hybrid_max_top_k: int = 100
+
+    # Number of candidates to retrieve from dense retriever before fusion.
+    hybrid_dense_top_k: int = 20
+
+    # Number of candidates to retrieve from BM25 retriever before fusion.
+    hybrid_bm25_top_k: int = 20
+
+    # ------------------------------------------------------------------
+    # Reranking Configuration
+    # ------------------------------------------------------------------
+    # Default number of top-K candidates to return after reranking.
+    reranker_default_top_k: int = 5
+
+    # Maximum allowed top-K for reranking requests.
+    reranker_max_top_k: int = 50
+
     @field_validator("bm25_k1")
     @classmethod
     def validate_bm25_k1(cls, v: float) -> float:
@@ -93,11 +120,21 @@ class Settings(BaseSettings):
             raise ValueError(f"bm25_b must be between 0.0 and 1.0 inclusive (got {v})")
         return v
 
-    @field_validator("bm25_default_top_k", "bm25_max_top_k")
+    @field_validator(
+        "bm25_default_top_k",
+        "bm25_max_top_k",
+        "rrf_k",
+        "hybrid_default_top_k",
+        "hybrid_max_top_k",
+        "hybrid_dense_top_k",
+        "hybrid_bm25_top_k",
+        "reranker_default_top_k",
+        "reranker_max_top_k",
+    )
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
         if v <= 0:
-            raise ValueError(f"top_k bounds must be positive (got {v})")
+            raise ValueError(f"configuration bounds must be positive (got {v})")
         return v
 
     model_config = SettingsConfigDict(

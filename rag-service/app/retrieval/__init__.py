@@ -20,6 +20,14 @@ BM25 lexical retrieval:
     BM25Tokenizer
     tokenize
 
+Hybrid retrieval:
+    HybridRetriever
+    create_hybrid_retriever
+    reciprocal_rank_fusion
+    run_k_experiment
+    KExperimentRecord
+    format_k_comparison_table
+
 Evaluation:
     BenchmarkComparison
     BenchmarkQuery
@@ -33,6 +41,8 @@ Models:
     RetrievalRequest
     RetrievalProvenance
     RetrievalResult
+    HybridRetrievalRequest
+    HybridRetrievalResult
 
 Exceptions:
     RetrievalError
@@ -40,15 +50,11 @@ Exceptions:
     RetrievalEmbeddingError
     RetrievalQdrantError
     RetrievalIndexError
+    HybridRetrievalError
 """
 
 from __future__ import annotations
 
-from app.retrieval.bm25_index import BM25Index
-from app.retrieval.bm25_retriever import (
-    BM25Retriever,
-    create_bm25_retriever,
-)
 from app.retrieval.benchmark import (
     BenchmarkComparison,
     BenchmarkQuery,
@@ -57,24 +63,42 @@ from app.retrieval.benchmark import (
     format_comparison,
     run_synthetic_benchmark,
 )
+from app.retrieval.bm25_index import BM25Index
+from app.retrieval.bm25_retriever import (
+    BM25Retriever,
+    create_bm25_retriever,
+)
 from app.retrieval.dense_retriever import (
     DenseRetriever,
     create_dense_retriever,
 )
 from app.retrieval.exceptions import (
+    HybridRetrievalError,
     RetrievalEmbeddingError,
     RetrievalError,
     RetrievalIndexError,
     RetrievalQdrantError,
     RetrievalQueryError,
 )
+from app.retrieval.hybrid_retriever import (
+    HybridRetriever,
+    create_hybrid_retriever,
+)
 from app.retrieval.models import (
+    HybridRetrievalRequest,
+    HybridRetrievalResult,
     RetrievalFilter,
     RetrievalProvenance,
     RetrievalRequest,
     RetrievalResult,
 )
 from app.retrieval.retriever import Retriever
+from app.retrieval.rrf import reciprocal_rank_fusion
+from app.retrieval.rrf_experiment import (
+    KExperimentRecord,
+    format_k_comparison_table,
+    run_k_experiment,
+)
 from app.retrieval.service import DenseRetrievalService
 from app.retrieval.similarity import cosine_similarity
 from app.retrieval.tokenizer import BM25Tokenizer, tokenize
@@ -96,6 +120,14 @@ __all__ = [
     "BM25Tokenizer",
     "tokenize",
 
+    # Hybrid retrieval & RRF
+    "HybridRetriever",
+    "create_hybrid_retriever",
+    "reciprocal_rank_fusion",
+    "run_k_experiment",
+    "KExperimentRecord",
+    "format_k_comparison_table",
+
     # Evaluation
     "BenchmarkComparison",
     "BenchmarkQuery",
@@ -109,6 +141,8 @@ __all__ = [
     "RetrievalRequest",
     "RetrievalProvenance",
     "RetrievalResult",
+    "HybridRetrievalRequest",
+    "HybridRetrievalResult",
 
     # Exceptions
     "RetrievalError",
@@ -116,4 +150,5 @@ __all__ = [
     "RetrievalEmbeddingError",
     "RetrievalQdrantError",
     "RetrievalIndexError",
+    "HybridRetrievalError",
 ]
