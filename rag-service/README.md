@@ -54,6 +54,14 @@ The tokenizer lowercases text and keeps deterministic word and number tokens. In
 
 Dense retrieval is useful when the query and source use different wording or when semantic similarity matters. BM25 is useful for exact names, identifiers, rare terminology, and auditable lexical matches. Both strategies return the shared `RetrievalResult` contract and operate over the same canonical chunks, which makes them suitable inputs for a future hybrid or reciprocal-rank-fusion (RRF) stage. Hybrid/RRF is not implemented yet.
 
+## Context Builder
+
+Final `RerankedResult` objects flow through `ContextBuilder` into a
+`StructuredContext` for a future prompt/LLM layer. The context builder
+preserves evidence order, content, and provenance, creates deterministic
+citations, and does not perform retrieval, reranking, summarization, or
+answer generation.
+
 ## Dense vs BM25 Evaluation
 
 The comparison helper in `app/retrieval/benchmark.py` evaluates both strategies on the same `EmbeddedChunk` corpus and deterministic query cases. `run_synthetic_benchmark()` provides a small academic-style dataset, while `format_comparison()` renders aggregate Hit Rate@K, Recall@K, MRR@K, and average latency. Results are experimental: they depend on the corpus, query set, embedding model, hardware, and configuration; neither strategy is universally better.
