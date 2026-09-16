@@ -106,6 +106,24 @@ class Settings(BaseSettings):
     # Maximum allowed top-K for reranking requests.
     reranker_max_top_k: int = 50
 
+    # ------------------------------------------------------------------
+    # Context Builder Configuration
+    # ------------------------------------------------------------------
+    # Total token budget for LLM context assembly.
+    context_token_budget: int = 2000
+
+    # Optional hard cap on the number of evidence chunks selected.
+    context_max_chunks: int = 10
+
+    # Whether to include source metadata in the formatted evidence text.
+    context_include_metadata: bool = True
+
+    # Whether to include retrieval/reranker scores in the formatted evidence text.
+    context_include_scores: bool = False
+
+    # Policy when a candidate chunk exceeds the remaining token budget: 'skip' or 'truncate'.
+    context_oversized_policy: str = "skip"
+
     @field_validator("bm25_k1")
     @classmethod
     def validate_bm25_k1(cls, v: float) -> float:
@@ -130,11 +148,22 @@ class Settings(BaseSettings):
         "hybrid_bm25_top_k",
         "reranker_default_top_k",
         "reranker_max_top_k",
+        "context_token_budget",
+        "context_max_chunks",
     )
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
         if v <= 0:
             raise ValueError(f"configuration bounds must be positive (got {v})")
+        return v
+
+    @field_validator("context_oversized_policy")
+    @classmethod
+    def validate_oversized_policy(cls, v: str) -> str:
+        if v not in ("skip", "truncate"):
+            raise ValueError(
+                f"context_oversized_policy must be 'skip' or 'truncate', got '{v}'"
+            )
         return v
 
     model_config = SettingsConfigDict(
