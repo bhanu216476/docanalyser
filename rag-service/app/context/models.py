@@ -235,6 +235,11 @@ class BuiltContext(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    @property
+    def is_empty(self) -> bool:
+        """True if no evidence chunks were selected."""
+        return len(self.selected_chunks) == 0
+
 
 class ContextItem(BaseModel):
     """One reranked evidence chunk prepared for downstream generation."""
