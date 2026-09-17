@@ -130,6 +130,22 @@ class Settings(BaseSettings):
     # Policy when a candidate chunk exceeds the remaining token budget: 'skip' or 'truncate'.
     context_oversized_policy: str = "skip"
 
+    # ------------------------------------------------------------------
+    # Prompt Engineering Configuration
+    # ------------------------------------------------------------------
+    # Default prompt version to use for LLM context assembly.
+    # Valid values: 'v1' (baseline), 'v2' (grounded+citation), 'v3' (structured).
+    prompt_version: str = "v2"
+
+    # LLM model identifier — provider-specific. Leave empty to rely on defaults.
+    # Example: "gpt-4o", "gemini-1.5-pro". Not used during offline testing.
+    llm_model: str = ""
+
+    # LLM sampling temperature. 0.0 = deterministic / factual, 1.0 = creative.
+    # Keep low (0.0–0.2) for grounded RAG answers.
+    llm_temperature: float = 0.0
+
+
     @field_validator("bm25_k1")
     @classmethod
     def validate_bm25_k1(cls, v: float) -> float:
@@ -173,6 +189,25 @@ class Settings(BaseSettings):
         if v not in ("skip", "truncate"):
             raise ValueError(
                 f"context_oversized_policy must be 'skip' or 'truncate', got '{v}'"
+            )
+        return v
+
+    @field_validator("prompt_version")
+    @classmethod
+    def validate_prompt_version(cls, v: str) -> str:
+        normalized = v.strip().lower()
+        if normalized not in ("v1", "v2", "v3"):
+            raise ValueError(
+                f"prompt_version must be one of 'v1', 'v2', 'v3', got '{v}'"
+            )
+        return normalized
+
+    @field_validator("llm_temperature")
+    @classmethod
+    def validate_llm_temperature(cls, v: float) -> float:
+        if not (0.0 <= v <= 2.0):
+            raise ValueError(
+                f"llm_temperature must be between 0.0 and 2.0 inclusive (got {v})"
             )
         return v
 
