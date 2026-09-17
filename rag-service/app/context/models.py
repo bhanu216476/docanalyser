@@ -1,17 +1,19 @@
 """
-Data models for the Context Builder module.
+Data models for the Context Builder module and structured evidence context.
 
 Defines:
 - Citation: structured citation mapping evidence back to document source.
 - ContextChunk: rich context item selected for the LLM context.
 - ContextBuilderConfig: typed configuration for context budgeting and formatting.
 - BuiltContext: final LLM-ready context with selected items, token metrics, and text.
+- ContextItem: reranked evidence chunk model from origin/main.
+- StructuredContext: ordered evidence context representation from origin/main.
 """
 
 from __future__ import annotations
 
 from typing import Any, Literal, Optional
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.core.config import settings
 
@@ -232,3 +234,54 @@ class BuiltContext(BaseModel):
     )
 
     model_config = ConfigDict(frozen=True)
+
+
+class ContextItem(BaseModel):
+    """One reranked evidence chunk prepared for downstream generation."""
+
+    position: int = Field(..., ge=1, description="1-based context position.")
+    chunk_id: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1)
+    document_id: str = ""
+    file_name: str = ""
+    page_numbers: list[int] = Field(default_factory=list)
+    section: str | None = None
+    source: str = ""
+    citation: str = Field(..., min_length=1)
+    reranked_rank: int | None = Field(default=None, ge=1)
+
+    model_config = ConfigDict(frozen=True)
+
+    @field_validator("chunk_id", "content")
+    @classmethod
+    def validate_non_blank(cls, value: str) -> str:
+        """Reject identifiers and evidence that contain no usable text."""
+
+        if not value.strip():
+            raise ValueError("value cannot be blank")
+        return value
+
+    @field_validator("page_numbers")
+    @classmethod
+    def validate_page_numbers(cls, value: list[int]) -> list[int]:
+        """Require canonical page numbers to be positive integers."""
+
+        if any(page < 1 for page in value):
+            raise ValueError("page numbers must be positive")
+        return value
+
+
+class StructuredContext(BaseModel):
+    """Ordered evidence and its prompt-ready representation."""
+
+    items: list[ContextItem] = Field(default_factory=list)
+    formatted_text: str = ""
+
+    model_config = ConfigDict(frozen=True)
+
+    @computed_field
+    @property
+    def item_count(self) -> int:
+        """Return the number of evidence items in the context."""
+
+        return len(self.items)

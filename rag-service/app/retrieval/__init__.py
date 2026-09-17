@@ -84,6 +84,7 @@ from app.retrieval.hybrid_retriever import (
     HybridRetriever,
     create_hybrid_retriever,
 )
+from app.retrieval.hybrid_service import HybridRetrievalService
 from app.retrieval.models import (
     HybridRetrievalRequest,
     HybridRetrievalResult,
@@ -93,6 +94,8 @@ from app.retrieval.models import (
     RetrievalResult,
 )
 from app.retrieval.retriever import Retriever
+from app.retrieval.cross_encoder_reranker import CrossEncoderReranker
+from app.retrieval.reranker import IdentityReranker, Reranker
 from app.retrieval.rrf import reciprocal_rank_fusion
 from app.retrieval.rrf_experiment import (
     KExperimentRecord,
@@ -127,6 +130,10 @@ __all__ = [
     "run_k_experiment",
     "KExperimentRecord",
     "format_k_comparison_table",
+    "HybridRetrievalService",
+    "Reranker",
+    "IdentityReranker",
+    "CrossEncoderReranker",
 
     # Evaluation
     "BenchmarkComparison",

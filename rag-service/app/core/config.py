@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -106,6 +106,12 @@ class Settings(BaseSettings):
     # Maximum allowed top-K for reranking requests.
     reranker_max_top_k: int = 50
 
+    # Candidate and final limits used by the composable reranking pipeline.
+    hybrid_candidate_top_k: int = 20
+    hybrid_rrf_k: int = 60
+    rerank_candidate_top_k: int = 20
+    rerank_top_k: int = 5
+
     # ------------------------------------------------------------------
     # Context Builder Configuration
     # ------------------------------------------------------------------
@@ -148,6 +154,10 @@ class Settings(BaseSettings):
         "hybrid_bm25_top_k",
         "reranker_default_top_k",
         "reranker_max_top_k",
+        "hybrid_candidate_top_k",
+        "hybrid_rrf_k",
+        "rerank_candidate_top_k",
+        "rerank_top_k",
         "context_token_budget",
         "context_max_chunks",
     )
@@ -165,6 +175,21 @@ class Settings(BaseSettings):
                 f"context_oversized_policy must be 'skip' or 'truncate', got '{v}'"
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_reranking_limits(self) -> "Settings":
+        if self.rerank_top_k > self.rerank_candidate_top_k:
+            raise ValueError(
+                "rerank_top_k must be less than or equal to rerank_candidate_top_k"
+            )
+        if self.hybrid_candidate_top_k > (
+            self.hybrid_dense_top_k + self.hybrid_bm25_top_k
+        ):
+            raise ValueError(
+                "hybrid_candidate_top_k must be less than or equal to "
+                "hybrid_dense_top_k + hybrid_bm25_top_k"
+            )
+        return self
 
     model_config = SettingsConfigDict(
         env_file=".env",

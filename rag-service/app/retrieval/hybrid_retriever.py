@@ -74,20 +74,35 @@ class HybridRetriever:
         dense_retriever: Optional[Retriever] = None,
         bm25_retriever: Optional[Retriever] = None,
         k: Optional[int] = None,
+        rrf_k: Optional[int] = None,
         dense_top_k: Optional[int] = None,
         bm25_top_k: Optional[int] = None,
+        candidate_top_k: Optional[int] = None,
         max_top_k: Optional[int] = None,
         allow_degraded: bool = False,
     ) -> None:
         self.dense_retriever = dense_retriever or create_dense_retriever()
         self.bm25_retriever = bm25_retriever or create_bm25_retriever()
-        self.k = k if k is not None else settings.rrf_k
+        self.k = (
+            k
+            if k is not None
+            else rrf_k
+            if rrf_k is not None
+            else settings.rrf_k
+        )
         self.dense_top_k = (
             dense_top_k if dense_top_k is not None else settings.hybrid_dense_top_k
         )
         self.bm25_top_k = (
             bm25_top_k if bm25_top_k is not None else settings.hybrid_bm25_top_k
         )
+        self.candidate_top_k = (
+            candidate_top_k
+            if candidate_top_k is not None
+            else settings.hybrid_candidate_top_k
+        )
+        self._candidate_top_k_explicit = candidate_top_k is not None
+        self.rrf_k = self.k
         self.max_top_k = (
             max_top_k if max_top_k is not None else settings.hybrid_max_top_k
         )
@@ -99,6 +114,13 @@ class HybridRetriever:
             raise ValueError(f"max_top_k must be positive, got {self.max_top_k}")
         if self.dense_top_k <= 0 or self.bm25_top_k <= 0:
             raise ValueError("Candidate pool sizes must be positive")
+        if self.candidate_top_k <= 0:
+            raise ValueError("candidate_top_k must be positive")
+        if self.candidate_top_k > self.dense_top_k + self.bm25_top_k:
+            raise ValueError(
+                "candidate_top_k must be less than or equal to "
+                "dense_top_k + bm25_top_k"
+            )
 
         logger.info(
             "HybridRetriever initialized: k=%d, dense_top_k=%d, bm25_top_k=%d, "
@@ -117,7 +139,7 @@ class HybridRetriever:
     def retrieve(
         self,
         query: str,
-        top_k: int = 10,
+        top_k: Optional[int] = None,
         filters: Optional[RetrievalFilter] = None,
     ) -> list[HybridRetrievalResult]:
         """
@@ -145,6 +167,9 @@ class HybridRetriever:
         """
         t_start = time.monotonic()
 
+        if top_k is None:
+            top_k = self.candidate_top_k
+
         validated_query = self._validate_query(query)
         validated_top_k = self._validate_top_k(top_k)
 
@@ -152,8 +177,8 @@ class HybridRetriever:
         bm25_candidates: list[RetrievalResult] = []
         failed_sources: list[str] = []
 
-        pool_dense_k = max(validated_top_k * 2, self.dense_top_k)
-        pool_bm25_k = max(validated_top_k * 2, self.bm25_top_k)
+        pool_dense_k = self.dense_top_k
+        pool_bm25_k = self.bm25_top_k
 
         # 1. Fetch Dense Candidates
         try:
@@ -268,13 +293,13 @@ class HybridRetriever:
         prev_bm25_k = self.bm25_top_k
 
         try:
-            if request.k is not None:
+            if hasattr(request, "k") and request.k is not None:
                 self.k = request.k
-            if request.allow_degraded:
+            if getattr(request, "allow_degraded", False):
                 self.allow_degraded = request.allow_degraded
-            if request.dense_top_k is not None:
+            if getattr(request, "dense_top_k", None) is not None:
                 self.dense_top_k = request.dense_top_k
-            if request.bm25_top_k is not None:
+            if getattr(request, "bm25_top_k", None) is not None:
                 self.bm25_top_k = request.bm25_top_k
 
             return self.retrieve(
@@ -316,6 +341,10 @@ class HybridRetriever:
         if top_k > self.max_top_k:
             raise RetrievalQueryError(
                 f"top_k={top_k} exceeds the maximum allowed value of {self.max_top_k}."
+            )
+        if self._candidate_top_k_explicit and top_k > self.candidate_top_k:
+            raise RetrievalQueryError(
+                f"top_k={top_k} exceeds candidate_top_k={self.candidate_top_k}."
             )
         return top_k
 
