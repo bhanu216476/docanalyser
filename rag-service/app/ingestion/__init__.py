@@ -36,6 +36,7 @@ from app.ingestion.metadata_normalizer import (
     normalize_source,
 )
 from app.ingestion.models import Document
+from app.ingestion.pdf_loader import PDFLoader
 from app.ingestion.txt_loader import TxtLoader
 
 __all__ = [
@@ -43,6 +44,7 @@ __all__ = [
     "BaseLoader",
     "TxtLoader",
     "MarkdownLoader",
+    "PDFLoader",
     "DocumentMetadata",
     "DocumentStatus",
     "MetadataNormalizer",
