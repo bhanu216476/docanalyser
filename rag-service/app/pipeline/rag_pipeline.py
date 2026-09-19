@@ -30,6 +30,7 @@ from typing import Any, Optional, Union
 
 from qdrant_client import QdrantClient
 
+from app.citations.mapper import CitationMapper
 from app.context.context_builder import ContextBuilder
 from app.context.models import BuiltContext, Citation, ContextBuilderConfig
 from app.core.config import settings
@@ -94,6 +95,7 @@ class RAGPipeline:
         context_builder: Optional[ContextBuilder] = None,
         prompt_builder: Optional[PromptBuilder] = None,
         llm_provider: Optional[LLMProvider] = None,
+        citation_mapper: Optional[CitationMapper] = None,
         in_memory: bool = False,
     ) -> None:
         """
@@ -196,6 +198,9 @@ class RAGPipeline:
 
         # 9. LLM Provider
         self.llm_provider = llm_provider or FakeLLMProvider()
+
+        # 10. Citation Mapper
+        self.citation_mapper = citation_mapper or CitationMapper()
 
         logger.info(
             "RAGPipeline initialized successfully (collection=%s, vector_size=%d, in_memory=%s)",
@@ -572,11 +577,14 @@ class RAGPipeline:
 
         latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
 
-        # Step 7: Citation Verification & Attribution
-        verified_citations = self._verify_and_attribute_citations(
+        # Step 7: Citation Verification & Attribution via CitationMapper
+        verified_citations, citation_validation = self.citation_mapper.map_to_context_citations(
             answer=llm_response.response_text,
-            context_citations=built_context.citations,
+            registry=built_context.citation_registry,
         )
+        metadata["citation_validation"] = citation_validation.model_dump()
+        if citation_validation.warnings:
+            metadata["citation_warnings"] = citation_validation.warnings
 
         return RAGResponse(
             query=query_str,
@@ -598,54 +606,14 @@ class RAGPipeline:
     ) -> list[Citation]:
         """
         Extract and verify citations present in the generated answer text.
-
-        Guarantees:
-            1. No duplicate citations in the returned list.
-            2. Preserves exact order of appearance in the answer.
-            3. If answer explicitly states lack of sufficient context or refusal,
-               returns an empty citations list [].
-            4. If citation markers [1], [2] are present, filters context citations
-               to only those explicitly cited.
-            5. If no bracketed markers appear but grounded context was provided,
-               falls back to the supplied context citations (deduplicated).
+        Delegates to CitationMapper for authoritative registry mapping.
         """
-        # Check for refusal / lack of information phrasing
-        lower_ans = answer.lower()
-        insufficient_markers = (
-            "not contain sufficient information",
-            "insufficient information",
-            "cannot find",
-            "not mentioned",
-            "no information",
-            "unsupported",
-            "provided sources do not",
+        registry = {c.citation_id: c for c in context_citations}
+        verified, _ = self.citation_mapper.map_to_context_citations(
+            answer=answer,
+            registry=registry,
         )
-        if any(marker in lower_ans for marker in insufficient_markers):
-            # The model declined to answer based on lack of context
-            return []
-
-        citation_id_map = {c.citation_id: c for c in context_citations}
-
-        # Find all [1], [2], etc. markers in the answer
-        referenced_ids = re.findall(r"\[\d+\]", answer)
-        if referenced_ids:
-            seen: set[str] = set()
-            verified: list[Citation] = []
-            for cid in referenced_ids:
-                if cid in citation_id_map and cid not in seen:
-                    seen.add(cid)
-                    verified.append(citation_id_map[cid])
-            return verified
-
-        # If no explicit bracketed markers were parsed, but context citations exist,
-        # return deduplicated context citations
-        seen_chunks: set[str] = set()
-        fallback_citations: list[Citation] = []
-        for cit in context_citations:
-            if cit.chunk_id not in seen_chunks:
-                seen_chunks.add(cit.chunk_id)
-                fallback_citations.append(cit)
-        return fallback_citations
+        return verified
 
 
 def create_rag_pipeline(
@@ -654,6 +622,7 @@ def create_rag_pipeline(
     embedding_service: Optional[EmbeddingService] = None,
     llm_provider: Optional[LLMProvider] = None,
     reranker: Optional[BaseReranker] = None,
+    citation_mapper: Optional[CitationMapper] = None,
 ) -> RAGPipeline:
     """
     Factory function for creating a fully configured RAGPipeline.
@@ -664,6 +633,7 @@ def create_rag_pipeline(
         embedding_service: Optional custom embedding service.
         llm_provider: Optional custom LLM provider.
         reranker: Optional custom reranker.
+        citation_mapper: Optional custom citation mapper.
 
     Returns:
         Configured RAGPipeline instance.
@@ -673,5 +643,6 @@ def create_rag_pipeline(
         embedding_service=embedding_service,
         llm_provider=llm_provider,
         reranker=reranker,
+        citation_mapper=citation_mapper,
         in_memory=in_memory,
     )

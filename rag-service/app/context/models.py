@@ -12,8 +12,9 @@ Defines:
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal, Optional
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from app.core.config import settings
 
@@ -23,7 +24,9 @@ class Citation(BaseModel):
     Structured citation reference mapping LLM evidence back to source documents.
 
     Attributes:
+        id: Optional 1-based integer citation ID (e.g. 1).
         citation_id: Formatted citation tag (e.g., "[1]").
+        document: Canonical document name or source identifier.
         chunk_id: Unique deterministic chunk identifier.
         document_id: Parent document identifier.
         source: Normalized source location or path.
@@ -36,9 +39,17 @@ class Citation(BaseModel):
         metadata: Additional custom chunk metadata.
     """
 
+    id: Optional[int] = Field(
+        default=None,
+        description="Integer citation identifier, e.g. 1.",
+    )
     citation_id: str = Field(
         ...,
         description="Formatted citation identifier, e.g. '[1]', '[2]'.",
+    )
+    document: Optional[str] = Field(
+        default=None,
+        description="Canonical document name or source identifier.",
     )
     chunk_id: str = Field(
         ...,
@@ -84,6 +95,23 @@ class Citation(BaseModel):
     )
 
     model_config = ConfigDict(frozen=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _populate_derived_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Derive id if not explicitly passed
+            if "id" not in data or data["id"] is None:
+                cit_id = data.get("citation_id")
+                if isinstance(cit_id, str):
+                    m = re.search(r"\d+", cit_id)
+                    if m:
+                        data["id"] = int(m.group(0))
+            # Derive document if not explicitly passed
+            if "document" not in data or data["document"] is None:
+                doc = data.get("file_name") or data.get("source") or data.get("document_id") or ""
+                data["document"] = doc
+        return data
 
 
 class ContextChunk(BaseModel):
@@ -239,6 +267,23 @@ class BuiltContext(BaseModel):
     def is_empty(self) -> bool:
         """True if no evidence chunks were selected."""
         return len(self.selected_chunks) == 0
+
+    @computed_field
+    @property
+    def citation_registry(self) -> dict[int, Citation]:
+        """
+        Registry mapping 1-based integer citation IDs directly to their authoritative Citation.
+        """
+        registry: dict[int, Citation] = {}
+        for cit in self.citations:
+            int_id = cit.id
+            if int_id is None:
+                m = re.search(r"\d+", cit.citation_id)
+                if m:
+                    int_id = int(m.group(0))
+            if int_id is not None:
+                registry[int_id] = cit
+        return registry
 
 
 class ContextItem(BaseModel):
