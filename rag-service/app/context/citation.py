@@ -7,6 +7,7 @@ Ensures no metadata is fabricated or hallucinated when absent.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Union
 from app.retrieval.models import RetrievalResult
 from app.reranking.models import RerankedResult
@@ -110,8 +111,18 @@ def extract_citation(
     if chunk_index is None and "chunk_index" in metadata and isinstance(metadata["chunk_index"], int):
         chunk_index = metadata["chunk_index"]
 
+    # Integer ID and canonical document name
+    cit_num: int | None = None
+    m = re.search(r"\d+", citation_id)
+    if m:
+        cit_num = int(m.group(0))
+
+    document = file_name or source or doc_id
+
     return Citation(
+        id=cit_num,
         citation_id=citation_id,
+        document=document,
         chunk_id=chunk_id,
         document_id=doc_id,
         source=source,
