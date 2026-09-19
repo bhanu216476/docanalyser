@@ -8,6 +8,7 @@ from typing import Any
 
 from app.llm.exceptions import LLMProviderError
 from app.llm.models import LLMResponse
+from app.llm.prompts.models import PromptVersion
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +34,11 @@ class FakeLLMProvider(LLMProvider):
         self,
         fail_on_calls: set[int] | None = None,
         permanent_fail_on_calls: set[int] | None = None,
+        custom_responses: dict[PromptVersion, str] | None = None,
     ) -> None:
         self._fail_on_calls = fail_on_calls or set()
         self._permanent_fail_on_calls = permanent_fail_on_calls or set()
+        self._custom_responses = custom_responses or {}
         self._call_count = 0
 
     @property
@@ -44,24 +47,32 @@ class FakeLLMProvider(LLMProvider):
 
     def generate(
         self,
-        prompt: str,
+        prompt: str | object,
         *,
-        model: str,
-        temperature: float,
-        max_output_tokens: int,
+        model: str = "fake-model",
+        temperature: float = 0.0,
+        max_output_tokens: int = 1500,
     ) -> LLMResponse:
         self._call_count += 1
         if self._call_count in self._permanent_fail_on_calls:
             raise LLMProviderError("Fake LLM permanent failure", is_transient=False)
         if self._call_count in self._fail_on_calls:
             raise LLMProviderError("Fake LLM transient failure", is_transient=True)
-        return LLMResponse(
-            text=f"FAKE_RESPONSE[{prompt}]",
+        legacy_version = getattr(prompt, "version", None)
+        if legacy_version in self._custom_responses:
+            text = self._custom_responses[legacy_version]
+        else:
+            text = f"FAKE_RESPONSE[{prompt}]"
+        response = LLMResponse(
+            text=text,
             model=model,
-            input_tokens=None,
-            output_tokens=None,
-            total_tokens=None,
+            input_tokens=len(str(prompt).split()),
+            output_tokens=len(text.split()),
+            total_tokens=len(str(prompt).split()) + len(text.split()),
         )
+        if legacy_version is not None:
+            object.__setattr__(response, "_legacy_version", legacy_version)
+        return response
 
 
 class OpenAILLMProvider(LLMProvider):

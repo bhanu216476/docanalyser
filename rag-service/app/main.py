@@ -1,6 +1,5 @@
 from fastapi import FastAPI
-from app.api import health
-from app.api import retrieval
+from app.api import health, rag, retrieval
 
 app = FastAPI(
     title="DocAnalyser RAG Service",
@@ -10,6 +9,7 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(retrieval.router)
+app.include_router(rag.router)
 
 if __name__ == "__main__":
     import uvicorn
