@@ -149,9 +149,22 @@ class Settings(BaseSettings):
     # Valid values: 'v1' (baseline), 'v2' (grounded+citation), 'v3' (structured).
     prompt_version: str = "v2"
 
-    # LLM model identifier — provider-specific. Leave empty to rely on defaults.
-    # Example: "gpt-4o", "gemini-1.5-pro". Not used during offline testing.
-    # Duplicate legacy LLM model setting removed during merge.
+    # ------------------------------------------------------------------
+    # Citation Verification Configuration
+    # ------------------------------------------------------------------
+    # Master switch for the citation verification layer.
+    # When False, verification is skipped and the raw answer is passed through.
+    citation_verification_enabled: bool = True
+
+    # Verification mode: 'rule_based', 'llm', or 'hybrid'.
+    # rule_based : Deterministic checks only; no LLM call required.
+    # llm        : Semantic LLM-based verification only.
+    # hybrid     : Rule-based first; escalates to LLM for inconclusive cases.
+    citation_verification_mode: str = "rule_based"
+
+    # When True, raise a VerificationError if any claim is UNSUPPORTED.
+    # For V0.1, keep False: flag claims and expose result without failing.
+    citation_verification_fail_on_unsupported: bool = False
 
     @field_validator("bm25_k1")
     @classmethod
@@ -166,6 +179,7 @@ class Settings(BaseSettings):
         if not v.strip():
             raise ValueError("llm_model must not be empty")
         return v.strip()
+
     @field_validator("llm_max_input_tokens", "llm_max_output_tokens")
     @classmethod
     def validate_llm_token_limits(cls, v: int) -> int:
@@ -240,6 +254,17 @@ class Settings(BaseSettings):
         if normalized not in ("v1", "v2", "v3"):
             raise ValueError(
                 f"prompt_version must be one of 'v1', 'v2', 'v3', got '{v}'"
+            )
+        return normalized
+
+    @field_validator("citation_verification_mode")
+    @classmethod
+    def validate_citation_verification_mode(cls, v: str) -> str:
+        normalized = v.strip().lower()
+        if normalized not in ("rule_based", "llm", "hybrid"):
+            raise ValueError(
+                f"citation_verification_mode must be one of 'rule_based', 'llm', "
+                f"'hybrid', got '{v}'"
             )
         return normalized
 
