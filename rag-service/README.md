@@ -62,6 +62,15 @@ preserves evidence order, content, and provenance, creates deterministic
 citations, and does not perform retrieval, reranking, summarization, or
 answer generation.
 
+## LLM Generation Layer
+
+Answer generation follows `Context -> LLMClient -> LLMProvider -> OpenAI`.
+The model and generation limits are configured through `LLM_MODEL` and the
+other `LLM_*` settings loaded from `.env`. `LLMClient` enforces the input
+token guard and owns transient retry with exponential backoff and jitter.
+When no OpenAI API key is configured, development uses a deterministic fake
+provider and emits a warning; it never makes a network request.
+
 ## Dense vs BM25 Evaluation
 
 The comparison helper in `app/retrieval/benchmark.py` evaluates both strategies on the same `EmbeddedChunk` corpus and deterministic query cases. `run_synthetic_benchmark()` provides a small academic-style dataset, while `format_comparison()` renders aggregate Hit Rate@K, Recall@K, MRR@K, and average latency. Results are experimental: they depend on the corpus, query set, embedding model, hardware, and configuration; neither strategy is universally better.

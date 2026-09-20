@@ -22,6 +22,7 @@ Coordinates the complete end-to-end RAG workflow:
 from __future__ import annotations
 
 from collections.abc import Sequence
+import inspect
 import logging
 from pathlib import Path
 import re
@@ -438,7 +439,21 @@ class RAGPipeline:
         """
         Generate grounded answer text via the LLM provider.
         """
-        return self.llm_provider.generate(prompt)
+        prompt_text = (
+            f"{prompt.system_prompt}\n\n"
+            f"Evidence Context:\n{prompt.context_text}\n\n"
+            f"User Question:\n{prompt.query}"
+        )
+        generate = self.llm_provider.generate
+        if "model" not in inspect.signature(generate).parameters:
+            return generate(prompt)  # type: ignore[call-arg]
+
+        return generate(
+            prompt_text,
+            model=settings.llm_model,
+            temperature=settings.llm_temperature,
+            max_output_tokens=settings.llm_max_output_tokens,
+        )
 
     # -----------------------------------------------------------------------
     # End-to-End Query Orchestration

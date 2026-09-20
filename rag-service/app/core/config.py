@@ -53,6 +53,18 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
 
     # ------------------------------------------------------------------
+    # LLM Generation Configuration
+    # ------------------------------------------------------------------
+    # Override with LLM_MODEL in .env for deployments using another model.
+    llm_model: str = "gpt-5.6-luna"
+    llm_temperature: float = 0.2
+    llm_max_input_tokens: int = 12000
+    llm_max_output_tokens: int = 1500
+    llm_timeout: float = 60.0
+    llm_max_retries: int = 3
+    llm_retry_base_delay: float = 1.0
+
+    # ------------------------------------------------------------------
     # Dense Retrieval Configuration
     # ------------------------------------------------------------------
     # Default number of top-K chunks returned per retrieval request.
@@ -139,6 +151,7 @@ class Settings(BaseSettings):
 
     # LLM model identifier — provider-specific. Leave empty to rely on defaults.
     # Example: "gpt-4o", "gemini-1.5-pro". Not used during offline testing.
+<<<<<<< HEAD
     llm_model: str = ""
 
     # LLM sampling temperature. 0.0 = deterministic / factual, 1.0 = creative.
@@ -162,12 +175,49 @@ class Settings(BaseSettings):
     # For V0.1, keep False: flag claims and expose result without failing.
     citation_verification_fail_on_unsupported: bool = False
 
+=======
+    # Duplicate legacy LLM model setting removed during merge.
+>>>>>>> origin/main
 
     @field_validator("bm25_k1")
     @classmethod
     def validate_bm25_k1(cls, v: float) -> float:
         if v < 0.0:
             raise ValueError(f"bm25_k1 must be non-negative (got {v})")
+        return v
+
+    @field_validator("llm_model")
+    @classmethod
+    def validate_llm_model(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("llm_model must not be empty")
+        return v.strip()
+    @field_validator("llm_max_input_tokens", "llm_max_output_tokens")
+    @classmethod
+    def validate_llm_token_limits(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("LLM token limits must be greater than 0")
+        return v
+
+    @field_validator("llm_timeout")
+    @classmethod
+    def validate_llm_timeout(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("llm_timeout must be greater than 0")
+        return v
+
+    @field_validator("llm_max_retries")
+    @classmethod
+    def validate_llm_max_retries(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("llm_max_retries must be non-negative")
+        return v
+
+    @field_validator("llm_retry_base_delay")
+    @classmethod
+    def validate_llm_retry_base_delay(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("llm_retry_base_delay must be non-negative")
         return v
 
     @field_validator("bm25_b")
@@ -261,5 +311,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-

@@ -1,4 +1,5 @@
 fastapi==0.111.0
+python-multipart==0.0.32
 uvicorn[standard]==0.30.1
 pydantic>=2.7.4,<3.0.0
 pydantic-settings>=2.2.1,<3.0.0
@@ -8,6 +9,6 @@ langchain-core==1.6.2
 langchain-text-splitters==1.1.2
 # numpy>=2.3 dropped Python 3.10 support; numpy 2.2.6 is the latest supporting Python 3.10
 numpy>=1.26.0,<2.3.0
-# Optional dependencies for OpenAI embeddings and exact BPE token counting:
-# openai>=1.0.0
-# tiktoken>=0.7.0
+# OpenAI generation/embedding provider and exact BPE token counting.
+openai>=1.0.0
+tiktoken>=0.7.0

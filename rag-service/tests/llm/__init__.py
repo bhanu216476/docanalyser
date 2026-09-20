@@ -1,1 +1,1 @@
-"""Tests for LLM and prompt engineering layer."""
+"""Tests for the LLM generation and prompt engineering layers."""

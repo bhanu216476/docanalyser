@@ -29,6 +29,7 @@ from app.context.models import BuiltContext, Citation, ContextChunk
 from app.llm.prompt_builder import PromptBuilder
 from app.llm.prompts.models import PromptVersion
 from app.llm.providers import FakeLLMProvider, LLMProvider, LLMResponse
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -260,16 +261,26 @@ class PromptExperimentRunner:
             context=case.context,
             version=version,
         )
-        response: LLMResponse = self._provider.generate(prompt)
+        prompt_text = (
+            f"{prompt.system_prompt}\n\n"
+            f"Evidence Context:\n{prompt.context_text}\n\n"
+            f"User Question:\n{prompt.query}"
+        )
+        response: LLMResponse = self._provider.generate(
+            prompt_text,
+            model=settings.llm_model,
+            temperature=settings.llm_temperature,
+            max_output_tokens=settings.llm_max_output_tokens,
+        )
 
         total_latency_ms = (time.perf_counter() - t_start) * 1000.0
 
         return PromptExperimentRecord(
             case_id=case.case_id,
             prompt_version=version,
-            response=response.response_text,
+            response=response.text,
             latency_ms=total_latency_ms,
-            prompt_tokens=response.prompt_tokens,
+            prompt_tokens=response.input_tokens or 0,
             # Evaluation fields left null — to be filled by manual review
             # or an automated scoring pass.
         )

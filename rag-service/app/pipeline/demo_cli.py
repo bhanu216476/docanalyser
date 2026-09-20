@@ -21,12 +21,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+import re
 import tempfile
 import time
 from typing import Optional
 
 from app.context.models import BuiltContext
-from app.llm.prompts.models import Prompt, PromptVersion
+from app.llm.prompts.models import PromptVersion
 from app.llm.providers import FakeLLMProvider, LLMResponse
 from app.pipeline.models import RAGResponse
 from app.pipeline.rag_pipeline import RAGPipeline, create_rag_pipeline
@@ -135,13 +136,29 @@ class DemoLLMProvider:
     or strictly declines when unsupported.
     """
 
-    def generate(self, prompt: Prompt) -> LLMResponse:
+    def generate(
+        self,
+        prompt: str,
+        *,
+        model: str,
+        temperature: float,
+        max_output_tokens: int,
+    ) -> LLMResponse:
         t0 = time.perf_counter()
-        ctx = prompt.context_text
+        context_marker = "Evidence Context:\n"
+        question_marker = "\n\nUser Question:\n"
+        context_start = prompt.find(context_marker)
+        question_start = prompt.find(question_marker)
+        if context_start >= 0 and question_start >= 0:
+            ctx = prompt[context_start + len(context_marker):question_start]
+            query = prompt[question_start + len(question_marker):].strip()
+        else:
+            ctx = prompt
+            query = prompt
         lower_ctx = ctx.lower()
-        query = prompt.query.lower()
+        query = query.lower()
 
-        cits = " ".join(prompt.citation_ids) if prompt.citation_ids else ""
+        cits = " ".join(sorted(set(re.findall(r"\[\d+\]", ctx))))
 
         if "casual leave" in query or "informal time" in query:
             if "12 casual leave days" in lower_ctx or "casual leave" in lower_ctx:
@@ -171,11 +188,11 @@ class DemoLLMProvider:
 
         latency_ms = (time.perf_counter() - t0) * 1000.0
         return LLMResponse(
-            version=prompt.version,
-            response_text=answer,
-            latency_ms=latency_ms,
-            prompt_tokens=len(prompt.query.split()) + len(ctx.split()),
-            model_id="demo-grounded-generator",
+            text=answer,
+            model=model,
+            input_tokens=len(prompt.split()),
+            output_tokens=len(answer.split()),
+            total_tokens=len(prompt.split()) + len(answer.split()),
         )
 
 
