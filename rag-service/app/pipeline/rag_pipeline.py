@@ -61,6 +61,7 @@ from app.retrieval.models import (
 from app.retrieval.rrf import reciprocal_rank_fusion
 from app.vector_store.qdrant_client import create_qdrant_client
 from app.vector_store.qdrant_store import QdrantVectorStore
+from app.verification.citation_verifier import CitationVerifier
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,7 @@ class RAGPipeline:
         prompt_builder: Optional[PromptBuilder] = None,
         llm_provider: Optional[LLMProvider] = None,
         citation_mapper: Optional[CitationMapper] = None,
+        citation_verifier: Optional[CitationVerifier] = None,
         in_memory: bool = False,
     ) -> None:
         """
@@ -202,6 +204,9 @@ class RAGPipeline:
 
         # 10. Citation Mapper
         self.citation_mapper = citation_mapper or CitationMapper()
+
+        # 11. Citation Verifier
+        self.citation_verifier = citation_verifier or CitationVerifier()
 
         logger.info(
             "RAGPipeline initialized successfully (collection=%s, vector_size=%d, in_memory=%s)",
@@ -592,7 +597,7 @@ class RAGPipeline:
 
         latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
 
-        # Step 7: Citation Verification & Attribution via CitationMapper
+        # Step 7: Citation Verification & Attribution
         verified_citations, citation_validation = self.citation_mapper.map_to_context_citations(
             answer=llm_response.response_text,
             registry=built_context.citation_registry,
@@ -600,6 +605,19 @@ class RAGPipeline:
         metadata["citation_validation"] = citation_validation.model_dump()
         if citation_validation.warnings:
             metadata["citation_warnings"] = citation_validation.warnings
+
+        evidence_by_citation = {
+            chunk.citation_id: chunk.content
+            for chunk in built_context.selected_chunks
+            if chunk.citation_id is not None
+        }
+        verification_result = self.citation_verifier.verify(
+            answer=llm_response.response_text,
+            citation_registry=built_context.citation_registry,
+            evidence_by_citation=evidence_by_citation,
+        )
+        metadata["verification"] = verification_result.model_dump()
+        metadata["verification_status"] = verification_result.overall_status.value
 
         return RAGResponse(
             query=query_str,
@@ -638,6 +656,7 @@ def create_rag_pipeline(
     llm_provider: Optional[LLMProvider] = None,
     reranker: Optional[BaseReranker] = None,
     citation_mapper: Optional[CitationMapper] = None,
+    citation_verifier: Optional[CitationVerifier] = None,
 ) -> RAGPipeline:
     """
     Factory function for creating a fully configured RAGPipeline.
@@ -659,5 +678,6 @@ def create_rag_pipeline(
         llm_provider=llm_provider,
         reranker=reranker,
         citation_mapper=citation_mapper,
+        citation_verifier=citation_verifier,
         in_memory=in_memory,
     )

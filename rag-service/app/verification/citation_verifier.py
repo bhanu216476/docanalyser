@@ -23,8 +23,8 @@ Pipeline
     Extract Citation IDs
           ↓
     Validate Citation IDs (check against registry)
-          ↓
-    Resolve Evidence (chunk content from registry)
+            ↓
+        Resolve Evidence (authoritative ContextChunk.content)
           ↓
     Rule-Based Checks (RuleBasedVerifier)
           ↓
@@ -63,6 +63,7 @@ document-provided instructions.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Mapping, Optional, Union
 
@@ -87,6 +88,7 @@ logger = logging.getLogger(__name__)
 
 # Registry type alias — matches BuiltContext.citation_registry
 CitationRegistry = Mapping[Union[int, str], Citation]
+EvidenceByCitation = Mapping[Union[int, str], str]
 
 
 def _normalize_registry(registry: CitationRegistry) -> dict[int, Citation]:
@@ -140,16 +142,21 @@ class CitationVerifier:
         self,
         answer: str,
         citation_registry: CitationRegistry,
+        evidence_by_citation: EvidenceByCitation | None = None,
     ) -> VerificationResult:
         """
-        Verify all claims in a generated answer against the citation registry.
+        Verify all claims in a generated answer against supplied evidence.
 
         Args:
             answer: Raw generated answer text (may contain [N] citation markers).
-            citation_registry: Authoritative registry from Context Builder /
-                               BuiltContext.citation_registry. Provides the
-                               ground-truth chunk content for evidence resolution.
-                               Never re-retrieves from Qdrant.
+            citation_registry: Registry from Context Builder /
+                               BuiltContext.citation_registry. It provides
+                               citation identity and metadata for ID validation.
+            evidence_by_citation: Authoritative evidence content from selected
+                                  ContextChunk.content, keyed by citation ID.
+                                  When omitted, legacy citation metadata
+                                  (``content`` then ``text``) is used for
+                                  backward compatibility with existing callers.
 
         Returns:
             VerificationResult with per-claim and aggregate outcomes.
@@ -167,6 +174,11 @@ class CitationVerifier:
         # Normalise registry to int keys
         registry = _normalize_registry(citation_registry)
         registry_ids: set[int] = set(registry.keys())
+        evidence: dict[int, str] = {}
+        for key, text in (evidence_by_citation or {}).items():
+            match = re.search(r"\d+", str(key))
+            if match:
+                evidence[int(match.group(0))] = str(text).strip()
 
         # Step 1: Extract claims
         claims = self._extractor.extract(answer)
@@ -182,7 +194,7 @@ class CitationVerifier:
         # Step 2: Verify each claim
         claim_results: list[ClaimVerificationResult] = []
         for claim in claims:
-            result = self._verify_claim(claim, registry, registry_ids)
+            result = self._verify_claim(claim, registry, registry_ids, evidence)
             claim_results.append(result)
 
         total_latency_ms = (time.monotonic() - t_start) * 1000.0
@@ -211,6 +223,7 @@ class CitationVerifier:
         claim: Claim,
         registry: dict[int, Citation],
         registry_ids: set[int],
+        evidence_by_citation: Mapping[int, str],
     ) -> ClaimVerificationResult:
         """
         Verify a single claim against available registry evidence.
@@ -230,16 +243,21 @@ class CitationVerifier:
 
         # Case 2: Single citation
         if len(claim.citation_ids) == 1:
-            return self._verify_single_citation(claim, registry, registry_ids)
+            return self._verify_single_citation(
+                claim, registry, registry_ids, evidence_by_citation
+            )
 
         # Case 3: Multiple citations
-        return self._verify_multi_citation(claim, registry, registry_ids)
+        return self._verify_multi_citation(
+            claim, registry, registry_ids, evidence_by_citation
+        )
 
     def _verify_single_citation(
         self,
         claim: Claim,
         registry: dict[int, Citation],
         registry_ids: set[int],
+        evidence_by_citation: Mapping[int, str],
     ) -> ClaimVerificationResult:
         """Verify a claim that references exactly one citation."""
         cid = claim.citation_ids[0]
@@ -249,7 +267,9 @@ class CitationVerifier:
         evidence_text = ""
         if registry_has_id:
             citation_obj = registry[cid]
-            evidence_text = self._resolve_evidence_text(citation_obj)
+            evidence_text = self._resolve_evidence_text(
+                citation_obj, evidence_by_citation.get(cid)
+            )
 
         # Rule-based check
         rule_outcome = self._rules.check(
@@ -307,6 +327,7 @@ class CitationVerifier:
         claim: Claim,
         registry: dict[int, Citation],
         registry_ids: set[int],
+        evidence_by_citation: Mapping[int, str],
     ) -> ClaimVerificationResult:
         """
         Verify a claim that references multiple citations.
@@ -328,7 +349,9 @@ class CitationVerifier:
                     status=VerificationStatus.INVALID_CITATION,
                     reason=f"Citation [{cid}] does not exist in the registry.",
                 )
-            ev_text = self._resolve_evidence_text(registry[cid])
+            ev_text = self._resolve_evidence_text(
+                registry[cid], evidence_by_citation.get(cid)
+            )
             evidence_items.append((cid, ev_text))
 
         evidence_texts = [ev for _, ev in evidence_items]
@@ -385,19 +408,25 @@ class CitationVerifier:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _resolve_evidence_text(citation: Citation) -> str:
+    def _resolve_evidence_text(
+        citation: Citation,
+        authoritative_text: str | None = None,
+    ) -> str:
         """
-        Resolve the authoritative evidence text from a Citation object.
+        Resolve evidence text, preferring authoritative context content.
 
-        The citation registry stores the chunk content in the metadata dict
-        under the key 'content', or directly as a field if available.
-        We do NOT retrieve from Qdrant; we use what the Context Builder stored.
+        The citation registry supplies citation identity and metadata. The
+        production pipeline supplies authoritative ``ContextChunk.content``
+        separately. Metadata fallbacks remain only for legacy callers/tests.
 
         Resolution order:
-        1. citation.metadata.get('content') — chunk content stored by ContextBuilder
-        2. citation.metadata.get('text')    — alternative content key
-        3. ''                               — no content available
+        1. authoritative ContextChunk.content, when supplied
+        2. citation.metadata.get('content') — legacy compatibility
+        3. citation.metadata.get('text')    — legacy compatibility
+        4. ''                               — no content available
         """
+        if authoritative_text is not None:
+            return str(authoritative_text).strip()
         meta = dict(citation.metadata) if citation.metadata else {}
         content = meta.get("content") or meta.get("text") or ""
         return str(content).strip()

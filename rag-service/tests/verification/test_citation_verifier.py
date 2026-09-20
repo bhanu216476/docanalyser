@@ -32,7 +32,7 @@ from __future__ import annotations
 import pytest
 from typing import Mapping, Union
 
-from app.context.models import Citation
+from app.context.models import Citation, ContextChunk
 from app.verification.models import (
     VerificationMode,
     VerificationPolicy,
@@ -59,6 +59,19 @@ def make_citation(citation_id: int, content: str, file_name: str = "policy.pdf")
 def make_registry(*citations: Citation) -> dict[int, Citation]:
     """Build an int-keyed registry from Citation objects."""
     return {c.id: c for c in citations if c.id is not None}
+
+
+def make_context_chunk(citation_id: int, content: str) -> ContextChunk:
+    citation = make_citation(citation_id, content)
+    return ContextChunk(
+        citation_id=f"[{citation_id}]",
+        chunk_id=f"chunk_{citation_id}",
+        content=content,
+        formatted_text=f"[{citation_id}] {content}",
+        token_count=len(content.split()),
+        final_rank=citation_id,
+        citation=citation,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +136,19 @@ class TestCase1CorrectCitation:
         claim_r = result.claims[0]
         assert claim_r.status == VerificationStatus.SUPPORTED
         assert len(claim_r.evidence_snippets) == 1
+
+    def test_authoritative_context_content_overrides_metadata(
+        self, rule_only_verifier: CitationVerifier
+    ) -> None:
+        citation = make_citation(1, "The office opens at 9 AM.")
+        registry = make_registry(citation)
+        context_chunk = make_context_chunk(1, "The office closes at 5 PM.")
+        result = rule_only_verifier.verify(
+            "The office opens at 9 AM [1].",
+            registry,
+            evidence_by_citation={1: context_chunk.content},
+        )
+        assert result.overall_status != VerificationStatus.SUPPORTED
 
 
 # ---------------------------------------------------------------------------
