@@ -12,8 +12,10 @@ from __future__ import annotations
 from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.confidence.models import ConfidenceResult
 from app.context.models import Citation
 from app.retrieval.models import RetrievalFilter
+from app.verification.models import VerificationResult
 
 
 class IngestionResponse(BaseModel):
@@ -109,6 +111,14 @@ class RAGResponse(BaseModel):
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Pipeline metrics and diagnostics (chunk counts, tokens, model info).",
+    )
+    verification: Optional[VerificationResult] = Field(
+        default=None,
+        description="Citation verification results if verification was executed.",
+    )
+    confidence: Optional[ConfidenceResult] = Field(
+        default=None,
+        description="Confidence scoring result combining retrieval, reranking, citation, and answerability.",
     )
 
     model_config = ConfigDict(frozen=True)
