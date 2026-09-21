@@ -1,3 +1,4 @@
+import math
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -166,6 +167,20 @@ class Settings(BaseSettings):
     # For V0.1, keep False: flag claims and expose result without failing.
     citation_verification_fail_on_unsupported: bool = False
 
+    # ------------------------------------------------------------------
+    # Confidence Scoring Configuration
+    # ------------------------------------------------------------------
+    # Initial engineering weights for RAG confidence calculation.
+    # Must sum to 1.0 and each weight must be >= 0.0.
+    confidence_retrieval_weight: float = 0.20
+    confidence_reranking_weight: float = 0.25
+    confidence_citation_weight: float = 0.35
+    confidence_answerability_weight: float = 0.20
+
+    # Diagnostic score bands thresholds
+    confidence_high_threshold: float = 0.80
+    confidence_low_threshold: float = 0.50
+
     @field_validator("bm25_k1")
     @classmethod
     def validate_bm25_k1(cls, v: float) -> float:
@@ -277,6 +292,27 @@ class Settings(BaseSettings):
             )
         return v
 
+    @field_validator(
+        "confidence_retrieval_weight",
+        "confidence_reranking_weight",
+        "confidence_citation_weight",
+        "confidence_answerability_weight",
+    )
+    @classmethod
+    def validate_confidence_weights_non_negative(cls, v: float) -> float:
+        if v < 0.0:
+            raise ValueError(f"Confidence weights must be non-negative (got {v})")
+        return v
+
+    @field_validator("confidence_high_threshold", "confidence_low_threshold")
+    @classmethod
+    def validate_confidence_thresholds(cls, v: float) -> float:
+        if not (0.0 <= v <= 1.0):
+            raise ValueError(
+                f"Confidence threshold must be between 0.0 and 1.0 inclusive (got {v})"
+            )
+        return v
+
     @model_validator(mode="after")
     def validate_reranking_limits(self) -> "Settings":
         if self.rerank_top_k > self.rerank_candidate_top_k:
@@ -289,6 +325,25 @@ class Settings(BaseSettings):
             raise ValueError(
                 "hybrid_candidate_top_k must be less than or equal to "
                 "hybrid_dense_top_k + hybrid_bm25_top_k"
+            )
+        total_confidence_weight = (
+            self.confidence_retrieval_weight
+            + self.confidence_reranking_weight
+            + self.confidence_citation_weight
+            + self.confidence_answerability_weight
+        )
+        if not math.isclose(total_confidence_weight, 1.0, rel_tol=1e-5, abs_tol=1e-5):
+            raise ValueError(
+                f"Confidence weights must sum to 1.0, got {total_confidence_weight:.4f} "
+                f"(retrieval={self.confidence_retrieval_weight}, "
+                f"reranking={self.confidence_reranking_weight}, "
+                f"citation={self.confidence_citation_weight}, "
+                f"answerability={self.confidence_answerability_weight})"
+            )
+        if self.confidence_low_threshold > self.confidence_high_threshold:
+            raise ValueError(
+                f"confidence_low_threshold ({self.confidence_low_threshold}) cannot "
+                f"exceed confidence_high_threshold ({self.confidence_high_threshold})"
             )
         return self
 

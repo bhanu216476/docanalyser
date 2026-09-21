@@ -32,6 +32,8 @@ from typing import Any, Optional, Union
 from qdrant_client import QdrantClient
 
 from app.citations.mapper import CitationMapper
+from app.confidence.calculator import ConfidenceCalculator
+from app.confidence.signals import SignalExtractor
 from app.context.context_builder import ContextBuilder
 from app.context.models import BuiltContext, Citation, ContextBuilderConfig
 from app.core.config import settings
@@ -62,6 +64,7 @@ from app.retrieval.rrf import reciprocal_rank_fusion
 from app.vector_store.qdrant_client import create_qdrant_client
 from app.vector_store.qdrant_store import QdrantVectorStore
 from app.verification.citation_verifier import CitationVerifier
+from app.verification.models import VerificationPolicy, VerificationResult
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +102,7 @@ class RAGPipeline:
         llm_provider: Optional[LLMProvider] = None,
         citation_mapper: Optional[CitationMapper] = None,
         citation_verifier: Optional[CitationVerifier] = None,
+        confidence_calculator: Optional[ConfidenceCalculator] = None,
         in_memory: bool = False,
     ) -> None:
         """
@@ -206,7 +210,16 @@ class RAGPipeline:
         self.citation_mapper = citation_mapper or CitationMapper()
 
         # 11. Citation Verifier
-        self.citation_verifier = citation_verifier or CitationVerifier()
+        if citation_verifier is not None:
+            self.citation_verifier = citation_verifier
+        else:
+            mode = getattr(settings, "citation_verification_mode", "rule_based")
+            enabled = getattr(settings, "citation_verification_enabled", True)
+            policy = VerificationPolicy(enabled=enabled, mode=mode)
+            self.citation_verifier = CitationVerifier(policy=policy)
+
+        # 12. Confidence Calculator
+        self.confidence_calculator = confidence_calculator or ConfidenceCalculator()
 
         logger.info(
             "RAGPipeline initialized successfully (collection=%s, vector_size=%d, in_memory=%s)",
@@ -606,6 +619,8 @@ class RAGPipeline:
         if citation_validation.warnings:
             metadata["citation_warnings"] = citation_validation.warnings
 
+        # Step 8: Citation Verification via CitationVerifier
+        t6 = time.perf_counter()
         evidence_by_citation = {
             chunk.citation_id: chunk.content
             for chunk in built_context.selected_chunks
@@ -616,8 +631,41 @@ class RAGPipeline:
             citation_registry=built_context.citation_registry,
             evidence_by_citation=evidence_by_citation,
         )
+        latencies["citation_verification_ms"] = (time.perf_counter() - t6) * 1000.0
         metadata["verification"] = verification_result.model_dump()
         metadata["verification_status"] = verification_result.overall_status.value
+
+        # Step 9: Confidence Scoring
+        t7 = time.perf_counter()
+        confidence_signals = SignalExtractor.extract_signals(
+            query=query_str,
+            answer=llm_response.response_text,
+            retrieval_candidates=fused_candidates,
+            reranked_candidates=reranked_results,
+            verification_result=verification_result,
+            rrf_k=settings.rrf_k,
+            num_sources=2,
+        )
+        confidence_result = self.confidence_calculator.calculate(
+            signals=confidence_signals,
+            metadata={"overall_status": verification_result.overall_status.value},
+        )
+        latencies["confidence_scoring_ms"] = (time.perf_counter() - t7) * 1000.0
+        metadata["confidence"] = confidence_result.model_dump()
+
+        latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
+
+        # Structured logging for observability (no secrets, no full text prompts)
+        logger.info(
+            "Confidence score: %.4f [band=%s] (retrieval=%.4f, reranking=%.4f, citation_support=%.4f, answerability=%.4f)",
+            confidence_result.score,
+            confidence_result.band.value,
+            confidence_result.retrieval_signal,
+            confidence_result.reranking_signal,
+            confidence_result.citation_support_signal,
+            confidence_result.answerability_signal,
+        )
+
 
         return RAGResponse(
             query=query_str,
@@ -626,6 +674,8 @@ class RAGPipeline:
             prompt_version=prompt.version.value,
             latency_breakdown_ms=latencies,
             metadata=metadata,
+            verification=verification_result,
+            confidence=confidence_result,
         )
 
     # -----------------------------------------------------------------------
@@ -657,6 +707,7 @@ def create_rag_pipeline(
     reranker: Optional[BaseReranker] = None,
     citation_mapper: Optional[CitationMapper] = None,
     citation_verifier: Optional[CitationVerifier] = None,
+    confidence_calculator: Optional[ConfidenceCalculator] = None,
 ) -> RAGPipeline:
     """
     Factory function for creating a fully configured RAGPipeline.
@@ -668,6 +719,8 @@ def create_rag_pipeline(
         llm_provider: Optional custom LLM provider.
         reranker: Optional custom reranker.
         citation_mapper: Optional custom citation mapper.
+        citation_verifier: Optional custom citation verifier.
+        confidence_calculator: Optional custom confidence calculator.
 
     Returns:
         Configured RAGPipeline instance.
@@ -679,5 +732,6 @@ def create_rag_pipeline(
         reranker=reranker,
         citation_mapper=citation_mapper,
         citation_verifier=citation_verifier,
+        confidence_calculator=confidence_calculator,
         in_memory=in_memory,
     )
