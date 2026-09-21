@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from app.context.models import BuiltContext, Citation
+from app.decision.models import DecisionResult
 from app.embeddings.providers import FakeEmbeddingProvider
 from app.embeddings.service import EmbeddingService
 from app.llm.prompts.models import Prompt
@@ -162,6 +163,62 @@ def test_query_end_to_end_success(pipeline: RAGPipeline, sample_text_file: Path)
     assert "llm_generation_ms" in response.latency_breakdown_ms
     assert "total_ms" in response.latency_breakdown_ms
     assert response.metadata["dense_candidates_count"] >= 0
+
+
+def test_query_weak_evidence_returns_fallback_without_calling_llm(
+    sample_text_file: Path,
+) -> None:
+    llm_provider = FakeLLMProvider()
+    pipeline = create_rag_pipeline(in_memory=True, llm_provider=llm_provider)
+    pipeline.ingest(sample_text_file)
+
+    response = pipeline.query("What is the policy for quantum entanglement?")
+
+    assert response.answer == "I don't have enough information in the provided documents."
+    assert llm_provider.call_count == 0
+    assert response.metadata["decision"]["should_answer"] is False
+    assert "decision_layer_ms" in response.latency_breakdown_ms
+
+
+def test_query_good_evidence_calls_llm_and_keeps_generation_path(
+    sample_text_file: Path,
+) -> None:
+    llm_provider = FakeLLMProvider()
+    pipeline = create_rag_pipeline(in_memory=True, llm_provider=llm_provider)
+    pipeline.ingest(sample_text_file)
+
+    response = pipeline.query("What are the working hours?")
+
+    assert llm_provider.call_count == 1
+    assert response.metadata["decision"]["should_answer"] is True
+    assert response.answer != "I don't have enough information in the provided documents."
+    assert "verification" in response.metadata
+
+
+def test_query_respects_injected_decision_layer(
+    sample_text_file: Path,
+) -> None:
+    class AlwaysRefuseDecisionLayer:
+        def evaluate(self, query: str, context: BuiltContext) -> DecisionResult:
+            return DecisionResult(
+                should_answer=False,
+                reason="injected_refusal",
+                confidence=0.0,
+            )
+
+    llm_provider = FakeLLMProvider()
+    pipeline = create_rag_pipeline(
+        in_memory=True,
+        llm_provider=llm_provider,
+        decision_layer=AlwaysRefuseDecisionLayer(),
+    )
+    pipeline.ingest(sample_text_file)
+
+    response = pipeline.query("What are the working hours?")
+
+    assert response.answer == "I don't have enough information in the provided documents."
+    assert llm_provider.call_count == 0
+    assert response.metadata["decision"]["reason"] == "injected_refusal"
 
 
 def test_query_runs_injected_citation_verifier_with_context_content(

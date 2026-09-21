@@ -35,6 +35,7 @@ from app.citations.mapper import CitationMapper
 from app.context.context_builder import ContextBuilder
 from app.context.models import BuiltContext, Citation, ContextBuilderConfig
 from app.core.config import settings
+from app.decision.layer import DecisionLayer
 from app.embeddings.providers import FakeEmbeddingProvider
 from app.embeddings.service import EmbeddingService
 from app.ingestion.base import BaseLoader
@@ -95,6 +96,7 @@ class RAGPipeline:
         hybrid_retriever: Optional[HybridRetriever] = None,
         reranker: Optional[BaseReranker] = None,
         context_builder: Optional[ContextBuilder] = None,
+        decision_layer: Optional[DecisionLayer] = None,
         prompt_builder: Optional[PromptBuilder] = None,
         llm_provider: Optional[LLMProvider] = None,
         citation_mapper: Optional[CitationMapper] = None,
@@ -196,16 +198,19 @@ class RAGPipeline:
         # 7. Context Builder
         self.context_builder = context_builder or ContextBuilder()
 
-        # 8. Prompt Builder
+        # 8. Evidence decision layer
+        self.decision_layer = decision_layer or DecisionLayer()
+
+        # 9. Prompt Builder
         self.prompt_builder = prompt_builder or PromptBuilder()
 
-        # 9. LLM Provider
+        # 10. LLM Provider
         self.llm_provider = llm_provider or FakeLLMProvider()
 
-        # 10. Citation Mapper
+        # 11. Citation Mapper
         self.citation_mapper = citation_mapper or CitationMapper()
 
-        # 11. Citation Verifier
+        # 12. Citation Verifier
         self.citation_verifier = citation_verifier or CitationVerifier()
 
         logger.info(
@@ -571,7 +576,23 @@ class RAGPipeline:
         metadata["selected_chunks_count"] = len(built_context.selected_chunks)
         metadata["dropped_chunks_count"] = built_context.dropped_chunks_count
 
-        # Step 5: Prompt Assembly
+        # Step 5: Evidence decision
+        t4 = time.perf_counter()
+        decision = self.decision_layer.evaluate(query_str, built_context)
+        latencies["decision_layer_ms"] = (time.perf_counter() - t4) * 1000.0
+        metadata["decision"] = decision.model_dump()
+        if not decision.should_answer:
+            latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
+            return RAGResponse(
+                query=query_str,
+                answer="I don't have enough information in the provided documents.",
+                citations=[],
+                prompt_version=req_version,
+                latency_breakdown_ms=latencies,
+                metadata=metadata,
+            )
+
+        # Step 6: Prompt Assembly
         t4 = time.perf_counter()
         try:
             prompt = self.build_prompt(
@@ -584,7 +605,7 @@ class RAGPipeline:
             raise QueryPipelineError(f"Prompt assembly failed: {exc}") from exc
         latencies["prompt_assembly_ms"] = (time.perf_counter() - t4) * 1000.0
 
-        # Step 6: LLM Generation
+        # Step 7: LLM Generation
         t5 = time.perf_counter()
         try:
             llm_response = self.generate(prompt)
@@ -597,7 +618,7 @@ class RAGPipeline:
 
         latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
 
-        # Step 7: Citation Verification & Attribution
+        # Step 8: Citation Verification & Attribution
         verified_citations, citation_validation = self.citation_mapper.map_to_context_citations(
             answer=llm_response.response_text,
             registry=built_context.citation_registry,
@@ -655,6 +676,7 @@ def create_rag_pipeline(
     embedding_service: Optional[EmbeddingService] = None,
     llm_provider: Optional[LLMProvider] = None,
     reranker: Optional[BaseReranker] = None,
+    decision_layer: Optional[DecisionLayer] = None,
     citation_mapper: Optional[CitationMapper] = None,
     citation_verifier: Optional[CitationVerifier] = None,
 ) -> RAGPipeline:
@@ -677,6 +699,7 @@ def create_rag_pipeline(
         embedding_service=embedding_service,
         llm_provider=llm_provider,
         reranker=reranker,
+        decision_layer=decision_layer,
         citation_mapper=citation_mapper,
         citation_verifier=citation_verifier,
         in_memory=in_memory,
