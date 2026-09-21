@@ -28,6 +28,7 @@ from app.pipeline.rag_pipeline import (
     RAGPipeline,
     create_rag_pipeline,
 )
+from app.verification.citation_verifier import CitationVerifier
 from app.reranking.mock_reranker import MockReranker
 from app.retrieval.models import RetrievalResult
 
@@ -161,3 +162,35 @@ def test_query_end_to_end_success(pipeline: RAGPipeline, sample_text_file: Path)
     assert "llm_generation_ms" in response.latency_breakdown_ms
     assert "total_ms" in response.latency_breakdown_ms
     assert response.metadata["dense_candidates_count"] >= 0
+
+
+def test_query_runs_injected_citation_verifier_with_context_content(
+    tmp_path: Path, sample_text_file: Path
+) -> None:
+    class RecordingCitationVerifier(CitationVerifier):
+        def __init__(self) -> None:
+            super().__init__()
+            self.received_evidence: dict[object, str] | None = None
+
+        def verify(self, answer, citation_registry, evidence_by_citation=None):
+            self.received_evidence = dict(evidence_by_citation or {})
+            return super().verify(
+                answer,
+                citation_registry,
+                evidence_by_citation=evidence_by_citation,
+            )
+
+    citation_verifier = RecordingCitationVerifier()
+    pipeline = create_rag_pipeline(
+        in_memory=True,
+        citation_verifier=citation_verifier,
+    )
+    pipeline.ingest(sample_text_file)
+
+    response = pipeline.query("What are the working hours?")
+
+    assert pipeline.citation_verifier is citation_verifier
+    assert citation_verifier.received_evidence is not None
+    assert response.metadata["verification"]
+    assert "verification_status" in response.metadata
+    assert all(value for value in citation_verifier.received_evidence.values())

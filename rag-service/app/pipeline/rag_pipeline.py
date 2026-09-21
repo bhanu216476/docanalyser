@@ -610,7 +610,7 @@ class RAGPipeline:
 
         latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
 
-        # Step 7: Citation Verification & Attribution via CitationMapper
+        # Step 7: Citation Verification & Attribution
         verified_citations, citation_validation = self.citation_mapper.map_to_context_citations(
             answer=llm_response.response_text,
             registry=built_context.citation_registry,
@@ -621,11 +621,18 @@ class RAGPipeline:
 
         # Step 8: Citation Verification via CitationVerifier
         t6 = time.perf_counter()
+        evidence_by_citation = {
+            chunk.citation_id: chunk.content
+            for chunk in built_context.selected_chunks
+            if chunk.citation_id is not None
+        }
         verification_result = self.citation_verifier.verify(
             answer=llm_response.response_text,
             citation_registry=built_context.citation_registry,
+            evidence_by_citation=evidence_by_citation,
         )
         latencies["citation_verification_ms"] = (time.perf_counter() - t6) * 1000.0
+        metadata["verification"] = verification_result.model_dump()
         metadata["verification_status"] = verification_result.overall_status.value
 
         # Step 9: Confidence Scoring
@@ -658,6 +665,7 @@ class RAGPipeline:
             confidence_result.citation_support_signal,
             confidence_result.answerability_signal,
         )
+
 
         return RAGResponse(
             query=query_str,
