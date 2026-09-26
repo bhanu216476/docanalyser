@@ -19,6 +19,12 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT_MS:2000ms}
 
 management:
   endpoints:
@@ -28,3 +34,19 @@ management:
   endpoint:
     health:
       show-details: always
+
+# JWT, RAG, and Redis Configuration — override via environment variables
+app:
+  jwt:
+    secret: ${JWT_SECRET:changeme-use-env-var-in-production-min-32-chars}
+    expiration-ms: ${JWT_EXPIRATION:86400000}
+  rag-service:
+    url: ${RAG_SERVICE_URL:http://localhost:8000}
+    connect-timeout-ms: ${RAG_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${RAG_READ_TIMEOUT_MS:60000}
+  internal:
+    api-token: ${N8N_INGESTION_TOKEN:changeme-internal-token-use-env-var}
+  redis:
+    cache-document-ttl-seconds: ${CACHE_DOCUMENT_TTL_SECONDS:300}
+    session-state-ttl-seconds: ${SESSION_STATE_TTL_SECONDS:1800}
+    job-status-ttl-seconds: ${JOB_STATUS_TTL_SECONDS:86400}
