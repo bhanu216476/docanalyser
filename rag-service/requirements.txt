@@ -12,3 +12,5 @@ numpy>=1.26.0,<2.3.0
 # OpenAI generation/embedding provider and exact BPE token counting.
 openai>=1.0.0
 tiktoken>=0.7.0
+# PDF parsing — required by app/ingestion/pdf_loader.py
+pypdf>=4.2.0,<5.0.0
