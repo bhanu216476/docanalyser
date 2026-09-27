@@ -35,6 +35,6 @@ EXPOSE 5173
 
 # Container healthcheck using Nginx health endpoint
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:5173/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:5173/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
