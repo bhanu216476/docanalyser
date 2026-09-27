@@ -30,4 +30,8 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
      * @return List of matching documents.
      */
     List<Document> findByStatus(DocumentStatus status);
+
+    List<Document> findByOwnerId(UUID ownerId);
+
+    Optional<Document> findByIdAndOwnerId(UUID id, UUID ownerId);
 }

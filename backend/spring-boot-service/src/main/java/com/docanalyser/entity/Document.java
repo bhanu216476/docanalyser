@@ -11,6 +11,9 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
+
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -45,6 +48,10 @@ public class Document {
 
     @Column(name = "content_hash", nullable = false, length = 64)
     private String contentHash;
+
+    @ManyToOne
+    @JoinColumn(name = "owner_id", nullable = true)
+    private User owner;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -163,6 +170,14 @@ public class Document {
 
     public void setContentHash(String contentHash) {
         this.contentHash = contentHash;
+    }
+
+    public User getOwner() {
+        return owner;
+    }
+
+    public void setOwner(User owner) {
+        this.owner = owner;
     }
 
     public DocumentStatus getStatus() {
