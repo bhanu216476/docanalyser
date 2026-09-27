@@ -176,6 +176,25 @@ class BM25Index:
         else:
             self._avgdl = 0.0
 
+    def remove_by_document_id(self, document_id: str) -> int:
+        """Remove all indexed chunks belonging to a document and rebuild statistics."""
+        if not document_id or not document_id.strip():
+            raise RetrievalIndexError("document_id cannot be empty for removal")
+
+        retained = [record for record in self._records if record.document_id != document_id]
+        removed = len(self._records) - len(retained)
+        if removed == 0:
+            return 0
+
+        self._records = []
+        self._chunk_id_to_idx = {}
+        self._inverted_index = {}
+        self._df = {}
+        self._total_tokens = 0
+        self._avgdl = 0.0
+        self.index_chunks(retained)
+        return removed
+
     def _add_single_chunk(self, chunk: Any) -> None:
         """Extract attributes, tokenize, and update inverted index."""
         data = self._extract_chunk_attributes(chunk)

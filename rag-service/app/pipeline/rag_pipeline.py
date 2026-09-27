@@ -241,6 +241,8 @@ class RAGPipeline:
         self,
         file_path: Union[str, Path],
         batch_size: Optional[int] = None,
+        document_id: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> IngestionResponse:
         """
         Ingest a document into the RAG system.
@@ -289,6 +291,16 @@ class RAGPipeline:
         t0 = time.perf_counter()
         try:
             document = loader.load(path)
+            if document_id or metadata:
+                document = document.model_copy(
+                    update={
+                        "metadata": {
+                            **document.metadata,
+                            **(metadata or {}),
+                            **({"document_id": document_id} if document_id else {}),
+                        }
+                    }
+                )
         except Exception as exc:
             logger.error("Document loading failed for '%s': %s", file_path, exc)
             raise IngestionError(f"Document loading failed: {exc}") from exc
