@@ -16,3 +16,9 @@ spring:
 app:
   rag-service:
     url: ${RAG_SERVICE_URL:http://rag-service:8000}
+
+management:
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector:4318}/v1/traces}
+

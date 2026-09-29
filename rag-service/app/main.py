@@ -1,5 +1,51 @@
-from fastapi import FastAPI
-from app.api import health, rag, retrieval
+"""
+DocAnalyser RAG Service — FastAPI entry point.
+
+Wires up:
+  - Structured JSON logging
+  - OpenTelemetry distributed tracing
+  - Prometheus /metrics endpoint
+  - FastAPI OTel instrumentation middleware
+  - API routers: health, retrieval, rag
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import time
+from typing import Any
+
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+# Setup structured logging first (before any imports that log)
+from app.observability.logging_config import setup_logging
+
+setup_logging()
+
+logger = logging.getLogger(__name__)
+
+# Setup OpenTelemetry tracing
+from app.observability.metrics import setup_tracing, rag_metrics  # noqa: E402
+
+_otel_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
+_sample_rate = float(os.environ.get("OTEL_TRACES_SAMPLER_ARG", "1.0"))
+setup_tracing(
+    service_name=os.environ.get("SERVICE_NAME", "rag-service"),
+    otlp_endpoint=_otel_endpoint,
+    sample_rate=_sample_rate,
+)
+
+# Instrument FastAPI with OpenTelemetry (no-op if SDK unavailable)
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # type: ignore[import]
+    _FASTAPI_INSTRUMENTOR_AVAILABLE = True
+except ImportError:
+    _FASTAPI_INSTRUMENTOR_AVAILABLE = False
+
+from app.api import health, rag, retrieval  # noqa: E402
 
 app = FastAPI(
     title="DocAnalyser RAG Service",
@@ -7,10 +53,112 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ---------------------------------------------------------------------------
+# Prometheus metrics middleware
+# ---------------------------------------------------------------------------
+@app.middleware("http")
+async def prometheus_middleware(request: Request, call_next: Any) -> Response:
+    """Record per-request Prometheus HTTP metrics and duration."""
+    start = time.perf_counter()
+
+    # Normalise endpoint label (avoid cardinality explosion — strip path params)
+    path = request.url.path
+    method = request.method
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+    except Exception as exc:
+        status_code = 500
+        duration = time.perf_counter() - start
+        rag_metrics.http_requests_total.labels(
+            method=method, endpoint=path, status_code=str(status_code)
+        ).inc()
+        rag_metrics.http_errors_total.labels(
+            method=method, endpoint=path, status_code=str(status_code)
+        ).inc()
+        rag_metrics.http_request_duration_seconds.labels(
+            method=method, endpoint=path
+        ).observe(duration)
+        raise
+
+    duration = time.perf_counter() - start
+    status_str = str(status_code)
+
+    rag_metrics.http_requests_total.labels(
+        method=method, endpoint=path, status_code=status_str
+    ).inc()
+    rag_metrics.http_request_duration_seconds.labels(
+        method=method, endpoint=path
+    ).observe(duration)
+    if status_code >= 400:
+        rag_metrics.http_errors_total.labels(
+            method=method, endpoint=path, status_code=status_str
+        ).inc()
+
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Prometheus /metrics scrape endpoint
+# ---------------------------------------------------------------------------
+@app.get("/metrics", include_in_schema=False)
+async def metrics_endpoint() -> Response:
+    """Expose Prometheus metrics in text format."""
+    try:
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST  # type: ignore[import]
+        return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    except ImportError:
+        return Response(content="# prometheus_client not available\n", media_type="text/plain")
+
+
+# ---------------------------------------------------------------------------
+# API Routers
+# ---------------------------------------------------------------------------
 app.include_router(health.router)
 app.include_router(retrieval.router)
 app.include_router(rag.router)
 
+
+# ---------------------------------------------------------------------------
+# Instrument FastAPI with OpenTelemetry (after routes are registered)
+# ---------------------------------------------------------------------------
+if _FASTAPI_INSTRUMENTOR_AVAILABLE:
+    try:
+        FastAPIInstrumentor.instrument_app(
+            app,
+            excluded_urls="metrics,health",
+        )
+        logger.info("FastAPI OpenTelemetry instrumentation enabled")
+    except Exception as exc:
+        logger.warning("FastAPI OTel instrumentation failed: %s", exc)
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    logger.info(
+        "RAG Service starting",
+        extra={
+            "service": "rag-service",
+            "environment": os.environ.get("ENVIRONMENT", "development"),
+        },
+    )
+
+
+@app.on_event("shutdown")
+async def shutdown_event() -> None:
+    logger.info("RAG Service shutting down")
+
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

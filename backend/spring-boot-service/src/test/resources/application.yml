@@ -23,7 +23,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  otlp:
+    tracing:
+      export:
+        enabled: false
 
 app:
   jwt:

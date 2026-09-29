@@ -101,6 +101,9 @@ services:
       - QDRANT_BATCH_SIZE=${QDRANT_BATCH_SIZE:-64}
       - QDRANT_MAX_RETRIES=${QDRANT_MAX_RETRIES:-3}
       - QDRANT_RETRY_BASE_DELAY=${QDRANT_RETRY_BASE_DELAY:-0.5}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-1.0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; res = urllib.request.urlopen('http://localhost:8000/health'); exit(0 if res.status == 200 else 1)"]
       interval: 10s
@@ -143,6 +146,9 @@ services:
       - JWT_SECRET=${JWT_SECRET:-changeme-production-secure-key-docanalyser-min-32-chars}
       - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
       - N8N_INGESTION_TOKEN=${N8N_INGESTION_TOKEN:-docanalyser-n8n-internal-token-secret}
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=${MANAGEMENT_OTLP_TRACING_ENDPOINT:-http://otel-collector:4318/v1/traces}
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:-1.0}
+      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/api/health || exit 1"]
       interval: 10s
@@ -206,6 +212,81 @@ services:
     networks:
       - rag-network
 
+  # ----------------------------------------------------------------------------
+  # OpenTelemetry Collector - Distributed Tracing & Metrics Ingestion
+  # ----------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.95.0
+    container_name: docanalyser-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
+      - "8888:8888"
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # Prometheus - Metrics Collection & Time-Series Engine
+  # ----------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: docanalyser-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      - backend
+      - rag-service
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # Grafana - Visualization & Dashboards
+  # ----------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: docanalyser-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-changeme}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - rag-network
+
 # ==============================================================================
 # Persistent Named Volumes
 # ==============================================================================
@@ -218,6 +299,10 @@ volumes:
     name: docanalyser_redis_data
   n8n_data:
     name: docanalyser_n8n_data
+  prometheus_data:
+    name: docanalyser_prometheus_data
+  grafana_data:
+    name: docanalyser_grafana_data
 
 # ==============================================================================
 # Private Docker Network

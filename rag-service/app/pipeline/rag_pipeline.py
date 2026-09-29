@@ -32,11 +32,14 @@ from typing import Any, Optional, Union
 from qdrant_client import QdrantClient
 
 from app.citations.mapper import CitationMapper
+from app.confidence.answerability import AnswerabilityEvaluator
 from app.confidence.calculator import ConfidenceCalculator
 from app.confidence.signals import SignalExtractor
 from app.context.context_builder import ContextBuilder
 from app.context.models import BuiltContext, Citation, ContextBuilderConfig
 from app.core.config import settings
+from app.observability import get_tracer
+from app.observability.metrics import RagMetrics
 from app.embeddings.providers import FakeEmbeddingProvider
 from app.embeddings.service import EmbeddingService
 from app.ingestion.base import BaseLoader
@@ -280,93 +283,107 @@ class RAGPipeline:
                 f"Supported extensions are: pdf, txt, md"
             )
 
-        # Stage 1: Load Document
-        t0 = time.perf_counter()
-        try:
-            document = loader.load(path)
-        except Exception as exc:
-            logger.error("Document loading failed for '%s': %s", file_path, exc)
-            raise IngestionError(f"Document loading failed: {exc}") from exc
-        latencies["load_ms"] = (time.perf_counter() - t0) * 1000.0
+        tracer = get_tracer()
+        with tracer.start_as_current_span("rag.ingest") as span:
+            span.set_attribute("rag.file_path", str(file_path))
+            span.set_attribute("rag.file_type", ext)
 
-        # Stage 2: Chunk Document
-        t1 = time.perf_counter()
-        try:
-            chunks = self.chunker.chunk(document)
-        except Exception as exc:
-            logger.error("Document chunking failed for '%s': %s", file_path, exc)
-            raise IngestionError(f"Document chunking failed: {exc}") from exc
-        latencies["chunk_ms"] = (time.perf_counter() - t1) * 1000.0
-
-        # Resolve canonical document ID
-        doc_id = document.metadata.get("document_id") if isinstance(document.metadata, dict) else None
-        if not doc_id and chunks:
-            doc_id = getattr(chunks[0], "document_id", None)
-        if not doc_id:
+            # Stage 1: Load Document
+            t0 = time.perf_counter()
             try:
-                doc_id = document.to_canonical_metadata().document_id
-            except Exception:
-                doc_id = path.stem
+                document = loader.load(path)
+            except Exception as exc:
+                logger.error("Document loading failed for '%s': %s", file_path, exc)
+                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                raise IngestionError(f"Document loading failed: {exc}") from exc
+            latencies["load_ms"] = (time.perf_counter() - t0) * 1000.0
 
-        if not chunks:
-            logger.warning("Ingestion produced 0 chunks for document '%s'", doc_id)
+            # Stage 2: Chunk Document
+            t1 = time.perf_counter()
+            try:
+                chunks = self.chunker.chunk(document)
+            except Exception as exc:
+                logger.error("Document chunking failed for '%s': %s", file_path, exc)
+                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                raise IngestionError(f"Document chunking failed: {exc}") from exc
+            latencies["chunk_ms"] = (time.perf_counter() - t1) * 1000.0
+
+            # Resolve canonical document ID
+            doc_id = document.metadata.get("document_id") if isinstance(document.metadata, dict) else None
+            if not doc_id and chunks:
+                doc_id = getattr(chunks[0], "document_id", None)
+            if not doc_id:
+                try:
+                    doc_id = document.to_canonical_metadata().document_id
+                except Exception:
+                    doc_id = path.stem
+
+            if not chunks:
+                logger.warning("Ingestion produced 0 chunks for document '%s'", doc_id)
+                latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
+                RagMetrics().record_ingestion_success(file_type=ext)
+                return IngestionResponse(
+                    document_id=doc_id,
+                    file_name=path.name,
+                    file_type=ext,
+                    chunk_count=0,
+                    latency_breakdown_ms=latencies,
+                )
+
+            # Stage 3: Embedding Generation
+            t2 = time.perf_counter()
+            try:
+                embedded_chunks = self.embedding_service.embed_chunks(chunks)
+            except Exception as exc:
+                logger.error("Embedding generation failed: %s", exc)
+                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                raise IngestionError(f"Embedding generation failed: {exc}") from exc
+            latencies["embed_ms"] = (time.perf_counter() - t2) * 1000.0
+
+            # Stage 4: Vector Store Upsert
+            t3 = time.perf_counter()
+            try:
+                upsert_batch_size = batch_size or settings.qdrant_batch_size
+                self.vector_store.upsert_chunks(
+                    chunks=chunks,
+                    embeddings=[ec.embedding for ec in embedded_chunks],
+                    batch_size=upsert_batch_size,
+                )
+            except Exception as exc:
+                logger.error("Vector store upsert failed: %s", exc)
+                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                raise IngestionError(f"Vector store upsert failed: {exc}") from exc
+            latencies["vector_store_ms"] = (time.perf_counter() - t3) * 1000.0
+
+            # Stage 5: BM25 Inverted Index
+            t4 = time.perf_counter()
+            try:
+                self.bm25_index.index_chunks(chunks)
+            except Exception as exc:
+                logger.error("BM25 indexing failed: %s", exc)
+                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                raise IngestionError(f"BM25 indexing failed: {exc}") from exc
+            latencies["bm25_ms"] = (time.perf_counter() - t4) * 1000.0
+
             latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
+
+            logger.info(
+                "Document '%s' successfully ingested: %d chunks indexed in %.2fms",
+                path.name,
+                len(chunks),
+                latencies["total_ms"],
+            )
+
+            RagMetrics().record_ingestion_success(file_type=ext)
+            span.set_attribute("rag.chunk_count", len(chunks))
+
             return IngestionResponse(
                 document_id=doc_id,
                 file_name=path.name,
                 file_type=ext,
-                chunk_count=0,
+                chunk_count=len(chunks),
                 latency_breakdown_ms=latencies,
             )
-
-        # Stage 3: Embedding Generation
-        t2 = time.perf_counter()
-        try:
-            embedded_chunks = self.embedding_service.embed_chunks(chunks)
-        except Exception as exc:
-            logger.error("Embedding generation failed: %s", exc)
-            raise IngestionError(f"Embedding generation failed: {exc}") from exc
-        latencies["embed_ms"] = (time.perf_counter() - t2) * 1000.0
-
-        # Stage 4: Vector Store Upsert
-        t3 = time.perf_counter()
-        try:
-            upsert_batch_size = batch_size or settings.qdrant_batch_size
-            self.vector_store.upsert_chunks(
-                chunks=chunks,
-                embeddings=[ec.embedding for ec in embedded_chunks],
-                batch_size=upsert_batch_size,
-            )
-        except Exception as exc:
-            logger.error("Vector store upsert failed: %s", exc)
-            raise IngestionError(f"Vector store upsert failed: {exc}") from exc
-        latencies["vector_store_ms"] = (time.perf_counter() - t3) * 1000.0
-
-        # Stage 5: BM25 Inverted Index
-        t4 = time.perf_counter()
-        try:
-            self.bm25_index.index_chunks(chunks)
-        except Exception as exc:
-            logger.error("BM25 indexing failed: %s", exc)
-            raise IngestionError(f"BM25 indexing failed: {exc}") from exc
-        latencies["bm25_ms"] = (time.perf_counter() - t4) * 1000.0
-
-        latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
-
-        logger.info(
-            "Document '%s' successfully ingested: %d chunks indexed in %.2fms",
-            path.name,
-            len(chunks),
-            latencies["total_ms"],
-        )
-
-        return IngestionResponse(
-            document_id=doc_id,
-            file_name=path.name,
-            file_type=ext,
-            chunk_count=len(chunks),
-            latency_breakdown_ms=latencies,
-        )
 
     # -----------------------------------------------------------------------
     # Step-by-Step Retrieval & Processing Pipeline
@@ -520,151 +537,217 @@ class RAGPipeline:
         metadata: dict[str, Any] = {}
         t_total_start = time.perf_counter()
 
-        # Step 1: Retrieval (Dense & BM25)
-        t0 = time.perf_counter()
-        dense_top_k = settings.hybrid_dense_top_k
-        bm25_top_k = settings.hybrid_bm25_top_k
-        try:
-            dense_results = self.dense_retriever.retrieve(
+        tracer = get_tracer()
+        with tracer.start_as_current_span("rag.pipeline") as span:
+            span.set_attribute("rag.prompt_version", str(req_version))
+
+            # Step 1: Retrieval (Dense & BM25)
+            t0 = time.perf_counter()
+            dense_top_k = settings.hybrid_dense_top_k
+            bm25_top_k = settings.hybrid_bm25_top_k
+            try:
+                dense_results = self.dense_retriever.retrieve(
+                    query=query_str,
+                    top_k=dense_top_k,
+                    filters=req_filters,
+                )
+                dense_dur = time.perf_counter() - t0
+                RagMetrics().record_retrieval_latency(dense_dur, method="dense", outcome="success")
+                RagMetrics().record_retrieval_scores([r.score for r in dense_results], method="dense")
+
+                t0_bm = time.perf_counter()
+                bm25_results = self.bm25_retriever.retrieve(
+                    query=query_str,
+                    top_k=bm25_top_k,
+                    filters=req_filters,
+                )
+                bm25_dur = time.perf_counter() - t0_bm
+                RagMetrics().record_retrieval_latency(bm25_dur, method="bm25", outcome="success")
+                RagMetrics().record_retrieval_scores([r.score for r in bm25_results], method="bm25")
+            except Exception as exc:
+                logger.error("Retrieval stage failed: %s", exc)
+                RagMetrics().record_retrieval_latency(time.perf_counter() - t0, method="dense", outcome="failure")
+                RagMetrics().record_pipeline_failure("retrieval")
+                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                raise QueryPipelineError(f"Retrieval stage failed: {exc}") from exc
+            latencies["retrieval_ms"] = (time.perf_counter() - t0) * 1000.0
+            metadata["dense_candidates_count"] = len(dense_results)
+            metadata["bm25_candidates_count"] = len(bm25_results)
+
+            # Step 2: Reciprocal Rank Fusion (RRF)
+            t1 = time.perf_counter()
+            try:
+                candidate_pool_limit = settings.hybrid_candidate_top_k
+                fused_candidates = self.fuse(
+                    dense_results=dense_results,
+                    bm25_results=bm25_results,
+                    top_k=candidate_pool_limit,
+                )
+                fusion_dur = time.perf_counter() - t1
+                RagMetrics().record_retrieval_latency(fusion_dur, method="fusion", outcome="success")
+                RagMetrics().record_retrieval_scores([r.score for r in fused_candidates], method="hybrid")
+            except Exception as exc:
+                logger.error("Fusion stage failed: %s", exc)
+                RagMetrics().record_pipeline_failure("retrieval")
+                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                raise QueryPipelineError(f"Fusion stage failed: {exc}") from exc
+            latencies["fusion_ms"] = (time.perf_counter() - t1) * 1000.0
+            metadata["fused_candidates_count"] = len(fused_candidates)
+
+            # Step 3: Candidate Reranking
+            t2 = time.perf_counter()
+            rerank_top_k = req_top_k or settings.rerank_top_k
+            try:
+                reranked_results = self.rerank(
+                    query=query_str,
+                    candidates=fused_candidates,
+                    top_k=rerank_top_k,
+                )
+                rerank_dur = time.perf_counter() - t2
+                RagMetrics().record_reranking(
+                    rerank_dur,
+                    candidate_count=len(fused_candidates),
+                    reranker_type=type(self.reranker).__name__,
+                )
+            except Exception as exc:
+                logger.error("Reranking stage failed: %s", exc)
+                RagMetrics().record_pipeline_failure("reranking")
+                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                raise QueryPipelineError(f"Reranking stage failed: {exc}") from exc
+            latencies["reranking_ms"] = (time.perf_counter() - t2) * 1000.0
+            metadata["reranked_candidates_count"] = len(reranked_results)
+
+            # Step 4: Context Building & Token Budgeting
+            t3 = time.perf_counter()
+            try:
+                built_context = self.build_context(reranked_results)
+            except Exception as exc:
+                logger.error("Context building failed: %s", exc)
+                RagMetrics().record_pipeline_failure("context")
+                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                raise QueryPipelineError(f"Context building failed: {exc}") from exc
+            latencies["context_building_ms"] = (time.perf_counter() - t3) * 1000.0
+            metadata["context_token_count"] = built_context.token_count
+            metadata["selected_chunks_count"] = len(built_context.selected_chunks)
+            metadata["dropped_chunks_count"] = built_context.dropped_chunks_count
+
+            # Step 5: Prompt Assembly
+            t4 = time.perf_counter()
+            try:
+                prompt = self.build_prompt(
+                    query=query_str,
+                    built_context=built_context,
+                    version=req_version,
+                )
+            except Exception as exc:
+                logger.error("Prompt assembly failed: %s", exc)
+                RagMetrics().record_pipeline_failure("llm")
+                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                raise QueryPipelineError(f"Prompt assembly failed: {exc}") from exc
+            latencies["prompt_assembly_ms"] = (time.perf_counter() - t4) * 1000.0
+
+            # Step 6: LLM Generation
+            t5 = time.perf_counter()
+            provider_name = getattr(self.llm_provider, "provider_name", type(self.llm_provider).__name__)
+            is_mock = "Fake" in type(self.llm_provider).__name__ or "Mock" in type(self.llm_provider).__name__
+            try:
+                llm_response = self.generate(prompt)
+                llm_dur = time.perf_counter() - t5
+                model_name = getattr(llm_response, "model_id", settings.llm_model) or "default"
+                RagMetrics().record_llm_request(
+                    duration_s=llm_dur,
+                    provider=provider_name,
+                    model=model_name,
+                    is_mock=is_mock,
+                    outcome="success",
+                    input_tokens=getattr(llm_response, "prompt_tokens", None),
+                    output_tokens=getattr(llm_response, "completion_tokens", None),
+                )
+            except Exception as exc:
+                logger.error("LLM generation failed: %s", exc)
+                llm_dur = time.perf_counter() - t5
+                RagMetrics().record_llm_request(
+                    duration_s=llm_dur,
+                    provider=provider_name,
+                    model=settings.llm_model,
+                    is_mock=is_mock,
+                    outcome="failure",
+                    error_type=type(exc).__name__,
+                )
+                RagMetrics().record_pipeline_failure("llm")
+                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                raise QueryPipelineError(f"LLM generation failed: {exc}") from exc
+            latencies["llm_generation_ms"] = (time.perf_counter() - t5) * 1000.0
+            metadata["prompt_tokens"] = llm_response.prompt_tokens
+            metadata["model_id"] = llm_response.model_id
+
+            latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
+
+            # Step 7: Citation Verification & Attribution
+            verified_citations, citation_validation = self.citation_mapper.map_to_context_citations(
+                answer=llm_response.response_text,
+                registry=built_context.citation_registry,
+            )
+            metadata["citation_validation"] = citation_validation.model_dump()
+            if citation_validation.warnings:
+                metadata["citation_warnings"] = citation_validation.warnings
+
+            # Step 8: Citation Verification via CitationVerifier
+            t6 = time.perf_counter()
+            evidence_by_citation = {
+                chunk.citation_id: chunk.content
+                for chunk in built_context.selected_chunks
+                if chunk.citation_id is not None
+            }
+            verification_result = self.citation_verifier.verify(
+                answer=llm_response.response_text,
+                citation_registry=built_context.citation_registry,
+                evidence_by_citation=evidence_by_citation,
+            )
+            latencies["citation_verification_ms"] = (time.perf_counter() - t6) * 1000.0
+            metadata["verification"] = verification_result.model_dump()
+            metadata["verification_status"] = verification_result.overall_status.value
+
+            # Record citation verification outcome
+            overall_status_val = verification_result.overall_status.value
+            RagMetrics().record_citation_verification(overall_status=overall_status_val)
+
+            # Step 9: Confidence Scoring
+            t7 = time.perf_counter()
+            confidence_signals = SignalExtractor.extract_signals(
                 query=query_str,
-                top_k=dense_top_k,
-                filters=req_filters,
+                answer=llm_response.response_text,
+                retrieval_candidates=fused_candidates,
+                reranked_candidates=reranked_results,
+                verification_result=verification_result,
+                rrf_k=settings.rrf_k,
+                num_sources=2,
             )
-            bm25_results = self.bm25_retriever.retrieve(
-                query=query_str,
-                top_k=bm25_top_k,
-                filters=req_filters,
+            confidence_result = self.confidence_calculator.calculate(
+                signals=confidence_signals,
+                metadata={"overall_status": verification_result.overall_status.value},
             )
-        except Exception as exc:
-            logger.error("Retrieval stage failed: %s", exc)
-            raise QueryPipelineError(f"Retrieval stage failed: {exc}") from exc
-        latencies["retrieval_ms"] = (time.perf_counter() - t0) * 1000.0
-        metadata["dense_candidates_count"] = len(dense_results)
-        metadata["bm25_candidates_count"] = len(bm25_results)
+            latencies["confidence_scoring_ms"] = (time.perf_counter() - t7) * 1000.0
+            metadata["confidence"] = confidence_result.model_dump()
 
-        # Step 2: Reciprocal Rank Fusion (RRF)
-        t1 = time.perf_counter()
-        try:
-            candidate_pool_limit = settings.hybrid_candidate_top_k
-            fused_candidates = self.fuse(
-                dense_results=dense_results,
-                bm25_results=bm25_results,
-                top_k=candidate_pool_limit,
+            latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
+
+            # Record no-answer rate and total pipeline duration
+            is_no_ans = AnswerabilityEvaluator.is_refusal(llm_response.response_text)
+            RagMetrics().record_no_answer(is_no_answer=is_no_ans)
+            total_dur_s = (time.perf_counter() - t_total_start)
+            RagMetrics().record_pipeline_duration(total_dur_s, outcome="success")
+
+            # Structured logging for observability (no secrets, no full text prompts)
+            logger.info(
+                "Confidence score: %.4f [band=%s] (retrieval=%.4f, reranking=%.4f, citation_support=%.4f, answerability=%.4f)",
+                confidence_result.score,
+                confidence_result.band.value,
+                confidence_result.retrieval_signal,
+                confidence_result.reranking_signal,
+                confidence_result.citation_support_signal,
+                confidence_result.answerability_signal,
             )
-        except Exception as exc:
-            logger.error("Fusion stage failed: %s", exc)
-            raise QueryPipelineError(f"Fusion stage failed: {exc}") from exc
-        latencies["fusion_ms"] = (time.perf_counter() - t1) * 1000.0
-        metadata["fused_candidates_count"] = len(fused_candidates)
-
-        # Step 3: Candidate Reranking
-        t2 = time.perf_counter()
-        rerank_top_k = req_top_k or settings.rerank_top_k
-        try:
-            reranked_results = self.rerank(
-                query=query_str,
-                candidates=fused_candidates,
-                top_k=rerank_top_k,
-            )
-        except Exception as exc:
-            logger.error("Reranking stage failed: %s", exc)
-            raise QueryPipelineError(f"Reranking stage failed: {exc}") from exc
-        latencies["reranking_ms"] = (time.perf_counter() - t2) * 1000.0
-        metadata["reranked_candidates_count"] = len(reranked_results)
-
-        # Step 4: Context Building & Token Budgeting
-        t3 = time.perf_counter()
-        try:
-            built_context = self.build_context(reranked_results)
-        except Exception as exc:
-            logger.error("Context building failed: %s", exc)
-            raise QueryPipelineError(f"Context building failed: {exc}") from exc
-        latencies["context_building_ms"] = (time.perf_counter() - t3) * 1000.0
-        metadata["context_token_count"] = built_context.token_count
-        metadata["selected_chunks_count"] = len(built_context.selected_chunks)
-        metadata["dropped_chunks_count"] = built_context.dropped_chunks_count
-
-        # Step 5: Prompt Assembly
-        t4 = time.perf_counter()
-        try:
-            prompt = self.build_prompt(
-                query=query_str,
-                built_context=built_context,
-                version=req_version,
-            )
-        except Exception as exc:
-            logger.error("Prompt assembly failed: %s", exc)
-            raise QueryPipelineError(f"Prompt assembly failed: {exc}") from exc
-        latencies["prompt_assembly_ms"] = (time.perf_counter() - t4) * 1000.0
-
-        # Step 6: LLM Generation
-        t5 = time.perf_counter()
-        try:
-            llm_response = self.generate(prompt)
-        except Exception as exc:
-            logger.error("LLM generation failed: %s", exc)
-            raise QueryPipelineError(f"LLM generation failed: {exc}") from exc
-        latencies["llm_generation_ms"] = (time.perf_counter() - t5) * 1000.0
-        metadata["prompt_tokens"] = llm_response.prompt_tokens
-        metadata["model_id"] = llm_response.model_id
-
-        latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
-
-        # Step 7: Citation Verification & Attribution
-        verified_citations, citation_validation = self.citation_mapper.map_to_context_citations(
-            answer=llm_response.response_text,
-            registry=built_context.citation_registry,
-        )
-        metadata["citation_validation"] = citation_validation.model_dump()
-        if citation_validation.warnings:
-            metadata["citation_warnings"] = citation_validation.warnings
-
-        # Step 8: Citation Verification via CitationVerifier
-        t6 = time.perf_counter()
-        evidence_by_citation = {
-            chunk.citation_id: chunk.content
-            for chunk in built_context.selected_chunks
-            if chunk.citation_id is not None
-        }
-        verification_result = self.citation_verifier.verify(
-            answer=llm_response.response_text,
-            citation_registry=built_context.citation_registry,
-            evidence_by_citation=evidence_by_citation,
-        )
-        latencies["citation_verification_ms"] = (time.perf_counter() - t6) * 1000.0
-        metadata["verification"] = verification_result.model_dump()
-        metadata["verification_status"] = verification_result.overall_status.value
-
-        # Step 9: Confidence Scoring
-        t7 = time.perf_counter()
-        confidence_signals = SignalExtractor.extract_signals(
-            query=query_str,
-            answer=llm_response.response_text,
-            retrieval_candidates=fused_candidates,
-            reranked_candidates=reranked_results,
-            verification_result=verification_result,
-            rrf_k=settings.rrf_k,
-            num_sources=2,
-        )
-        confidence_result = self.confidence_calculator.calculate(
-            signals=confidence_signals,
-            metadata={"overall_status": verification_result.overall_status.value},
-        )
-        latencies["confidence_scoring_ms"] = (time.perf_counter() - t7) * 1000.0
-        metadata["confidence"] = confidence_result.model_dump()
-
-        latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
-
-        # Structured logging for observability (no secrets, no full text prompts)
-        logger.info(
-            "Confidence score: %.4f [band=%s] (retrieval=%.4f, reranking=%.4f, citation_support=%.4f, answerability=%.4f)",
-            confidence_result.score,
-            confidence_result.band.value,
-            confidence_result.retrieval_signal,
-            confidence_result.reranking_signal,
-            confidence_result.citation_support_signal,
-            confidence_result.answerability_signal,
-        )
 
 
         return RAGResponse(
