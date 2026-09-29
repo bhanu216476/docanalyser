@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:docanalyser}
+    username: ${DB_USERNAME:${DB_USER:${POSTGRES_USER:postgres}}}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:postgres}}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT_MS:2000ms}
+
+app:
+  rag-service:
+    url: ${RAG_SERVICE_URL:http://rag-service:8000}
+
+management:
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector:4318}/v1/traces}
+

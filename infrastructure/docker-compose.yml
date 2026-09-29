@@ -1,8 +1,16 @@
-version: '3.8'
+# ==============================================================================
+# DocAnalyser Enterprise RAG Platform - Unified Docker Compose Configuration
+# ==============================================================================
 
 services:
+
+  # ----------------------------------------------------------------------------
+  # PostgreSQL 15 - Primary Relational Metadata & Document Store
+  # ----------------------------------------------------------------------------
   postgres:
     image: postgres:15
+    container_name: docanalyser-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -16,23 +24,290 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    networks:
+      - rag-network
 
+  # ----------------------------------------------------------------------------
+  # Redis 7 - In-Memory Cache, Document State & Session Store
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7
+    container_name: docanalyser-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # Qdrant v1.9.0 - Vector Database for Dense & Hybrid Embeddings
+  # ----------------------------------------------------------------------------
   qdrant:
     image: qdrant/qdrant:v1.9.0
+    container_name: docanalyser-qdrant
+    restart: unless-stopped
     ports:
       - "6333:6333"
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - rag-network
 
-  redis:
-    image: redis:7
+  # ----------------------------------------------------------------------------
+  # Python RAG Service (FastAPI) - Ingestion, Embeddings, Hybrid Retrieval, LLM
+  # ----------------------------------------------------------------------------
+  rag-service:
+    build:
+      context: ../rag-service
+      dockerfile: Dockerfile
+    container_name: docanalyser-rag-service
+    restart: unless-stopped
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+      - "${RAG_PORT:-8000}:8000"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    environment:
+      - RAG_HOST=0.0.0.0
+      - RAG_PORT=8000
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-20}
+      - EMBEDDING_MAX_TOKENS=${EMBEDDING_MAX_TOKENS:-8191}
+      - EMBEDDING_MAX_RETRIES=${EMBEDDING_MAX_RETRIES:-3}
+      - EMBEDDING_RETRY_BASE_DELAY=${EMBEDDING_RETRY_BASE_DELAY:-1.0}
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-documents}
+      - QDRANT_VECTOR_SIZE=${QDRANT_VECTOR_SIZE:-1536}
+      - QDRANT_DISTANCE=${QDRANT_DISTANCE:-Cosine}
+      - QDRANT_TIMEOUT=${QDRANT_TIMEOUT:-10.0}
+      - QDRANT_BATCH_SIZE=${QDRANT_BATCH_SIZE:-64}
+      - QDRANT_MAX_RETRIES=${QDRANT_MAX_RETRIES:-3}
+      - QDRANT_RETRY_BASE_DELAY=${QDRANT_RETRY_BASE_DELAY:-0.5}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-1.0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; res = urllib.request.urlopen('http://localhost:8000/health'); exit(0 if res.status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - rag-network
 
+  # ----------------------------------------------------------------------------
+  # Spring Boot Backend - REST API, Authentication, State Management, Ingestion
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ../backend/spring-boot-service
+      dockerfile: Dockerfile
+    container_name: docanalyser-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rag-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${POSTGRES_DB:-docanalyser}
+      - DB_USERNAME=${POSTGRES_USER:-postgres}
+      - DB_USER=${POSTGRES_USER:-postgres}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - RAG_SERVICE_URL=http://rag-service:8000
+      - JWT_SECRET=${JWT_SECRET:-changeme-production-secure-key-docanalyser-min-32-chars}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - N8N_INGESTION_TOKEN=${N8N_INGESTION_TOKEN:-docanalyser-n8n-internal-token-secret}
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=${MANAGEMENT_OTLP_TRACING_ENDPOINT:-http://otel-collector:4318/v1/traces}
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:-1.0}
+      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # React Frontend - User Interface (Vite + Nginx Production Server)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
+        - VITE_RAG_URL=${VITE_RAG_URL:-http://localhost:8000}
+    container_name: docanalyser-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5173/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # n8n - Workflow Automation & Ingestion Connectors (Google Drive, Webhooks)
+  # ----------------------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n:1.60.1
+    container_name: docanalyser-n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-n8n-docanalyser-secret-encryption-key-32chars}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${N8N_PROTOCOL:-http}://${N8N_HOST:-localhost}:${N8N_PORT:-5678}/
+      - GENERIC_TIMEZONE=${TIMEZONE:-UTC}
+      - N8N_METRICS=${N8N_METRICS:-true}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # OpenTelemetry Collector - Distributed Tracing & Metrics Ingestion
+  # ----------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.95.0
+    container_name: docanalyser-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
+      - "8888:8888"
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # Prometheus - Metrics Collection & Time-Series Engine
+  # ----------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: docanalyser-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      - backend
+      - rag-service
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # Grafana - Visualization & Dashboards
+  # ----------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: docanalyser-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-changeme}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - rag-network
+
+# ==============================================================================
+# Persistent Named Volumes
+# ==============================================================================
 volumes:
   postgres_data:
+    name: docanalyser_postgres_data
   qdrant_data:
+    name: docanalyser_qdrant_data
   redis_data:
+    name: docanalyser_redis_data
+  n8n_data:
+    name: docanalyser_n8n_data
+  prometheus_data:
+    name: docanalyser_prometheus_data
+  grafana_data:
+    name: docanalyser_grafana_data
+
+# ==============================================================================
+# Private Docker Network
+# ==============================================================================
+networks:
+  rag-network:
+    name: docanalyser_rag_network
+    driver: bridge

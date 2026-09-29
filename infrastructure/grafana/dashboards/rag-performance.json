@@ -1,0 +1,172 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "End-to-End RAG Query Latency (p50, p95, p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(rag_pipeline_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p50 Pipeline"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(rag_pipeline_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95 Pipeline"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(rag_pipeline_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p99 Pipeline"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Stage-by-Stage Latency (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(rag_retrieval_latency_seconds_bucket[1m])) by (le, retrieval_method))",
+          "legendFormat": "Retrieval ({{retrieval_method}})"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(rag_reranking_latency_seconds_bucket[1m])) by (le))",
+          "legendFormat": "Reranking"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(rag_llm_request_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "LLM Generation"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Retrieval Score Distribution",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(rag_retrieval_scores_bucket[1m])) by (le, retrieval_method)",
+          "legendFormat": "{{retrieval_method}} score <= {{le}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "LLM Token Usage (Input vs Output)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "tokens" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(rag_llm_tokens_total[1m])) by (token_type)",
+          "legendFormat": "{{token_type}} tokens/sec"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "No-Answer Rate (Current)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.15 },
+              { "color": "red", "value": 0.30 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rag_no_answer_rate",
+          "legendFormat": "No-Answer Rate"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Citation Verification Failure Rate (Current)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "red", "value": 0.15 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rag_citation_failure_rate",
+          "legendFormat": "Citation Failure Rate"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Citation Outcomes & Verification Status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "ops" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(rag_citation_verifications_total[1m])) by (outcome)",
+          "legendFormat": "Outcome: {{outcome}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["docanalyser", "rag", "performance"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "DocAnalyser - RAG Performance",
+  "uid": "docanalyser-rag-performance",
+  "version": 1
+}

@@ -1,75 +1,147 @@
-# DocAnalyser
+# DocAnalyser - Enterprise RAG Platform
 
-A production-oriented AI/RAG application for intelligent document analysis.
+A production-grade, containerized AI/RAG application for intelligent document analysis, hybrid search, citation verification, and factual question-answering.
 
-## Project Purpose
-DocAnalyser aims to provide a robust, scalable backend for processing documents, embedding them into a vector space, and retrieving relevant context to answer user queries using Large Language Models (LLMs) via the Retrieval-Augmented Generation (RAG) pattern.
+---
 
-## Architecture and Folder Structure
-This project utilizes a microservices architecture:
-- **React Frontend**: User interface for document upload and querying (Planned).
-- **Spring Boot Backend**: API Gateway and core business logic.
-- **Python RAG Service**: Handles document ingestion, embeddings, retrieval, and LLM integration.
-- **Qdrant**: Vector storage.
-- **PostgreSQL**: Relational metadata storage.
-- **Redis**: Caching layer.
+## 1. System Architecture
 
+DocAnalyser employs an enterprise microservices architecture containerized with Docker and unified via Docker Compose:
+
+```text
+                    USER / BROWSER
+                          │
+                          ▼
+                React Frontend (Vite)
+                     Port: 5173
+                          │
+                          ▼ (Browser REST/JSON)
+                 Spring Boot API
+                     Port: 8080
+                          │
+                          ▼ (Docker Network DNS)
+                Python RAG Service
+                     Port: 8000
+                          │
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+   Qdrant v1.9.0    PostgreSQL 15        Redis 7
+     Port: 6333       Port: 5432        Port: 6379
+     (Vectors)        (Metadata)       (Cache/State)
+                          ▲
+                          │
+                 n8n Automation Flow
+                     Port: 5678
 ```
-project-root/
-├── backend/            # Spring Boot API service
-├── rag-service/        # Python RAG pipeline service
-├── frontend/           # React user interface (Planned)
-├── infrastructure/     # Docker configuration for local development
-└── docs/               # Architecture diagrams, ADRs, and coding standards
-```
 
-## Required Software
-To run this project locally, you must have the following installed:
-- **Java**: Version 21
-- **Maven**: Installed and available from the terminal
-- **Python**: Version 3.12
-- **Docker**: Docker Desktop (for running infrastructure dependencies)
+### Services Overview
 
-## Local Development Setup
+* **React Frontend (`frontend/`):** React 18 + Vite SPA served via production-grade Nginx. Provides document ingestion, Q&A dashboard with citation cards, claim verification badges, and live confidence score metrics.
+* **Spring Boot Backend (`backend/`):** Java 21 Spring Boot 3.3 service managing security (JWT), user authentication, Flyway database migrations, API routing, and Redis caching.
+* **Python RAG Service (`rag-service/`):** Python 3.12 FastAPI service executing hybrid dense + BM25 retrieval, Reciprocal Rank Fusion (RRF), citation parsing, and NLI-based claim verification.
+* **Qdrant Vector Database (`qdrant`):** Persistent vector storage on ports `6333` / `6334`.
+* **PostgreSQL (`postgres`):** Relational database on port `5432` for document metadata and user entities.
+* **Redis (`redis`):** In-memory cache on port `6379` for document state and session storage.
+* **n8n (`n8n`):** Workflow automation and Google Drive ingestion connectors on port `5678`.
 
-### 1. Spring Boot Backend
-The Spring Boot backend serves as the main API gateway.
+---
 
-To start the backend:
+## 2. One-Command Startup (Docker Compose)
+
+### Prerequisites
+* Docker Engine 24.0+ & Docker Compose v2.20+
+* Free ports: `5173`, `8080`, `8000`, `6333`, `5432`, `6379`, `5678`
+
+### Quick Start
+
+1. **Clone the repository and enter the directory:**
+   ```bash
+   cd "RAG base"
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Start the complete platform:**
+   ```bash
+   docker compose up --build
+   ```
+   *(Or using the infrastructure folder directly: `docker compose -f infrastructure/docker-compose.yml up --build`)*
+
+4. **Start in background (detached mode):**
+   ```bash
+   docker compose up --build -d
+   ```
+
+---
+
+## 3. Platform URLs & Health Endpoints
+
+| Component | URL | Health Check / Status |
+| :--- | :--- | :--- |
+| **React Frontend** | [http://localhost:5173](http://localhost:5173) | `http://localhost:5173/health` |
+| **Spring Boot API** | [http://localhost:8080](http://localhost:8080) | `http://localhost:8080/api/health` |
+| **FastAPI RAG Service** | [http://localhost:8000](http://localhost:8000) | `http://localhost:8000/health` |
+| **FastAPI Swagger Docs**| [http://localhost:8000/docs](http://localhost:8000/docs) | Interactive API Explorer |
+| **Qdrant Vector DB** | [http://localhost:6333](http://localhost:6333) | `http://localhost:6333/dashboard` |
+| **n8n Workflow Hub** | [http://localhost:5678](http://localhost:5678) | `http://localhost:5678/healthz` |
+| **PostgreSQL** | `localhost:5432` | `pg_isready -U postgres -d docanalyser` |
+| **Redis** | `localhost:6379` | `redis-cli ping` |
+
+---
+
+## 4. Common Docker Commands
+
+* **Check container health & status:**
+  ```bash
+  docker compose ps
+  ```
+* **View all logs:**
+  ```bash
+  docker compose logs -f
+  ```
+* **View specific service logs:**
+  ```bash
+  docker compose logs -f backend
+  docker compose logs -f rag-service
+  docker compose logs -f frontend
+  ```
+* **Stop platform without losing persistent data:**
+  ```bash
+  docker compose down
+  ```
+* **Rebuild images:**
+  ```bash
+  docker compose build
+  ```
+
+---
+
+## 5. Local Development (Without Docker)
+
+### Spring Boot Backend
 ```bash
 cd backend/spring-boot-service
 mvn spring-boot:run
 ```
 
-To verify it is running, check the health endpoint:
-```bash
-curl http://localhost:8080/api/health
-```
-You should see:
-```json
-{"status":"UP"}
-```
-
-### 2. Python RAG Service
-The Python service handles the AI and vector operations.
-
-Create and activate the virtual environment:
+### Python RAG Service
 ```bash
 cd rag-service
-
-# Create the virtual environment using Python 3.12
 python -m venv .venv
-
-# Activate the virtual environment (Windows)
-.\.venv\Scripts\activate
-
-# Install dependencies (once added)
+.\.venv\Scripts\activate       # Windows
+source .venv/bin/activate      # Linux/macOS
 pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. Infrastructure (Docker)
-Start the supporting databases (PostgreSQL, Qdrant, Redis):
+### React Frontend
 ```bash
-cd infrastructure
-docker compose up -d
+cd frontend
+npm install
+npm run dev
 ```
+
+For detailed deployment and architecture documentation, see [docs/deployment/docker.md](file:///c:/Users/CH%20BHANU/OneDrive/Desktop/RAG%20base/docs/deployment/docker.md).
