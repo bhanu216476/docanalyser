@@ -6,7 +6,7 @@ Wires up:
   - OpenTelemetry distributed tracing
   - Prometheus /metrics endpoint
   - FastAPI OTel instrumentation middleware
-  - API routers: health, retrieval, rag
+  - API routers: health, retrieval, rag, documents
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import time
 from typing import Any
 
 from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -45,7 +46,7 @@ try:
 except ImportError:
     _FASTAPI_INSTRUMENTOR_AVAILABLE = False
 
-from app.api import health, rag, retrieval  # noqa: E402
+from app.api import documents, health, rag, retrieval  # noqa: E402
 
 app = FastAPI(
     title="DocAnalyser RAG Service",
@@ -126,6 +127,31 @@ async def metrics_endpoint() -> Response:
 app.include_router(health.router)
 app.include_router(retrieval.router)
 app.include_router(rag.router)
+app.include_router(documents.router)
+
+
+@app.exception_handler(RequestValidationError)
+async def lifecycle_validation_error_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    errors = []
+    for error in exc.errors():
+        serializable_error = dict(error)
+        if "ctx" in serializable_error:
+            serializable_error["ctx"] = {
+                key: str(value) for key, value in serializable_error["ctx"].items()
+            }
+        errors.append(serializable_error)
+    status_code = 422
+    if request.url.path == "/api/v1/documents" and any(
+        error.get("loc", ())[-1:] == ("document_id",)
+        and isinstance(error.get("input"), str)
+        and not error["input"].strip()
+        for error in errors
+    ):
+        status_code = 400
+    return JSONResponse(status_code=status_code, content={"detail": errors})
 
 
 # ---------------------------------------------------------------------------

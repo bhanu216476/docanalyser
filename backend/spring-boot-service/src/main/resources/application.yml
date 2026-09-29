@@ -1,6 +1,10 @@
 server:
   port: 8080
 
+rag:
+  service:
+    url: ${RAG_SERVICE_URL}
+
 spring:
   application:
     name: spring-boot-service

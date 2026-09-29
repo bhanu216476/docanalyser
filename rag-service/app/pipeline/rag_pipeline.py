@@ -38,6 +38,7 @@ from app.confidence.signals import SignalExtractor
 from app.context.context_builder import ContextBuilder
 from app.context.models import BuiltContext, Citation, ContextBuilderConfig
 from app.core.config import settings
+from app.decision.layer import DecisionLayer
 from app.observability import get_tracer
 from app.observability.metrics import RagMetrics
 from app.embeddings.providers import FakeEmbeddingProvider
@@ -101,6 +102,7 @@ class RAGPipeline:
         hybrid_retriever: Optional[HybridRetriever] = None,
         reranker: Optional[BaseReranker] = None,
         context_builder: Optional[ContextBuilder] = None,
+        decision_layer: Optional[DecisionLayer] = None,
         prompt_builder: Optional[PromptBuilder] = None,
         llm_provider: Optional[LLMProvider] = None,
         citation_mapper: Optional[CitationMapper] = None,
@@ -203,16 +205,19 @@ class RAGPipeline:
         # 7. Context Builder
         self.context_builder = context_builder or ContextBuilder()
 
-        # 8. Prompt Builder
+        # 8. Evidence decision layer
+        self.decision_layer = decision_layer or DecisionLayer()
+
+        # 9. Prompt Builder
         self.prompt_builder = prompt_builder or PromptBuilder()
 
-        # 9. LLM Provider
+        # 10. LLM Provider
         self.llm_provider = llm_provider or FakeLLMProvider()
 
-        # 10. Citation Mapper
+        # 11. Citation Mapper
         self.citation_mapper = citation_mapper or CitationMapper()
 
-        # 11. Citation Verifier
+        # 12. Citation Verifier
         if citation_verifier is not None:
             self.citation_verifier = citation_verifier
         else:
@@ -239,6 +244,8 @@ class RAGPipeline:
         self,
         file_path: Union[str, Path],
         batch_size: Optional[int] = None,
+        document_id: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> IngestionResponse:
         """
         Ingest a document into the RAG system.
@@ -292,6 +299,16 @@ class RAGPipeline:
             t0 = time.perf_counter()
             try:
                 document = loader.load(path)
+                if document_id or metadata:
+                    document = document.model_copy(
+                        update={
+                            "metadata": {
+                                **document.metadata,
+                                **(metadata or {}),
+                                **({"document_id": document_id} if document_id else {}),
+                            }
+                        }
+                    )
             except Exception as exc:
                 logger.error("Document loading failed for '%s': %s", file_path, exc)
                 RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
@@ -631,7 +648,26 @@ class RAGPipeline:
             metadata["selected_chunks_count"] = len(built_context.selected_chunks)
             metadata["dropped_chunks_count"] = built_context.dropped_chunks_count
 
-            # Step 5: Prompt Assembly
+            # Step 5: Evidence decision
+            t_decision = time.perf_counter()
+            decision = self.decision_layer.evaluate(query_str, built_context)
+            latencies["decision_layer_ms"] = (time.perf_counter() - t_decision) * 1000.0
+            metadata["decision"] = decision.model_dump()
+            if not decision.should_answer:
+                latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
+                RagMetrics().record_no_answer(is_no_answer=True)
+                total_dur_s = (time.perf_counter() - t_total_start)
+                RagMetrics().record_pipeline_duration(total_dur_s, outcome="success")
+                return RAGResponse(
+                    query=query_str,
+                    answer="I don't have enough information in the provided documents.",
+                    citations=[],
+                    prompt_version=req_version,
+                    latency_breakdown_ms=latencies,
+                    metadata=metadata,
+                )
+
+            # Step 6: Prompt Assembly
             t4 = time.perf_counter()
             try:
                 prompt = self.build_prompt(
@@ -749,7 +785,6 @@ class RAGPipeline:
                 confidence_result.answerability_signal,
             )
 
-
         return RAGResponse(
             query=query_str,
             answer=llm_response.response_text,
@@ -788,6 +823,7 @@ def create_rag_pipeline(
     embedding_service: Optional[EmbeddingService] = None,
     llm_provider: Optional[LLMProvider] = None,
     reranker: Optional[BaseReranker] = None,
+    decision_layer: Optional[DecisionLayer] = None,
     citation_mapper: Optional[CitationMapper] = None,
     citation_verifier: Optional[CitationVerifier] = None,
     confidence_calculator: Optional[ConfidenceCalculator] = None,
@@ -813,6 +849,7 @@ def create_rag_pipeline(
         embedding_service=embedding_service,
         llm_provider=llm_provider,
         reranker=reranker,
+        decision_layer=decision_layer,
         citation_mapper=citation_mapper,
         citation_verifier=citation_verifier,
         confidence_calculator=confidence_calculator,
