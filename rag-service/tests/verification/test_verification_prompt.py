@@ -12,12 +12,10 @@ Verifies:
 
 from __future__ import annotations
 
-import pytest
 from app.verification.verification_prompt import (
-    build_verification_prompt,
-    build_multi_evidence_verification_prompt,
     VERIFICATION_PROMPT_VERSION,
-    VERIFICATION_SYSTEM_INSTRUCTION,
+    build_multi_evidence_verification_prompt,
+    build_verification_prompt,
 )
 
 
@@ -65,7 +63,9 @@ class TestBuildVerificationPrompt:
         prompt = build_verification_prompt("claim", "evidence")
         evidence_pos = prompt.find("[EVIDENCE START]")
         instr_pos = prompt.find("evidence verification system")
-        assert instr_pos < evidence_pos, "System instruction must appear before evidence"
+        assert instr_pos < evidence_pos, (
+            "System instruction must appear before evidence"
+        )
 
     def test_structured_output_requested(self) -> None:
         prompt = build_verification_prompt("claim", "evidence")

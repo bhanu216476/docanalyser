@@ -51,5 +51,7 @@ class EvaluationReport(BaseModel):
         else:
             file_path = Path(path)
         payload = self.model_dump(mode="json")
-        file_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        file_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+        )
         return str(file_path)

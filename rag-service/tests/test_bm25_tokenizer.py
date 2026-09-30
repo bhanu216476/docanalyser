@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.retrieval.tokenizer import BM25Tokenizer, tokenize
 
 
@@ -20,7 +18,16 @@ class TestBM25Tokenizer:
         """Punctuation is stripped and words separated properly."""
         text = "casual-leave, sick-leave; and (annual) leave... right?"
         tokens = tokenize(text)
-        assert tokens == ["casual", "leave", "sick", "leave", "and", "annual", "leave", "right"]
+        assert tokens == [
+            "casual",
+            "leave",
+            "sick",
+            "leave",
+            "and",
+            "annual",
+            "leave",
+            "right",
+        ]
 
     def test_repeated_whitespace(self) -> None:
         """Repeated whitespace, tabs, and newlines are collapsed cleanly."""

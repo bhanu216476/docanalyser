@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -45,7 +44,7 @@ class DocumentMetadata(BaseModel):
         updated_at: Time when record was last updated.
     """
 
-    id: Optional[UUID] = Field(
+    id: UUID | None = Field(
         default=None,
         description="Unique document identifier (UUID).",
     )
@@ -87,11 +86,11 @@ class DocumentMetadata(BaseModel):
         default=DocumentStatus.PENDING,
         description="Current ingestion lifecycle status.",
     )
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         default=None,
         description="Creation timestamp.",
     )
-    updated_at: Optional[datetime] = Field(
+    updated_at: datetime | None = Field(
         default=None,
         description="Last update timestamp.",
     )

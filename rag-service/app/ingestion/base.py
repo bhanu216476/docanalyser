@@ -83,9 +83,7 @@ class BaseLoader(ABC):
             ValueError: Extension not supported.
         """
         if not file_path.exists():
-            raise FileNotFoundError(
-                f"File not found: '{file_path}'"
-            )
+            raise FileNotFoundError(f"File not found: '{file_path}'")
         extension = file_path.suffix.lstrip(".").lower()
         if extension not in self.supported_extensions:
             supported = ", ".join(f".{e}" for e in sorted(self.supported_extensions))

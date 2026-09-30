@@ -2,7 +2,6 @@
 Unit tests for ConfidenceCalculator covering all mandatory test cases from Section 12.
 """
 
-import math
 import pytest
 
 from app.confidence.calculator import ConfidenceCalculator
@@ -145,7 +144,9 @@ class TestConfidenceCalculator:
             total_claims=1,
             uncited_count=1,
         )
-        support = calculate_citation_support_signal(v_result, answer="Answer without citation.")
+        support = calculate_citation_support_signal(
+            v_result, answer="Answer without citation."
+        )
         assert support == 0.0
 
     # ------------------------------------------------------------------
@@ -187,7 +188,9 @@ class TestConfidenceCalculator:
             uncertain_count=1,
             unsupported_count=1,
         )
-        support = calculate_citation_support_signal(v_result, answer="Answer with 4 claims.")
+        support = calculate_citation_support_signal(
+            v_result, answer="Answer with 4 claims."
+        )
         assert support == 0.625
 
     # ------------------------------------------------------------------

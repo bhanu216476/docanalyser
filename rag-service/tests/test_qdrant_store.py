@@ -21,23 +21,20 @@ Coverage:
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 from qdrant_client import QdrantClient, models
 
 from app.embeddings.models import EmbeddingResult
 from app.ingestion.chunking.models import Chunk
 from app.vector_store import (
-    ALLOWED_FILTER_FIELDS,
     CollectionConfigError,
     FilterBuilder,
     FilterValidationError,
     QdrantVectorStore,
     VectorPayload,
-    VectorPoint,
-    VectorStoreConnectionError,
     VectorStoreFilter,
     VectorValidationError,
-    build_payload_from_chunk,
     generate_point_id,
 )
 
@@ -103,7 +100,9 @@ def make_vector(seed: float = 0.1, dim: int = TEST_DIMENSION) -> list[float]:
 # ===========================================================================
 
 
-def test_1_collection_does_not_exist_creates_collection(store: QdrantVectorStore) -> None:
+def test_1_collection_does_not_exist_creates_collection(
+    store: QdrantVectorStore,
+) -> None:
     """Test 1: If collection does not exist, it is created with proper config."""
     assert not store._client.collection_exists("test_documents")
 
@@ -152,7 +151,9 @@ def test_4_existing_collection_incompatible_distance_raises_error(
     # Create collection with Euclidean distance
     store._client.create_collection(
         collection_name="test_documents",
-        vectors_config=models.VectorParams(size=TEST_DIMENSION, distance=models.Distance.EUCLID),
+        vectors_config=models.VectorParams(
+            size=TEST_DIMENSION, distance=models.Distance.EUCLID
+        ),
     )
 
     # Store expects Cosine distance
@@ -193,7 +194,9 @@ def test_6_multiple_vectors_inserted_in_batches(store: QdrantVectorStore) -> Non
 
     total_chunks = 10
     chunks = [
-        make_chunk(document_id="doc-multi", chunk_index=i, content=f"Batch chunk content {i}")
+        make_chunk(
+            document_id="doc-multi", chunk_index=i, content=f"Batch chunk content {i}"
+        )
         for i in range(total_chunks)
     ]
     embeddings = [make_vector(0.01 * (i + 1)) for i in range(total_chunks)]
@@ -244,7 +247,9 @@ def test_9_repeated_insertion_is_idempotent(store: QdrantVectorStore) -> None:
     """Test 9: Inserting the exact same chunk multiple times updates in-place (no duplicates)."""
     store.ensure_collection()
 
-    chunk = make_chunk(document_id="doc-idempotent", chunk_index=0, content="Initial content.")
+    chunk = make_chunk(
+        document_id="doc-idempotent", chunk_index=0, content="Initial content."
+    )
     vector_v1 = make_vector(0.1)
 
     # First insertion
@@ -371,7 +376,9 @@ def test_10_filter_by_document_id(store: QdrantVectorStore) -> None:
 
     chunk1 = make_chunk(document_id="doc-A", chunk_index=0)
     chunk2 = make_chunk(document_id="doc-B", chunk_index=0)
-    store.upsert_chunks(chunks=[chunk1, chunk2], embeddings=[make_vector(0.1), make_vector(0.2)])
+    store.upsert_chunks(
+        chunks=[chunk1, chunk2], embeddings=[make_vector(0.1), make_vector(0.2)]
+    )
 
     filter_doc_a = VectorStoreFilter(document_id="doc-A")
     assert store.count(filter_spec=filter_doc_a) == 1
@@ -404,10 +411,18 @@ def test_12_filter_by_source(store: QdrantVectorStore) -> None:
 
     chunk1 = make_chunk(document_id="doc-1", source="s3://bucket/docs/spec.md")
     chunk2 = make_chunk(document_id="doc-2", source="local://files/notes.txt")
-    store.upsert_chunks(chunks=[chunk1, chunk2], embeddings=[make_vector(0.1), make_vector(0.2)])
+    store.upsert_chunks(
+        chunks=[chunk1, chunk2], embeddings=[make_vector(0.1), make_vector(0.2)]
+    )
 
-    assert store.count(filter_spec=VectorStoreFilter(source="s3://bucket/docs/spec.md")) == 1
-    assert store.count(filter_spec=VectorStoreFilter(source="local://files/notes.txt")) == 1
+    assert (
+        store.count(filter_spec=VectorStoreFilter(source="s3://bucket/docs/spec.md"))
+        == 1
+    )
+    assert (
+        store.count(filter_spec=VectorStoreFilter(source="local://files/notes.txt"))
+        == 1
+    )
     assert store.count(filter_spec=VectorStoreFilter(source="unknown")) == 0
 
 
@@ -444,9 +459,7 @@ def test_14_invalid_filter_field_raises_validation_error() -> None:
 
     # In VectorStoreFilter custom_filters
     with pytest.raises(FilterValidationError):
-        FilterBuilder.build(
-            VectorStoreFilter(custom_filters={"unapproved_key": 123})
-        )
+        FilterBuilder.build(VectorStoreFilter(custom_filters={"unapproved_key": 123}))
 
 
 def test_filter_builder_match_any_for_list_values() -> None:
@@ -469,8 +482,12 @@ def test_18_delete_by_document_id(store: QdrantVectorStore) -> None:
     """Test 18: Deleting by document_id removes all chunks of that document, preserving others."""
     store.ensure_collection()
 
-    chunks_doc1 = [make_chunk(document_id="doc-to-delete", chunk_index=i) for i in range(3)]
-    chunks_doc2 = [make_chunk(document_id="doc-to-keep", chunk_index=i) for i in range(2)]
+    chunks_doc1 = [
+        make_chunk(document_id="doc-to-delete", chunk_index=i) for i in range(3)
+    ]
+    chunks_doc2 = [
+        make_chunk(document_id="doc-to-keep", chunk_index=i) for i in range(2)
+    ]
 
     all_chunks = chunks_doc1 + chunks_doc2
     all_embs = [make_vector(0.05 * i) for i in range(len(all_chunks))]
@@ -532,9 +549,13 @@ def test_permanent_error_not_retried(store: QdrantVectorStore) -> None:
     mock_resp.content = b"Bad Request: invalid parameter"
 
     from qdrant_client.http.exceptions import UnexpectedResponse
-    exc = UnexpectedResponse(status_code=400, reason_phrase="Bad Request", content=b"Bad Request", headers={})
+
+    exc = UnexpectedResponse(
+        status_code=400, reason_phrase="Bad Request", content=b"Bad Request", headers={}
+    )
 
     with patch.object(store._client, "upsert", side_effect=exc):
         from app.vector_store.exceptions import VectorStoreBatchError
+
         with pytest.raises(VectorStoreBatchError):
             store.upsert_chunks(chunks=[chunk], embeddings=[vector])

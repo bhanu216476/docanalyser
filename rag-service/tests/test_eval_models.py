@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -13,8 +14,6 @@ from evals.models import (
     EvaluationCase,
     EvaluationCategory,
     EvaluationDataset,
-    RetrievalConfig,
-    RetrievalMetrics,
 )
 
 
@@ -87,22 +86,26 @@ def test_unanswerable_case_allows_empty_chunks() -> None:
 def test_dataset_loading_detects_duplicate_ids(tmp_path: Path) -> None:
     file = tmp_path / "dataset.jsonl"
     lines = [
-        json.dumps({
-            "id": "eval-001",
-            "question": "Question 1?",
-            "category": "simple_lookup",
-            "expected_answer": "Answer 1",
-            "relevant_chunk_ids": ["c1"],
-            "answerable": True,
-        }),
-        json.dumps({
-            "id": "eval-001",  # Duplicate ID
-            "question": "Question 2?",
-            "category": "semantic",
-            "expected_answer": "Answer 2",
-            "relevant_chunk_ids": ["c2"],
-            "answerable": True,
-        }),
+        json.dumps(
+            {
+                "id": "eval-001",
+                "question": "Question 1?",
+                "category": "simple_lookup",
+                "expected_answer": "Answer 1",
+                "relevant_chunk_ids": ["c1"],
+                "answerable": True,
+            }
+        ),
+        json.dumps(
+            {
+                "id": "eval-001",  # Duplicate ID
+                "question": "Question 2?",
+                "category": "semantic",
+                "expected_answer": "Answer 2",
+                "relevant_chunk_ids": ["c2"],
+                "answerable": True,
+            }
+        ),
     ]
     file.write_text("\n".join(lines), encoding="utf-8")
 
@@ -120,14 +123,16 @@ def test_dataset_loading_detects_invalid_json(tmp_path: Path) -> None:
 
 def test_dataset_loading_detects_invalid_category(tmp_path: Path) -> None:
     file = tmp_path / "dataset_bad_cat.jsonl"
-    bad_line = json.dumps({
-        "id": "eval-005",
-        "question": "Question?",
-        "category": "not_a_valid_category",
-        "expected_answer": "Answer",
-        "relevant_chunk_ids": ["c1"],
-        "answerable": True,
-    })
+    bad_line = json.dumps(
+        {
+            "id": "eval-005",
+            "question": "Question?",
+            "category": "not_a_valid_category",
+            "expected_answer": "Answer",
+            "relevant_chunk_ids": ["c1"],
+            "answerable": True,
+        }
+    )
     file.write_text(bad_line, encoding="utf-8")
 
     with pytest.raises(ValidationError):

@@ -8,7 +8,7 @@ and captures high-resolution latency and ranking shift metrics.
 from __future__ import annotations
 
 import math
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -63,18 +63,18 @@ class RerankedResult(BaseModel):
         description="Custom chunk metadata.",
     )
     document_id: str = Field(default="", description="Source document identifier.")
-    chunk_index: Optional[int] = Field(
+    chunk_index: int | None = Field(
         default=None, ge=0, description="0-based sequential index within document."
     )
     file_name: str = Field(default="", description="Basename of source file.")
     file_type: str = Field(default="", description="File extension.")
     source: str = Field(default="", description="Source location.")
-    section: Optional[str] = Field(default=None, description="Markdown section.")
-    provenance: Optional[RetrievalProvenance] = None
-    dense_rank: Optional[int] = Field(
+    section: str | None = Field(default=None, description="Markdown section.")
+    provenance: RetrievalProvenance | None = None
+    dense_rank: int | None = Field(
         default=None, ge=1, description="Original dense rank if from hybrid retrieval."
     )
-    bm25_rank: Optional[int] = Field(
+    bm25_rank: int | None = Field(
         default=None, ge=1, description="Original BM25 rank if from hybrid retrieval."
     )
     source_ranks: dict[str, int] = Field(
@@ -104,7 +104,7 @@ class RerankRequest(BaseModel):
         ...,
         description="Candidate chunks to be reranked.",
     )
-    top_k: Optional[int] = Field(
+    top_k: int | None = Field(
         default=None,
         ge=1,
         description="Optional maximum number of reranked results to retain.",
@@ -138,7 +138,7 @@ class RankingChangeMetrics(BaseModel):
         le=1.0,
         description="Jaccard overlap between pre-rerank top-K and post-rerank top-K sets.",
     )
-    spearman_correlation: Optional[float] = Field(
+    spearman_correlation: float | None = Field(
         default=None,
         description="Spearman rank correlation coefficient between initial and reranked ranks.",
     )
@@ -149,7 +149,9 @@ class RankingChangeMetrics(BaseModel):
         ..., ge=0, description="Count of documents that worsened their rank position."
     )
     unchanged_count: int = Field(
-        ..., ge=0, description="Count of documents with identical rank before and after."
+        ...,
+        ge=0,
+        description="Count of documents with identical rank before and after.",
     )
 
     model_config = ConfigDict(frozen=True)
@@ -175,7 +177,9 @@ class RerankExperimentResult(BaseModel):
     """Detailed evaluation result for a single query."""
 
     query: str = Field(..., description="Query evaluated.")
-    candidate_count: int = Field(..., ge=0, description="Number of candidate chunks evaluated.")
+    candidate_count: int = Field(
+        ..., ge=0, description="Number of candidate chunks evaluated."
+    )
     initial_results: list[RetrievalResult] = Field(
         default_factory=list, description="Top candidates before reranking."
     )
@@ -202,7 +206,7 @@ class RerankExperimentBatchReport(BaseModel):
         ..., ge=0.0, le=1.0, description="Fraction of queries where top-1 changed."
     )
     mean_top_k_overlap_ratio: float = Field(..., ge=0.0, le=1.0)
-    mean_spearman_correlation: Optional[float] = None
+    mean_spearman_correlation: float | None = None
     query_results: list[RerankExperimentResult] = Field(default_factory=list)
 
     model_config = ConfigDict(frozen=True)

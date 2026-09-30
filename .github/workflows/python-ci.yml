@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Python CI — RAG Service Tests & Linting
 # ==============================================================================
 #
@@ -91,6 +91,7 @@ jobs:
       - name: Run unit test suite
         run: |
           cd rag-service
+          mkdir -p ../test-results
           python -m pytest tests/ \
             -m "not integration" \
             --junit-xml=../test-results/python-unit.xml \

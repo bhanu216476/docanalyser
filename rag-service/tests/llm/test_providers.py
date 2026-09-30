@@ -8,8 +8,12 @@ from app.llm.providers import FakeLLMProvider, OpenAILLMProvider
 
 def test_fake_provider_is_deterministic() -> None:
     provider = FakeLLMProvider()
-    first = provider.generate("hello", model="fake", temperature=0.2, max_output_tokens=5)
-    second = provider.generate("hello", model="fake", temperature=0.2, max_output_tokens=5)
+    first = provider.generate(
+        "hello", model="fake", temperature=0.2, max_output_tokens=5
+    )
+    second = provider.generate(
+        "hello", model="fake", temperature=0.2, max_output_tokens=5
+    )
     assert first == second
     assert provider.call_count == 2
 
@@ -86,7 +90,11 @@ def test_openai_response_normalization(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.parametrize(
     ("error_type", "transient"),
-    [("AuthenticationError", False), ("RateLimitError", True), ("APITimeoutError", True)],
+    [
+        ("AuthenticationError", False),
+        ("RateLimitError", True),
+        ("APITimeoutError", True),
+    ],
 )
 def test_openai_errors_are_classified(
     monkeypatch: pytest.MonkeyPatch, error_type: str, transient: bool
@@ -138,5 +146,7 @@ def test_openai_errors_are_classified(
     monkeypatch.setitem(__import__("sys").modules, "openai", fake_openai)
     provider = OpenAILLMProvider("secret")
     with pytest.raises(LLMProviderError) as error:
-        provider.generate("prompt", model="gpt-test", temperature=0.2, max_output_tokens=5)
+        provider.generate(
+            "prompt", model="gpt-test", temperature=0.2, max_output_tokens=5
+        )
     assert error.value.is_transient is transient

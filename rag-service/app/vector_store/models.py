@@ -13,8 +13,8 @@ Pipeline position:
 
 from __future__ import annotations
 
-from typing import Any, Optional
 import uuid
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -101,21 +101,21 @@ class VectorPayload(BaseModel):
         min_length=1,
         description="Text content of the chunk (not the full document).",
     )
-    start_char: Optional[int] = Field(
+    start_char: int | None = Field(
         default=None,
         ge=0,
         description="Starting character offset in source document.",
     )
-    end_char: Optional[int] = Field(
+    end_char: int | None = Field(
         default=None,
         ge=0,
         description="Ending character offset in source document.",
     )
-    section: Optional[str] = Field(
+    section: str | None = Field(
         default=None,
         description="Section heading or title (e.g. from Markdown structure).",
     )
-    headings: Optional[list[str]] = Field(
+    headings: list[str] | None = Field(
         default=None,
         description="Hierarchical heading path for Markdown chunks.",
     )

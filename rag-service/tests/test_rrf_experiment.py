@@ -7,11 +7,8 @@ table output work correctly for k ∈ {20, 40, 60, 100}.
 
 from __future__ import annotations
 
-import pytest
-
 from app.retrieval.models import RetrievalResult
 from app.retrieval.rrf_experiment import (
-    KExperimentRecord,
     format_k_comparison_table,
     run_k_experiment,
 )
@@ -48,7 +45,7 @@ class TestRunKExperiment:
 
         results = run_k_experiment({"dense": dense, "bm25": bm25})
 
-        for k, records in results.items():
+        for records in results.values():
             chunk_ids = {r.chunk_id for r in records}
             assert chunk_ids == {"A", "B", "C"}
 
@@ -146,7 +143,7 @@ class TestFormatKComparisonTable:
         """Scores for k=20 should be visibly higher than k=100 in the table."""
         dense = _ranked("A")
         results = run_k_experiment([dense], k_values=[20, 100])
-        table = format_k_comparison_table(results)
+        format_k_comparison_table(results)
 
         # Both score columns should have different values visible in table
         score_20 = results[20][0].rrf_score

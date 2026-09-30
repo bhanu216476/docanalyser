@@ -21,15 +21,14 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.context.models import BuiltContext, Citation, ContextChunk
+from app.context.models import BuiltContext
+from app.core.config import settings
 from app.llm.prompt_builder import PromptBuilder
 from app.llm.prompts.models import PromptVersion
 from app.llm.providers import FakeLLMProvider, LLMProvider, LLMResponse
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -98,23 +97,23 @@ class PromptExperimentRecord(BaseModel):
     prompt_tokens: int = Field(default=0, ge=0, description="Prompt token count.")
 
     # Evaluation fields — nullable for manual or deferred assessment.
-    grounded: Optional[bool] = Field(
+    grounded: bool | None = Field(
         default=None,
         description="Response is grounded in supplied context (manual eval).",
     )
-    citation_correct: Optional[bool] = Field(
+    citation_correct: bool | None = Field(
         default=None,
         description="All cited IDs exist in the context (no hallucinated IDs).",
     )
-    citation_complete: Optional[bool] = Field(
+    citation_complete: bool | None = Field(
         default=None,
         description="All relevant context sources are cited.",
     )
-    answered: Optional[bool] = Field(
+    answered: bool | None = Field(
         default=None,
         description="The question received a substantive answer.",
     )
-    hallucination_detected: Optional[bool] = Field(
+    hallucination_detected: bool | None = Field(
         default=None,
         description="Response contains facts not supported by the context.",
     )
@@ -175,8 +174,8 @@ class PromptExperimentRunner:
 
     def __init__(
         self,
-        builder: Optional[PromptBuilder] = None,
-        provider: Optional[LLMProvider] = None,
+        builder: PromptBuilder | None = None,
+        provider: LLMProvider | None = None,
     ) -> None:
         self._builder = builder or PromptBuilder()
         self._provider: LLMProvider = provider or FakeLLMProvider()
@@ -184,7 +183,7 @@ class PromptExperimentRunner:
     def run_all(
         self,
         cases: list[PromptExperimentCase],
-        versions: Optional[list[PromptVersion]] = None,
+        versions: list[PromptVersion] | None = None,
     ) -> PromptExperimentReport:
         """
         Run all cases against all (or specified) prompt versions.
@@ -238,9 +237,7 @@ class PromptExperimentRunner:
             A single PromptExperimentRecord.
         """
         resolved = (
-            PromptVersion.from_string(version)
-            if isinstance(version, str)
-            else version
+            PromptVersion.from_string(version) if isinstance(version, str) else version
         )
         return self._run_single(case, resolved)
 
@@ -303,7 +300,7 @@ def _build_comparison_table(
     if not records:
         return "| Case | Prompt | Answered | Grounded | Citation Correct | Latency (ms) |\n|---|---|---|---|---|---|\n| - | - | - | - | - | - |"
 
-    def _fmt(val: Optional[bool]) -> str:
+    def _fmt(val: bool | None) -> str:
         if val is None:
             return "-"
         return "Yes" if val else "No"
@@ -314,9 +311,7 @@ def _build_comparison_table(
     )
 
     # Sort by case_id then version
-    sorted_records = sorted(
-        records, key=lambda r: (r.case_id, r.prompt_version.value)
-    )
+    sorted_records = sorted(records, key=lambda r: (r.case_id, r.prompt_version.value))
 
     rows = []
     for r in sorted_records:

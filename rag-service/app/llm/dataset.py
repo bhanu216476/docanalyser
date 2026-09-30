@@ -18,10 +18,10 @@ from __future__ import annotations
 from app.context.models import BuiltContext, Citation, ContextChunk
 from app.llm.experiment import PromptExperimentCase
 
-
 # ---------------------------------------------------------------------------
 # Helper builders
 # ---------------------------------------------------------------------------
+
 
 def _make_citation(
     citation_id: str,
@@ -56,9 +56,11 @@ def _make_chunk(
         file_name=file_name,
         page_number=page_number,
     )
-    formatted = f"{citation_id}\nsource: {file_name}" + (
-        f"\npage: {page_number}" if page_number else ""
-    ) + f"\n\n{content}"
+    formatted = (
+        f"{citation_id}\nsource: {file_name}"
+        + (f"\npage: {page_number}" if page_number else "")
+        + f"\n\n{content}"
+    )
     return ContextChunk(
         citation_id=citation_id,
         chunk_id=chunk_id,

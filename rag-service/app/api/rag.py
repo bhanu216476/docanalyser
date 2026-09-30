@@ -9,9 +9,8 @@ Exposes:
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 import tempfile
-from typing import Optional
+from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
 
-_pipeline: Optional[RAGPipeline] = None
+_pipeline: RAGPipeline | None = None
 
 
 def get_pipeline() -> RAGPipeline:
@@ -39,7 +38,7 @@ def get_pipeline() -> RAGPipeline:
     return _pipeline
 
 
-def set_pipeline(pipeline: Optional[RAGPipeline]) -> None:
+def set_pipeline(pipeline: RAGPipeline | None) -> None:
     """Inject a custom or in-memory RAGPipeline instance (e.g. for testing)."""
     global _pipeline
     _pipeline = pipeline
@@ -62,8 +61,8 @@ class FilePathIngestRequest(BaseModel):
     summary="Ingest a document into the RAG system",
 )
 async def ingest_document(
-    file: Optional[UploadFile] = File(default=None),
-    file_path: Optional[str] = Form(default=None),
+    file: UploadFile | None = File(default=None),  # noqa: B008
+    file_path: str | None = Form(default=None),
 ) -> IngestionResponse:
     """
     Ingest a document from either a multipart file upload or local file path.
@@ -137,7 +136,7 @@ async def query_rag(request: RAGQueryRequest) -> RAGResponse:
             detail=str(exc),
         ) from exc
     except Exception as exc:
-        logger.error("Unexpected error during RAG query: %s", exc, exc_info=True)
+        logger.error("Unexpected error during RAG query: %s", exc, exc_info=True)  # noqa: G201
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred processing the RAG query.",

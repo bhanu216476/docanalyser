@@ -209,7 +209,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
     def __init__(self, api_key: str, model: str) -> None:
         try:
-            import openai  # noqa: PLC0415
+            import openai
         except ImportError as exc:
             raise ImportError(
                 "openai package is required for OpenAIEmbeddingProvider. "
@@ -226,9 +226,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         self._model = model
         # Create a single client instance — reused across all embed_batch() calls
         self._client = openai.OpenAI(api_key=api_key)
-        logger.info(
-            "OpenAIEmbeddingProvider initialised: model=%s", model
-        )
+        logger.info("OpenAIEmbeddingProvider initialised: model=%s", model)
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """
@@ -245,7 +243,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 appropriate ``is_transient`` flag.
         """
         try:
-            import openai  # noqa: PLC0415
+            import openai
 
             response = self._client.embeddings.create(
                 model=self._model,

@@ -15,12 +15,12 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.rag import set_pipeline
 from app.main import app
-from app.pipeline.demo_cli import generate_demo_pdf
 from app.pipeline.rag_pipeline import create_rag_pipeline
 
 
@@ -80,7 +80,10 @@ def test_api_ingest_no_input_returns_400(client: TestClient) -> None:
     """Verify calling ingest with neither file nor file_path returns 400."""
     response = client.post("/api/v1/rag/ingest")
     assert response.status_code == 400
-    assert "Either 'file' (upload) or 'file_path' must be provided." in response.json()["detail"]
+    assert (
+        "Either 'file' (upload) or 'file_path' must be provided."
+        in response.json()["detail"]
+    )
 
 
 def test_api_ingest_unsupported_extension_returns_422(client: TestClient) -> None:
@@ -98,7 +101,13 @@ def test_api_query_success(client: TestClient) -> None:
     # Ingest document first
     client.post(
         "/api/v1/rag/ingest",
-        files={"file": ("faq.txt", io.BytesIO(b"Office location is 100 Main St."), "text/plain")},
+        files={
+            "file": (
+                "faq.txt",
+                io.BytesIO(b"Office location is 100 Main St."),
+                "text/plain",
+            )
+        },
     )
 
     response = client.post(

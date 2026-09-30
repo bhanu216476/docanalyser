@@ -33,7 +33,7 @@ probability unless the system has been formally calibrated.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -169,7 +169,7 @@ class ClaimVerificationResult(BaseModel):
         default_factory=list,
         description="Evidence texts resolved from the citation registry.",
     )
-    confidence: Optional[float] = Field(
+    confidence: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
@@ -250,7 +250,7 @@ class VerificationResult(BaseModel):
         answer: str,
         claim_results: list[ClaimVerificationResult],
         total_latency_ms: float = 0.0,
-    ) -> "VerificationResult":
+    ) -> VerificationResult:
         """
         Build a VerificationResult from a list of per-claim results.
 

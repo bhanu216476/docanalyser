@@ -122,7 +122,9 @@ def build_verification_prompt(claim: str, evidence: str) -> str:
     )
 
 
-def build_multi_evidence_verification_prompt(claim: str, evidence_items: list[str]) -> str:
+def build_multi_evidence_verification_prompt(
+    claim: str, evidence_items: list[str]
+) -> str:
     """
     Construct a verification prompt for a claim with multiple evidence sources.
 
@@ -138,8 +140,7 @@ def build_multi_evidence_verification_prompt(claim: str, evidence_items: list[st
         Formatted verification prompt string.
     """
     numbered = "\n\n".join(
-        f"[Source {i + 1}]\n{text.strip()}"
-        for i, text in enumerate(evidence_items)
+        f"[Source {i + 1}]\n{text.strip()}" for i, text in enumerate(evidence_items)
     )
     multi_system = (
         VERIFICATION_SYSTEM_INSTRUCTION

@@ -32,13 +32,13 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from app.verification.models import VerificationStatus
 from app.verification.verification_prompt import (
-    build_verification_prompt,
-    build_multi_evidence_verification_prompt,
     VERIFICATION_PROMPT_VERSION,
+    build_multi_evidence_verification_prompt,
+    build_verification_prompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ class SemanticVerificationOutcome:
 
     status: VerificationStatus
     reason: str
-    confidence: Optional[float]
+    confidence: float | None
     latency_ms: float
     prompt_version: str = VERIFICATION_PROMPT_VERSION
 
@@ -132,7 +132,7 @@ class MockEvidenceVerifier:
 
     def __init__(
         self,
-        preset_status: Optional[VerificationStatus] = None,
+        preset_status: VerificationStatus | None = None,
         preset_confidence: float = 0.9,
         use_substring_heuristic: bool = True,
     ) -> None:
@@ -168,9 +168,7 @@ class MockEvidenceVerifier:
         return self.verify(claim, combined)
 
     @staticmethod
-    def _heuristic(
-        claim: str, evidence: str
-    ) -> tuple[VerificationStatus, str, float]:
+    def _heuristic(claim: str, evidence: str) -> tuple[VerificationStatus, str, float]:
         """
         Simple substring heuristic for deterministic test responses.
 
@@ -265,9 +263,7 @@ class LLMEvidenceVerifier:
             )
             return '{"status": "UNCERTAIN", "reason": "Provider interface error.", "confidence": 0.3}'
 
-    def _parse_response(
-        self, raw: str
-    ) -> tuple[VerificationStatus, str, Optional[float]]:
+    def _parse_response(self, raw: str) -> tuple[VerificationStatus, str, float | None]:
         """
         Parse and validate the structured JSON response from the LLM.
 
@@ -276,12 +272,16 @@ class LLMEvidenceVerifier:
         """
         raw = raw.strip()
         # Strip any markdown code fences the model might have added
-        raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        raw = (
+            raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        )
 
         try:
             data = json.loads(raw)
         except (json.JSONDecodeError, ValueError) as exc:
-            logger.warning("Verification response is not valid JSON: %s — %s", raw[:200], exc)
+            logger.warning(
+                "Verification response is not valid JSON: %s — %s", raw[:200], exc
+            )
             return (
                 VerificationStatus.UNCERTAIN,
                 f"Verification response was not valid JSON: {raw[:100]}",
@@ -307,7 +307,7 @@ class LLMEvidenceVerifier:
 
         reason = str(data.get("reason", "")).strip() or "No reason provided."
         confidence_raw = data.get("confidence")
-        confidence: Optional[float] = None
+        confidence: float | None = None
         if confidence_raw is not None:
             try:
                 confidence = float(confidence_raw)

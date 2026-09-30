@@ -37,30 +37,30 @@ from app.reranking.mock_reranker import MockReranker
 from app.reranking.models import (
     LatencyMetrics,
     RankingChangeMetrics,
+    RerankedResult,
     RerankExperimentBatchReport,
     RerankExperimentResult,
     RerankRequest,
-    RerankedResult,
 )
 from app.reranking.pipeline import RerankedPipeline
 
 __all__ = [
-    # Protocols / abstractions
-    "Reranker",
     "BaseReranker",
+    "LatencyMetrics",
     # Implementations
     "MockReranker",
+    "RankingChangeMetrics",
+    "RerankExperimentBatchReport",
+    "RerankExperimentResult",
+    "RerankRequest",
     # Pipeline
     "RerankedPipeline",
-    # Experiment framework
-    "RerankingExperimentFramework",
     # Models
     "RerankedResult",
-    "RerankRequest",
-    "RankingChangeMetrics",
-    "LatencyMetrics",
-    "RerankExperimentResult",
-    "RerankExperimentBatchReport",
+    # Protocols / abstractions
+    "Reranker",
+    # Experiment framework
+    "RerankingExperimentFramework",
     # Metrics
     "compute_latency",
     "compute_ranking_metrics",

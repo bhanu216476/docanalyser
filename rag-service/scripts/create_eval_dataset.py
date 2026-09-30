@@ -1,12 +1,12 @@
-﻿import json
-import os
+import json
 from pathlib import Path
+
 
 def create_dataset():
     data_dir = Path("evals/data")
     data_dir.mkdir(parents=True, exist_ok=True)
     dataset_path = data_dir / "eval_dataset.jsonl"
-    
+
     cases = [
         {
             "id": "eval-001",
@@ -16,7 +16,7 @@ def create_dataset():
             "relevant_document_ids": ["doc-1"],
             "relevant_chunk_ids": ["chunk-1"],
             "expected_citations": ["chunk-1"],
-            "answerable": True
+            "answerable": True,
         },
         {
             "id": "eval-002",
@@ -26,15 +26,15 @@ def create_dataset():
             "relevant_document_ids": ["doc-2"],
             "relevant_chunk_ids": ["chunk-2"],
             "expected_citations": ["chunk-2"],
-            "answerable": True
-        }
+            "answerable": True,
+        },
     ]
-    
+
     with open(dataset_path, "w") as f:
-        for case in cases:
-            f.write(json.dumps(case) + "\n")
-            
+        f.writelines(json.dumps(case) + "\n" for case in cases)
+
     print(f"Created evaluation dataset at {dataset_path} with {len(cases)} cases.")
+
 
 if __name__ == "__main__":
     create_dataset()

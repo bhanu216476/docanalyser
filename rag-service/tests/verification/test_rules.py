@@ -23,8 +23,9 @@ Also tests:
 from __future__ import annotations
 
 import pytest
-from app.verification.rules import RuleBasedVerifier
+
 from app.verification.models import VerificationStatus
+from app.verification.rules import RuleBasedVerifier
 
 
 @pytest.fixture
@@ -188,9 +189,7 @@ class TestRuleBasedVerifierMultiEvidence:
         assert outcome.status == VerificationStatus.UNCERTAIN
         assert "conflict" in outcome.reason.lower()
 
-    def test_all_empty_evidence_unsupported(
-        self, verifier: RuleBasedVerifier
-    ) -> None:
+    def test_all_empty_evidence_unsupported(self, verifier: RuleBasedVerifier) -> None:
         outcome = verifier.check_multi_evidence(
             claim="Employees receive 12 casual leave days.",
             evidence_items=[(1, ""), (2, "")],

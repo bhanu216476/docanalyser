@@ -1,6 +1,7 @@
 """Deterministic fake embedding model for offline testing and benchmarking."""
 
 import hashlib
+
 import numpy as np
 from langchain_core.embeddings import Embeddings
 
@@ -18,14 +19,30 @@ class FakeEmbeddings(Embeddings):
         self.vector_dim = vector_dim
         self.embed_call_count: int = 0
         self.topic_vectors = {
-            "intro": self._normalize([1.0 if i == 0 else 0.0 for i in range(self.vector_dim)]),
-            "background": self._normalize([1.0 if i == 1 else 0.0 for i in range(self.vector_dim)]),
-            "related": self._normalize([1.0 if i == 2 else 0.0 for i in range(self.vector_dim)]),
-            "method": self._normalize([1.0 if i == 3 else 0.0 for i in range(self.vector_dim)]),
-            "experiment": self._normalize([1.0 if i == 4 else 0.0 for i in range(self.vector_dim)]),
-            "result": self._normalize([1.0 if i == 5 else 0.0 for i in range(self.vector_dim)]),
-            "discussion": self._normalize([1.0 if i == 6 else 0.0 for i in range(self.vector_dim)]),
-            "conclusion": self._normalize([1.0 if i == 7 else 0.0 for i in range(self.vector_dim)]),
+            "intro": self._normalize(
+                [1.0 if i == 0 else 0.0 for i in range(self.vector_dim)]
+            ),
+            "background": self._normalize(
+                [1.0 if i == 1 else 0.0 for i in range(self.vector_dim)]
+            ),
+            "related": self._normalize(
+                [1.0 if i == 2 else 0.0 for i in range(self.vector_dim)]
+            ),
+            "method": self._normalize(
+                [1.0 if i == 3 else 0.0 for i in range(self.vector_dim)]
+            ),
+            "experiment": self._normalize(
+                [1.0 if i == 4 else 0.0 for i in range(self.vector_dim)]
+            ),
+            "result": self._normalize(
+                [1.0 if i == 5 else 0.0 for i in range(self.vector_dim)]
+            ),
+            "discussion": self._normalize(
+                [1.0 if i == 6 else 0.0 for i in range(self.vector_dim)]
+            ),
+            "conclusion": self._normalize(
+                [1.0 if i == 7 else 0.0 for i in range(self.vector_dim)]
+            ),
         }
 
     def _normalize(self, vec: list[float]) -> list[float]:
@@ -47,7 +64,7 @@ class FakeEmbeddings(Embeddings):
         if base_vec is None:
             # Deterministic hash-based vector
             hash_bytes = hashlib.md5(text.encode("utf-8")).digest()
-            raw_floats = [float(b % 100) / 100.0 for b in hash_bytes[:self.vector_dim]]
+            raw_floats = [float(b % 100) / 100.0 for b in hash_bytes[: self.vector_dim]]
             if len(raw_floats) < self.vector_dim:
                 raw_floats.extend([0.1] * (self.vector_dim - len(raw_floats)))
             base_vec = np.array(raw_floats, dtype=float)

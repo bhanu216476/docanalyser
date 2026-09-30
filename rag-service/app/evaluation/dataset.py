@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -11,7 +11,9 @@ class EvaluationCase(BaseModel):
     """Deterministic evaluation case for retrieval or end-to-end RAG testing."""
 
     id: str = Field(..., min_length=1, description="Unique case identifier.")
-    question: str = Field(..., min_length=1, description="Question to ask the RAG system.")
+    question: str = Field(
+        ..., min_length=1, description="Question to ask the RAG system."
+    )
     expected_answer: str | None = Field(
         default=None,
         description="Optional canonical answer for end-to-end evaluation.",
@@ -59,13 +61,17 @@ def _load_json(path: Path) -> list[EvaluationCase]:
     if isinstance(payload, dict):
         payload = payload.get("cases") or payload.get("items")
     if not isinstance(payload, list):
-        raise ValueError("JSON evaluation dataset must contain a list of cases or a 'cases' field.")
+        raise ValueError(  # noqa: TRY004
+            "JSON evaluation dataset must contain a list of cases or a 'cases' field."
+        )
     return [_normalize_case(item) for item in payload]
 
 
 def _load_jsonl(path: Path) -> list[EvaluationCase]:
     cases: list[EvaluationCase] = []
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
         if not line.strip():
             continue
         try:
@@ -80,7 +86,9 @@ def _load_jsonl(path: Path) -> list[EvaluationCase]:
 
 def _normalize_case(payload: Any) -> EvaluationCase:
     if not isinstance(payload, dict):
-        raise ValueError(f"Each evaluation case must be an object, got {type(payload).__name__}")
+        raise ValueError(  # noqa: TRY004
+            f"Each evaluation case must be an object, got {type(payload).__name__}"
+        )
     if "id" not in payload or "question" not in payload:
         raise ValueError("Each evaluation case must include 'id' and 'question'.")
     return EvaluationCase(**payload)

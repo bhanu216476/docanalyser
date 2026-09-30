@@ -79,9 +79,7 @@ class TxtLoader(BaseLoader):
         content = self._clean(raw)
 
         if not content:
-            raise ValueError(
-                f"Document is empty after loading: '{file_path}'"
-            )
+            raise ValueError(f"Document is empty after loading: '{file_path}'")
 
         logger.info(
             "TxtLoader: successfully loaded file_name=%s size_bytes=%d",

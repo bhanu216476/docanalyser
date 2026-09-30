@@ -3,11 +3,9 @@ Unit tests for ScoreNormalizer across Dense, BM25, RRF, and Reranker scores.
 """
 
 import math
-import pytest
 
 from app.confidence.normalizer import ScoreNormalizer
-from app.retrieval.models import HybridRetrievalResult, RetrievalResult
-from app.reranking.models import RerankedResult
+from app.retrieval.models import HybridRetrievalResult
 
 
 class TestScoreNormalizer:
@@ -104,5 +102,7 @@ class TestScoreNormalizer:
             bm25_rank=1,
             source_ranks={"dense": 1, "bm25": 1},
         )
-        score = ScoreNormalizer.aggregate_retrieval_signal([hybrid_cand], k=k, num_sources=2)
+        score = ScoreNormalizer.aggregate_retrieval_signal(
+            [hybrid_cand], k=k, num_sources=2
+        )
         assert math.isclose(score, 1.0, rel_tol=1e-5)

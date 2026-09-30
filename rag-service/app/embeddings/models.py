@@ -91,7 +91,10 @@ class EmbeddingResult(BaseModel):
     )
     embedding: Annotated[
         list[float],
-        Field(min_length=1, description="Dense embedding vector (non-empty list of floats)."),
+        Field(
+            min_length=1,
+            description="Dense embedding vector (non-empty list of floats).",
+        ),
     ]
     token_count: int = Field(
         ...,

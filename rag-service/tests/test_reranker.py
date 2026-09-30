@@ -6,15 +6,14 @@ from __future__ import annotations
 
 import pytest
 
-from app.retrieval.models import RetrievalResult
-from app.reranking.base import BaseReranker, Reranker
+from app.reranking.base import Reranker
 from app.reranking.mock_reranker import MockReranker
-from app.reranking.models import RerankedResult
-
+from app.retrieval.models import RetrievalResult
 
 # ---------------------------------------------------------------------------
 # Test helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_result(
     chunk_id: str,
@@ -47,6 +46,7 @@ def _candidates() -> list[RetrievalResult]:
 # MockReranker — deterministic scoring
 # ---------------------------------------------------------------------------
 
+
 class TestMockRerankerDeterminism:
     def test_same_inputs_produce_same_scores(self) -> None:
         reranker = MockReranker()
@@ -56,7 +56,9 @@ class TestMockRerankerDeterminism:
         result1 = reranker.rerank(query, cands)
         result2 = reranker.rerank(query, cands)
 
-        assert [r.reranker_score for r in result1] == [r.reranker_score for r in result2]
+        assert [r.reranker_score for r in result1] == [
+            r.reranker_score for r in result2
+        ]
         assert [r.chunk_id for r in result1] == [r.chunk_id for r in result2]
 
     def test_custom_scores_override_algorithm(self) -> None:
@@ -89,6 +91,7 @@ class TestMockRerankerDeterminism:
 # Score preservation
 # ---------------------------------------------------------------------------
 
+
 class TestScorePreservation:
     def test_retrieval_score_preserved_not_overwritten(self) -> None:
         """retrieval_score must match the original candidate score."""
@@ -120,12 +123,11 @@ class TestScorePreservation:
 # Rank delta
 # ---------------------------------------------------------------------------
 
+
 class TestRankDelta:
     def test_promoted_has_positive_delta(self) -> None:
         """A doc that goes from rank 4 to rank 1 has delta = 4-1=3 > 0."""
-        reranker = MockReranker(
-            custom_scores={"A": 0.1, "B": 0.2, "C": 0.3, "D": 0.9}
-        )
+        reranker = MockReranker(custom_scores={"A": 0.1, "B": 0.2, "C": 0.3, "D": 0.9})
         results = reranker.rerank("query", _candidates())
         d_result = next(r for r in results if r.chunk_id == "D")
         # D was rank 4 initially, should be rank 1 now
@@ -135,9 +137,7 @@ class TestRankDelta:
 
     def test_demoted_has_negative_delta(self) -> None:
         """A doc that goes from rank 1 to rank 4 has delta = 1-4=-3 < 0."""
-        reranker = MockReranker(
-            custom_scores={"A": 0.1, "B": 0.5, "C": 0.7, "D": 0.9}
-        )
+        reranker = MockReranker(custom_scores={"A": 0.1, "B": 0.5, "C": 0.7, "D": 0.9})
         results = reranker.rerank("query", _candidates())
         a_result = next(r for r in results if r.chunk_id == "A")
         assert a_result.rank_delta < 0  # demoted
@@ -145,9 +145,7 @@ class TestRankDelta:
     def test_unchanged_has_zero_delta(self) -> None:
         """If ranking order doesn't change, all deltas are 0."""
         # In alphabetical tie-break, score ordering matches initial ranking
-        reranker = MockReranker(
-            custom_scores={"A": 0.9, "B": 0.7, "C": 0.5, "D": 0.3}
-        )
+        reranker = MockReranker(custom_scores={"A": 0.9, "B": 0.7, "C": 0.5, "D": 0.3})
         results = reranker.rerank("query", _candidates())
         for r in results:
             assert r.rank_delta == 0
@@ -156,6 +154,7 @@ class TestRankDelta:
 # ---------------------------------------------------------------------------
 # top_k truncation
 # ---------------------------------------------------------------------------
+
 
 class TestTopKTruncation:
     def test_top_k_limits_reranked_output(self) -> None:
@@ -177,6 +176,7 @@ class TestTopKTruncation:
 # ---------------------------------------------------------------------------
 # Empty inputs
 # ---------------------------------------------------------------------------
+
 
 class TestEdgeCases:
     def test_empty_candidates_returns_empty(self) -> None:
@@ -207,6 +207,7 @@ class TestEdgeCases:
 # Reranker protocol check
 # ---------------------------------------------------------------------------
 
+
 class TestRerankerProtocol:
     def test_mock_reranker_satisfies_protocol(self) -> None:
         reranker = MockReranker()
@@ -217,6 +218,7 @@ class TestRerankerProtocol:
 # Overlap scoring
 # ---------------------------------------------------------------------------
 
+
 class TestMockScoringLogic:
     def test_exact_query_phrase_gets_bonus(self) -> None:
         """Chunk containing exact query phrase scores higher than token overlap only."""
@@ -224,11 +226,17 @@ class TestMockScoringLogic:
         reranker = MockReranker()
 
         phrase_chunk = _make_result("phrase_chunk", 0.5, 1, content=exact_phrase)
-        keyword_chunk = _make_result("keyword_chunk", 0.5, 2, content="authentication policy exists")
+        keyword_chunk = _make_result(
+            "keyword_chunk", 0.5, 2, content="authentication policy exists"
+        )
 
         results = reranker.rerank(exact_phrase, [phrase_chunk, keyword_chunk])
-        phrase_score = next(r.reranker_score for r in results if r.chunk_id == "phrase_chunk")
-        keyword_score = next(r.reranker_score for r in results if r.chunk_id == "keyword_chunk")
+        phrase_score = next(
+            r.reranker_score for r in results if r.chunk_id == "phrase_chunk"
+        )
+        keyword_score = next(
+            r.reranker_score for r in results if r.chunk_id == "keyword_chunk"
+        )
 
         assert phrase_score > keyword_score
 

@@ -15,9 +15,10 @@ Guarantees IDF(t) >= 0 for all terms, eliminating negative IDF values.
 
 from __future__ import annotations
 
-from collections import Counter
 import math
-from typing import Any, Optional, Sequence
+from collections import Counter
+from collections.abc import Sequence
+from typing import Any
 
 from app.retrieval.exceptions import RetrievalIndexError
 from app.retrieval.tokenizer import BM25Tokenizer
@@ -28,18 +29,18 @@ class IndexedChunkRecord:
 
     __slots__ = (
         "chunk_id",
+        "chunk_index",
         "content",
         "doc_len",
-        "tf_map",
-        "metadata",
         "document_id",
-        "chunk_index",
+        "end_char",
         "file_name",
         "file_type",
-        "source",
+        "metadata",
         "section",
+        "source",
         "start_char",
-        "end_char",
+        "tf_map",
     )
 
     def __init__(
@@ -50,13 +51,13 @@ class IndexedChunkRecord:
         tf_map: dict[str, int],
         metadata: dict[str, Any],
         document_id: str = "",
-        chunk_index: Optional[int] = None,
+        chunk_index: int | None = None,
         file_name: str = "",
         file_type: str = "",
         source: str = "",
-        section: Optional[str] = None,
-        start_char: Optional[int] = None,
-        end_char: Optional[int] = None,
+        section: str | None = None,
+        start_char: int | None = None,
+        end_char: int | None = None,
     ) -> None:
         self.chunk_id = chunk_id
         self.content = content
@@ -83,7 +84,7 @@ class BM25Index:
 
     def __init__(
         self,
-        tokenizer: Optional[BM25Tokenizer] = None,
+        tokenizer: BM25Tokenizer | None = None,
     ) -> None:
         self._tokenizer = tokenizer or BM25Tokenizer()
         self._records: list[IndexedChunkRecord] = []
@@ -115,8 +116,7 @@ class BM25Index:
         if 0 <= doc_idx < len(self._records):
             return self._records[doc_idx].doc_len
         raise IndexError(
-            f"Document index {doc_idx} out of range "
-            f"(0..{len(self._records)-1})"
+            f"Document index {doc_idx} out of range (0..{len(self._records) - 1})"
         )
 
     def get_df(self, term: str) -> int:
@@ -181,7 +181,9 @@ class BM25Index:
         if not document_id or not document_id.strip():
             raise RetrievalIndexError("document_id cannot be empty for removal")
 
-        retained = [record for record in self._records if record.document_id != document_id]
+        retained = [
+            record for record in self._records if record.document_id != document_id
+        ]
         removed = len(self._records) - len(retained)
         if removed == 0:
             return 0
@@ -246,25 +248,19 @@ class BM25Index:
                 or chunk.get("page_content", "")
                 or chunk.get("text", "")
             )
-            doc_id = str(
-                chunk.get("document_id", "") or meta.get("document_id", "")
-            )
+            doc_id = str(chunk.get("document_id", "") or meta.get("document_id", ""))
             return {
                 "chunk_id": cid,
                 "content": text,
                 "document_id": doc_id,
-                "chunk_index": chunk.get(
-                    "chunk_index", meta.get("chunk_index")
-                ),
+                "chunk_index": chunk.get("chunk_index", meta.get("chunk_index")),
                 "file_name": str(
                     chunk.get("file_name", "") or meta.get("file_name", "")
                 ),
                 "file_type": str(
                     chunk.get("file_type", "") or meta.get("file_type", "")
                 ),
-                "source": str(
-                    chunk.get("source", "") or meta.get("source", "")
-                ),
+                "source": str(chunk.get("source", "") or meta.get("source", "")),
                 "section": chunk.get("section", meta.get("section")),
                 "start_char": chunk.get("start_char", meta.get("start_char")),
                 "end_char": chunk.get("end_char", meta.get("end_char")),
@@ -283,30 +279,19 @@ class BM25Index:
         if not chunk_id:
             chunk_id = metadata.get("chunk_id", "")
 
-        document_id = (
-            getattr(chunk, "document_id", "")
-            or metadata.get("document_id", "")
+        document_id = getattr(chunk, "document_id", "") or metadata.get(
+            "document_id", ""
         )
         chunk_index = getattr(chunk, "chunk_index", None)
         if chunk_index is None:
             chunk_index = metadata.get("chunk_index")
 
-        file_name = (
-            getattr(chunk, "file_name", "") or metadata.get("file_name", "")
-        )
-        file_type = (
-            getattr(chunk, "file_type", "") or metadata.get("file_type", "")
-        )
-        source = (
-            getattr(chunk, "source", "") or metadata.get("source", "")
-        )
+        file_name = getattr(chunk, "file_name", "") or metadata.get("file_name", "")
+        file_type = getattr(chunk, "file_type", "") or metadata.get("file_type", "")
+        source = getattr(chunk, "source", "") or metadata.get("source", "")
         section = getattr(chunk, "section", None) or metadata.get("section")
-        start_char = (
-            getattr(chunk, "start_char", None) or metadata.get("start_char")
-        )
-        end_char = (
-            getattr(chunk, "end_char", None) or metadata.get("end_char")
-        )
+        start_char = getattr(chunk, "start_char", None) or metadata.get("start_char")
+        end_char = getattr(chunk, "end_char", None) or metadata.get("end_char")
 
         return {
             "chunk_id": str(chunk_id),
@@ -363,7 +348,7 @@ class BM25Index:
     def search(
         self,
         query_terms: Sequence[str],
-        eligible_indices: Optional[set[int]] = None,
+        eligible_indices: set[int] | None = None,
         k1: float = 1.2,
         b: float = 0.75,
     ) -> list[tuple[int, float]]:
@@ -392,10 +377,7 @@ class BM25Index:
 
             postings = self._inverted_index.get(term, [])
             for doc_idx, tf in postings:
-                if (
-                    eligible_indices is not None
-                    and doc_idx not in eligible_indices
-                ):
+                if eligible_indices is not None and doc_idx not in eligible_indices:
                     continue
 
                 record = self._records[doc_idx]

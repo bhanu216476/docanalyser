@@ -15,7 +15,6 @@ Clamped strictly to [0.0, 1.0].
 from __future__ import annotations
 
 import logging
-from typing import Optional, Union
 
 from app.confidence.models import (
     ConfidenceBand,
@@ -36,9 +35,9 @@ class ConfidenceCalculator:
 
     def __init__(
         self,
-        weights: Optional[ConfidenceWeights] = None,
-        high_threshold: Optional[float] = None,
-        low_threshold: Optional[float] = None,
+        weights: ConfidenceWeights | None = None,
+        high_threshold: float | None = None,
+        low_threshold: float | None = None,
     ) -> None:
         """
         Initialize ConfidenceCalculator with configurable weights and band thresholds.
@@ -74,8 +73,8 @@ class ConfidenceCalculator:
 
     def calculate(
         self,
-        signals: Union[ConfidenceSignals, dict[str, float]],
-        metadata: Optional[dict[str, object]] = None,
+        signals: ConfidenceSignals | dict[str, float],
+        metadata: dict[str, object] | None = None,
     ) -> ConfidenceResult:
         """
         Calculate weighted confidence score from input signals.

@@ -9,7 +9,8 @@ Defines:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.confidence.models import ConfidenceResult
@@ -58,16 +59,16 @@ class RAGQueryRequest(BaseModel):
         min_length=1,
         description="User question string.",
     )
-    top_k: Optional[int] = Field(
+    top_k: int | None = Field(
         default=None,
         ge=1,
         description="Override final top-k candidates for reranking/context.",
     )
-    prompt_version: Optional[str] = Field(
+    prompt_version: str | None = Field(
         default=None,
         description="Prompt version override ('v1', 'v2', 'v3').",
     )
-    filters: Optional[RetrievalFilter] = Field(
+    filters: RetrievalFilter | None = Field(
         default=None,
         description="Optional metadata filters for dense and BM25 retrievers.",
     )
@@ -112,11 +113,11 @@ class RAGResponse(BaseModel):
         default_factory=dict,
         description="Pipeline metrics and diagnostics (chunk counts, tokens, model info).",
     )
-    verification: Optional[VerificationResult] = Field(
+    verification: VerificationResult | None = Field(
         default=None,
         description="Citation verification results if verification was executed.",
     )
-    confidence: Optional[ConfidenceResult] = Field(
+    confidence: ConfidenceResult | None = Field(
         default=None,
         description="Confidence scoring result combining retrieval, reranking, citation, and answerability.",
     )

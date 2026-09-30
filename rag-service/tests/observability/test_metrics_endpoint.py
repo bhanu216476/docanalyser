@@ -37,7 +37,11 @@ class TestMetricsEndpoint:
         response = client.get("/metrics")
         body = response.text
         # Standard prometheus_client metrics
-        assert "python_gc_objects_collected_total" in body or "process_" in body or "rag_" in body
+        assert (
+            "python_gc_objects_collected_total" in body
+            or "process_" in body
+            or "rag_" in body
+        )
 
     def test_rag_http_metrics_recorded_after_request(self, client):
         """After a health request, rag_http_requests_total counter should appear."""

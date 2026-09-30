@@ -30,14 +30,11 @@ Uses only in-memory components; no Qdrant or LLM API required.
 
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
-from typing import Optional
-
-from app.context.models import Citation, BuiltContext, ContextChunk, ContextBuilderConfig
-from app.citations.mapper import CitationMapper
-from app.llm.prompts.models import Prompt, PromptVersion
-from app.llm.providers import LLMResponse
+from app.context.models import (
+    BuiltContext,
+    Citation,
+    ContextChunk,
+)
 from app.verification.citation_verifier import CitationVerifier
 from app.verification.evidence_verifier import MockEvidenceVerifier
 from app.verification.models import (
@@ -47,10 +44,10 @@ from app.verification.models import (
     VerificationStatus,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_citation_with_content(
     citation_id: int,
@@ -89,6 +86,7 @@ def run_verification(
 # E2E Test 1: SUPPORTED — correct answer, correct citation
 # ---------------------------------------------------------------------------
 
+
 class TestE2ESupported:
     def test_correct_citation_is_supported(self) -> None:
         """
@@ -123,6 +121,7 @@ class TestE2ESupported:
 # ---------------------------------------------------------------------------
 # E2E Test 2: UNSUPPORTED — wrong number
 # ---------------------------------------------------------------------------
+
 
 class TestE2EUnsupported:
     def test_wrong_number_is_unsupported(self) -> None:
@@ -164,6 +163,7 @@ class TestE2EUnsupported:
 # E2E Test 3: UNCITED — no citation marker
 # ---------------------------------------------------------------------------
 
+
 class TestE2EUncited:
     def test_uncited_claim(self) -> None:
         """
@@ -183,6 +183,7 @@ class TestE2EUncited:
 # ---------------------------------------------------------------------------
 # E2E Test 4: INVALID_CITATION
 # ---------------------------------------------------------------------------
+
 
 class TestE2EInvalidCitation:
     def test_invalid_citation_id(self) -> None:
@@ -220,6 +221,7 @@ class TestE2EInvalidCitation:
 # E2E Test 5: UNCERTAIN — conflicting evidence
 # ---------------------------------------------------------------------------
 
+
 class TestE2EUncertain:
     def test_conflicting_citations_uncertain(self) -> None:
         """
@@ -242,6 +244,7 @@ class TestE2EUncertain:
 # E2E Test 6: Refusal / no-answer response
 # ---------------------------------------------------------------------------
 
+
 class TestE2ENoAnswer:
     def test_no_answer_response_creates_no_false_unsupported(self) -> None:
         """An explicit 'I cannot answer' should not produce UNSUPPORTED."""
@@ -259,6 +262,7 @@ class TestE2ENoAnswer:
 # ---------------------------------------------------------------------------
 # E2E Test 7: Full pipeline with BuiltContext.citation_registry
 # ---------------------------------------------------------------------------
+
 
 class TestE2EBuiltContextRegistry:
     """
@@ -313,6 +317,7 @@ class TestE2EBuiltContextRegistry:
 # ---------------------------------------------------------------------------
 # E2E Test 8: Latency recorded
 # ---------------------------------------------------------------------------
+
 
 class TestE2ELatency:
     def test_total_latency_is_recorded(self) -> None:

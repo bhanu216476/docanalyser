@@ -26,7 +26,9 @@ def _make_context(empty: bool = False) -> BuiltContext:
         source="leave_policy.pdf",
         file_name="leave_policy.pdf",
     )
-    formatted = "[1]\nsource: leave_policy.pdf\n\nThe annual leave entitlement is 25 days."
+    formatted = (
+        "[1]\nsource: leave_policy.pdf\n\nThe annual leave entitlement is 25 days."
+    )
     chunk = ContextChunk(
         citation_id="[1]",
         chunk_id="chunk-1",
@@ -103,7 +105,9 @@ class TestV2PromptTemplate:
         ctx = _make_context(empty=True)
         prompt = template.build(query="How much leave?", context=ctx)
         user_content = prompt.messages[1].content
-        assert "<context>\nNo relevant context was retrieved.\n</context>" in user_content
+        assert (
+            "<context>\nNo relevant context was retrieved.\n</context>" in user_content
+        )
 
 
 class TestV3PromptTemplate:

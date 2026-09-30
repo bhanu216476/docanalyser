@@ -36,10 +36,9 @@ def test_fixed_and_recursive_have_different_structural_behavior():
 def test_semantic_uses_embeddings_and_semantic_boundaries():
     document = Document(
         page_content=(
-            "Introduction topic. Introduction details. "
-            "Results topic. Results details."
+            "Introduction topic. Introduction details. Results topic. Results details."
         ),
-        metadata={"source": "semantic.txt"}
+        metadata={"source": "semantic.txt"},
     )
     fake_embeddings = FakeEmbeddings()
 
@@ -75,7 +74,7 @@ def test_multi_page_chunk_crossing_and_metrics():
             "page_number": 1,
             "page_numbers": [1, 2, 2],
             "headings": ["Multi-page section"],
-        }
+        },
     )
     result = evaluate_chunking_strategy(
         documents=[document],
@@ -96,7 +95,9 @@ def test_multi_page_chunk_crossing_and_metrics():
 def test_100_page_chunking_comparison():
     documents = generate_synthetic_100_page_doc()
     assert len(documents) == 100
-    assert {document.metadata["page_number"] for document in documents} == set(range(1, 101))
+    assert {document.metadata["page_number"] for document in documents} == set(
+        range(1, 101)
+    )
     assert all(document.metadata["source_type"] == "pdf" for document in documents)
     assert sum(bool(document.metadata["headings"]) for document in documents) == 8
 
@@ -106,22 +107,25 @@ def test_100_page_chunking_comparison():
     fixed_res = evaluate_chunking_strategy(
         documents=documents,
         strategy="fixed",
-        config={"chunk_size": 1000, "chunk_overlap": 100}
+        config={"chunk_size": 1000, "chunk_overlap": 100},
     )
 
     # 2. Recursive Character Chunking
     recursive_res = evaluate_chunking_strategy(
         documents=documents,
         strategy="recursive",
-        config={"chunk_size": 1000, "chunk_overlap": 100}
+        config={"chunk_size": 1000, "chunk_overlap": 100},
     )
 
     # 3. Semantic Chunking
     semantic_res = evaluate_chunking_strategy(
         documents=documents,
         strategy="semantic",
-        config={"breakpoint_threshold_type": "percentile", "breakpoint_threshold_amount": 80.0},
-        embedding_model=fake_emb
+        config={
+            "breakpoint_threshold_type": "percentile",
+            "breakpoint_threshold_amount": 80.0,
+        },
+        embedding_model=fake_emb,
     )
 
     results = [fixed_res, recursive_res, semantic_res]

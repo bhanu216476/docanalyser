@@ -31,24 +31,24 @@ from app.vector_store.qdrant_client import create_qdrant_client
 from app.vector_store.qdrant_store import QdrantVectorStore
 
 __all__ = [
+    "ALLOWED_FILTER_FIELDS",
+    "DOCANALYSER_NAMESPACE",
+    "CollectionConfigError",
+    "FilterBuilder",
+    "FilterValidationError",
     # Main store & client
     "QdrantVectorStore",
-    "create_qdrant_client",
+    "VectorPayload",
     # Models
     "VectorPoint",
-    "VectorPayload",
-    "generate_point_id",
-    "build_payload_from_chunk",
-    "DOCANALYSER_NAMESPACE",
-    # Filters
-    "VectorStoreFilter",
-    "FilterBuilder",
-    "ALLOWED_FILTER_FIELDS",
+    "VectorStoreBatchError",
+    "VectorStoreConnectionError",
     # Exceptions
     "VectorStoreError",
-    "VectorStoreConnectionError",
-    "CollectionConfigError",
+    # Filters
+    "VectorStoreFilter",
     "VectorValidationError",
-    "FilterValidationError",
-    "VectorStoreBatchError",
+    "build_payload_from_chunk",
+    "create_qdrant_client",
+    "generate_point_id",
 ]

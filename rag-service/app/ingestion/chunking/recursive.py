@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from app.ingestion.chunking.base import BaseChunker
 from app.ingestion.chunking.models import Chunk
@@ -30,11 +31,11 @@ DEFAULT_RECURSIVE_OVERLAP: int = 200
 
 # Default separator hierarchy from coarsest to finest semantic granularity
 DEFAULT_SEPARATORS: tuple[str, ...] = (
-    "\n\n",       # Paragraph boundaries
-    "\n",         # Line boundaries
-    "SENTENCE",   # Sentence boundaries (.!?)
-    " ",          # Word / whitespace boundaries
-    "",           # Character fallback
+    "\n\n",  # Paragraph boundaries
+    "\n",  # Line boundaries
+    "SENTENCE",  # Sentence boundaries (.!?)
+    " ",  # Word / whitespace boundaries
+    "",  # Character fallback
 )
 
 _HEADING_REGEX = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
@@ -66,7 +67,7 @@ class RecursiveChunker(BaseChunker):
         self,
         chunk_size: int = DEFAULT_RECURSIVE_CHUNK_SIZE,
         overlap: int = DEFAULT_RECURSIVE_OVERLAP,
-        separators: Optional[Sequence[str]] = None,
+        separators: Sequence[str] | None = None,
     ) -> None:
         if chunk_size <= 0:
             raise ValueError(f"chunk_size must be a positive integer, got {chunk_size}")
@@ -79,7 +80,9 @@ class RecursiveChunker(BaseChunker):
 
         self.chunk_size = chunk_size
         self.overlap = overlap
-        self.separators = list(separators) if separators is not None else list(DEFAULT_SEPARATORS)
+        self.separators = (
+            list(separators) if separators is not None else list(DEFAULT_SEPARATORS)
+        )
 
     def chunk(self, document: Document) -> list[Chunk]:
         """
@@ -103,9 +106,8 @@ class RecursiveChunker(BaseChunker):
         doc_id = self._resolve_document_id(document)
 
         # 1. Check if document should be processed with Markdown structure awareness
-        is_markdown = (
-            document.file_type.lower() == "md"
-            or bool(_HEADING_REGEX.search(text))
+        is_markdown = document.file_type.lower() == "md" or bool(
+            _HEADING_REGEX.search(text)
         )
 
         if is_markdown:
@@ -123,13 +125,15 @@ class RecursiveChunker(BaseChunker):
             section: str = item.get("section", "")
 
             # Locate character offsets in the original document content
-            start_char: Optional[int] = None
-            end_char: Optional[int] = None
+            start_char: int | None = None
+            end_char: int | None = None
             pos = text.find(chunk_content, search_pos)
             if pos != -1:
                 start_char = pos
                 end_char = pos + len(chunk_content)
-                search_pos = max(search_pos, pos + max(1, len(chunk_content) - self.overlap))
+                search_pos = max(
+                    search_pos, pos + max(1, len(chunk_content) - self.overlap)
+                )
             else:
                 pos0 = text.find(chunk_content)
                 if pos0 != -1:
@@ -193,9 +197,7 @@ class RecursiveChunker(BaseChunker):
         if matches[0].start() > 0:
             preamble = text[: matches[0].start()].strip()
             if preamble:
-                sections.append(
-                    {"content": preamble, "headings": [], "section": ""}
-                )
+                sections.append({"content": preamble, "headings": [], "section": ""})
 
         # Process each heading and its bounded text
         for i, match in enumerate(matches):
@@ -283,7 +285,7 @@ class RecursiveChunker(BaseChunker):
             return [text]
 
         # Find the first applicable separator in text
-        chosen_sep: Optional[str] = None
+        chosen_sep: str | None = None
         remaining_seps: list[str] = []
 
         for idx, sep in enumerate(separators):

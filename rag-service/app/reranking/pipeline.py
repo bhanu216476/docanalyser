@@ -8,18 +8,16 @@ a RerankExperimentResult capturing full stage timing.
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
-from typing import Optional
 
-from app.retrieval.models import RetrievalFilter, RetrievalResult
-from app.retrieval.retriever import Retriever
 from app.reranking.base import Reranker
-from app.reranking.metrics import compute_latency, compute_ranking_metrics
+from app.reranking.metrics import compute_ranking_metrics
 from app.reranking.models import (
     LatencyMetrics,
-    RerankExperimentResult,
     RerankedResult,
+    RerankExperimentResult,
 )
+from app.retrieval.models import RetrievalFilter, RetrievalResult
+from app.retrieval.retriever import Retriever
 
 
 class RerankedPipeline:
@@ -50,9 +48,7 @@ class RerankedPipeline:
         if top_k <= 0:
             raise ValueError(f"top_k must be a positive integer, got {top_k}")
         if candidate_k < top_k:
-            raise ValueError(
-                f"candidate_k ({candidate_k}) must be >= top_k ({top_k})"
-            )
+            raise ValueError(f"candidate_k ({candidate_k}) must be >= top_k ({top_k})")
         self.retriever = retriever
         self.reranker = reranker
         self.top_k = top_k
@@ -61,9 +57,9 @@ class RerankedPipeline:
     def run(
         self,
         query: str,
-        filters: Optional[RetrievalFilter] = None,
-        top_k: Optional[int] = None,
-        candidate_k: Optional[int] = None,
+        filters: RetrievalFilter | None = None,
+        top_k: int | None = None,
+        candidate_k: int | None = None,
     ) -> RerankExperimentResult:
         """
         Execute the full retrieval → reranking pipeline and return a

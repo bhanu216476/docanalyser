@@ -2,13 +2,17 @@
 
 import pytest
 from langchain_core.documents import Document
+
 from app.chunking.recursive import recursive_chunk_documents
 
 
 def test_recursive_chunking_basic():
     paragraphs = ["Paragraph " + str(i) + ". " + ("Word " * 20) for i in range(10)]
     text = "\n\n".join(paragraphs)
-    doc = Document(page_content=text, metadata={"source": "test_rec.txt", "source_type": "pdf", "page_number": 1})
+    doc = Document(
+        page_content=text,
+        metadata={"source": "test_rec.txt", "source_type": "pdf", "page_number": 1},
+    )
 
     chunks = recursive_chunk_documents([doc], chunk_size=300, chunk_overlap=30)
     assert len(chunks) > 1
@@ -40,7 +44,9 @@ def test_recursive_chunking_empty_doc():
 def test_recursive_chunking_custom_separators():
     text = "Section 1|Section 2|Section 3"
     doc = Document(page_content=text, metadata={"source": "pipe.txt"})
-    chunks = recursive_chunk_documents([doc], chunk_size=12, chunk_overlap=0, separators=["|"])
+    chunks = recursive_chunk_documents(
+        [doc], chunk_size=12, chunk_overlap=0, separators=["|"]
+    )
     assert len(chunks) == 3
     assert "Section 1" in chunks[0].page_content
     assert "Section 2" in chunks[1].page_content

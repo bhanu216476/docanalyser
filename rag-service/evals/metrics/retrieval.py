@@ -4,13 +4,13 @@ Retrieval metrics: Recall@K, MRR, and Context Relevance.
 
 from __future__ import annotations
 
-from collections.abc import Sequence, Set
-from typing import Union
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 
 
 def compute_recall_at_k(
     retrieved_chunk_ids: Sequence[str],
-    relevant_chunk_ids: Union[Set[str], Sequence[str]],
+    relevant_chunk_ids: AbstractSet[str] | Sequence[str],
     k: int,
 ) -> float:
     """
@@ -42,7 +42,7 @@ def compute_recall_at_k(
 
 def compute_mrr(
     retrieved_chunk_ids: Sequence[str],
-    relevant_chunk_ids: Union[Set[str], Sequence[str]],
+    relevant_chunk_ids: AbstractSet[str] | Sequence[str],
 ) -> float:
     """
     Compute Reciprocal Rank (RR) for a single query.
@@ -71,7 +71,7 @@ def compute_mrr(
 
 def compute_context_relevance(
     retrieved_chunk_ids: Sequence[str],
-    relevant_chunk_ids: Union[Set[str], Sequence[str]],
+    relevant_chunk_ids: AbstractSet[str] | Sequence[str],
     k: int = 5,
 ) -> float:
     """

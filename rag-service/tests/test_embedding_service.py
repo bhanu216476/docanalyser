@@ -14,18 +14,11 @@ All tests use FakeEmbeddingProvider and a no-op sleep function (sleep_fn=lambda 
 for fast, zero-delay, deterministic execution without network calls.
 """
 
-import math
-from typing import Sequence
 import pytest
 from pydantic import ValidationError
 
 from app.embeddings import (
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_MAX_RETRIES,
-    DEFAULT_MAX_TOKENS,
-    DEFAULT_RETRY_BASE_DELAY,
     CharApproxTokenCounter,
-    EmbeddingError,
     EmbeddingProvider,
     EmbeddingProviderError,
     EmbeddingRequest,
@@ -35,16 +28,15 @@ from app.embeddings import (
     EmbeddingTokenLimitError,
     EmbeddingValidationError,
     FakeEmbeddingProvider,
-    TokenCounter,
     create_embedding_service,
     make_token_counter,
 )
 from app.ingestion.chunking.models import Chunk
 
-
 # ======================================================================
 # Fixtures
 # ======================================================================
+
 
 @pytest.fixture
 def fake_provider() -> FakeEmbeddingProvider:
@@ -75,16 +67,21 @@ def service(fake_provider: FakeEmbeddingProvider, noop_sleep) -> EmbeddingServic
 # 1. Batching Tests
 # ======================================================================
 
+
 class TestEmbeddingBatching:
     """Tests for batch splitting, sizing, and order preservation."""
 
-    def test_empty_input_returns_empty_list(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_empty_input_returns_empty_list(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """Empty input list returns [] immediately without calling the provider."""
         results = service.embed_texts([])
         assert results == []
         assert fake_provider.call_count == 0
 
-    def test_input_smaller_than_batch_size(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_input_smaller_than_batch_size(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """Input size < batch_size produces exactly 1 batch of matching size."""
         texts = ["Text one", "Text two", "Text three"]  # 3 texts, batch_size=5
         results = service.embed_texts(texts)
@@ -98,7 +95,9 @@ class TestEmbeddingBatching:
             assert len(res.embedding) == 8
             assert res.token_count > 0
 
-    def test_input_equal_to_batch_size(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_input_equal_to_batch_size(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """Input size == batch_size produces exactly 1 full batch."""
         texts = [f"Item {i}" for i in range(5)]
         results = service.embed_texts(texts)
@@ -108,9 +107,13 @@ class TestEmbeddingBatching:
         assert len(fake_provider.received_batches[0]) == 5
         assert [r.index for r in results] == list(range(5))
 
-    def test_input_larger_than_batch_size(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_input_larger_than_batch_size(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """Input size > batch_size splits into ceil(N/batch_size) batches with correct sizes."""
-        texts = [f"Chunk content {i}" for i in range(12)]  # 12 items, batch_size=5 -> batches: 5, 5, 2
+        texts = [
+            f"Chunk content {i}" for i in range(12)
+        ]  # 12 items, batch_size=5 -> batches: 5, 5, 2
         results = service.embed_texts(texts)
 
         assert len(results) == 12
@@ -129,7 +132,9 @@ class TestEmbeddingBatching:
         for expected_idx, result in enumerate(results):
             assert result.index == expected_idx
 
-    def test_embed_chunks_convenience_wrapper(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_embed_chunks_convenience_wrapper(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """embed_chunks extracts chunk.content and returns results mapped to chunks in order."""
         chunks = [
             Chunk(
@@ -149,7 +154,9 @@ class TestEmbeddingBatching:
             assert res.index == idx
             assert len(res.embedding) == 8
 
-    def test_embed_chunks_empty(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_embed_chunks_empty(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """embed_chunks with empty list returns [] without calling provider."""
         results = service.embed_chunks([])
         assert results == []
@@ -160,6 +167,7 @@ class TestEmbeddingBatching:
 # 2. Token Limit Tests
 # ======================================================================
 
+
 class TestEmbeddingTokenLimits:
     """Tests for token limit checking and pre-call enforcement."""
 
@@ -169,7 +177,9 @@ class TestEmbeddingTokenLimits:
         assert len(results) == 1
         assert results[0].token_count <= 100
 
-    def test_text_at_exact_token_limit(self, fake_provider: FakeEmbeddingProvider, noop_sleep):
+    def test_text_at_exact_token_limit(
+        self, fake_provider: FakeEmbeddingProvider, noop_sleep
+    ):
         """Text whose token count is exactly equal to max_tokens is accepted."""
         # Using CharApproxTokenCounter: ceil(len / 4)
         # 40 characters -> 10 tokens
@@ -184,7 +194,9 @@ class TestEmbeddingTokenLimits:
         assert len(results) == 1
         assert results[0].token_count == 10
 
-    def test_text_exceeding_token_limit_raises_error(self, fake_provider: FakeEmbeddingProvider, noop_sleep):
+    def test_text_exceeding_token_limit_raises_error(
+        self, fake_provider: FakeEmbeddingProvider, noop_sleep
+    ):
         """Text exceeding token limit raises EmbeddingTokenLimitError."""
         # 44 characters -> 11 tokens (> 10)
         too_long_text = "A" * 44
@@ -234,7 +246,7 @@ class TestEmbeddingTokenLimits:
         texts = [
             "Valid short text 0",  # ~5 tokens
             "Valid short text 1",  # ~5 tokens
-            "X" * 120,             # 30 tokens (> 20) -> VIOLATION at index 2
+            "X" * 120,  # 30 tokens (> 20) -> VIOLATION at index 2
             "Valid short text 3",  # ~5 tokens
         ]
 
@@ -248,6 +260,7 @@ class TestEmbeddingTokenLimits:
 # ======================================================================
 # 3. Retry Logic Tests
 # ======================================================================
+
 
 class TestEmbeddingRetryLogic:
     """Tests for exponential backoff, jitter, and error classification."""
@@ -334,7 +347,9 @@ class TestEmbeddingRetryLogic:
         assert provider.call_count == 3
         assert [r.index for r in results] == [0, 1, 2, 3]
 
-    def test_calculate_delay_exponential_growth(self, fake_provider: FakeEmbeddingProvider, noop_sleep):
+    def test_calculate_delay_exponential_growth(
+        self, fake_provider: FakeEmbeddingProvider, noop_sleep
+    ):
         """Delay increases exponentially with attempt number, plus jitter."""
         service = EmbeddingService(
             provider=fake_provider,
@@ -380,10 +395,13 @@ class TestEmbeddingRetryLogic:
 # 4. Input Validation Tests
 # ======================================================================
 
+
 class TestEmbeddingValidation:
     """Tests for input sanity and configuration validation."""
 
-    def test_empty_string_in_list_raises_error(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_empty_string_in_list_raises_error(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """Empty string '' in input list raises EmbeddingValidationError."""
         with pytest.raises(EmbeddingValidationError) as exc_info:
             service.embed_texts(["Valid", "", "Also valid"])
@@ -391,7 +409,9 @@ class TestEmbeddingValidation:
         assert "index 1" in str(exc_info.value)
         assert fake_provider.call_count == 0
 
-    def test_whitespace_only_string_raises_error(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_whitespace_only_string_raises_error(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """Whitespace-only string in input list raises EmbeddingValidationError."""
         with pytest.raises(EmbeddingValidationError) as exc_info:
             service.embed_texts(["   \t\n  "])
@@ -399,7 +419,9 @@ class TestEmbeddingValidation:
         assert "index 0" in str(exc_info.value)
         assert fake_provider.call_count == 0
 
-    def test_non_string_element_raises_error(self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider):
+    def test_non_string_element_raises_error(
+        self, service: EmbeddingService, fake_provider: FakeEmbeddingProvider
+    ):
         """Non-string item in input list raises EmbeddingValidationError."""
         with pytest.raises(EmbeddingValidationError) as exc_info:
             service.embed_texts(["Valid", 12345])  # type: ignore[list-item]
@@ -408,26 +430,34 @@ class TestEmbeddingValidation:
         assert fake_provider.call_count == 0
 
     @pytest.mark.parametrize("invalid_batch_size", [0, -1, -10])
-    def test_invalid_batch_size_raises_error(self, fake_provider: FakeEmbeddingProvider, invalid_batch_size: int):
+    def test_invalid_batch_size_raises_error(
+        self, fake_provider: FakeEmbeddingProvider, invalid_batch_size: int
+    ):
         """batch_size <= 0 raises EmbeddingValidationError at construction."""
         with pytest.raises(EmbeddingValidationError) as exc_info:
             EmbeddingService(provider=fake_provider, batch_size=invalid_batch_size)
         assert "batch_size must be greater than 0" in str(exc_info.value)
 
     @pytest.mark.parametrize("invalid_max_tokens", [0, -1, -100])
-    def test_invalid_max_tokens_raises_error(self, fake_provider: FakeEmbeddingProvider, invalid_max_tokens: int):
+    def test_invalid_max_tokens_raises_error(
+        self, fake_provider: FakeEmbeddingProvider, invalid_max_tokens: int
+    ):
         """max_tokens <= 0 raises EmbeddingValidationError at construction."""
         with pytest.raises(EmbeddingValidationError) as exc_info:
             EmbeddingService(provider=fake_provider, max_tokens=invalid_max_tokens)
         assert "max_tokens must be greater than 0" in str(exc_info.value)
 
-    def test_invalid_max_retries_raises_error(self, fake_provider: FakeEmbeddingProvider):
+    def test_invalid_max_retries_raises_error(
+        self, fake_provider: FakeEmbeddingProvider
+    ):
         """max_retries < 0 raises EmbeddingValidationError at construction."""
         with pytest.raises(EmbeddingValidationError) as exc_info:
             EmbeddingService(provider=fake_provider, max_retries=-1)
         assert "max_retries must be non-negative" in str(exc_info.value)
 
-    def test_invalid_retry_base_delay_raises_error(self, fake_provider: FakeEmbeddingProvider):
+    def test_invalid_retry_base_delay_raises_error(
+        self, fake_provider: FakeEmbeddingProvider
+    ):
         """retry_base_delay < 0 raises EmbeddingValidationError at construction."""
         with pytest.raises(EmbeddingValidationError) as exc_info:
             EmbeddingService(provider=fake_provider, retry_base_delay=-0.5)
@@ -438,26 +468,31 @@ class TestEmbeddingValidation:
 # 5. Provider Contract Validation Tests
 # ======================================================================
 
+
 class BadLengthProvider(EmbeddingProvider):
     """Provider returning wrong number of embeddings."""
+
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return [[0.1, 0.2]]  # Always returns 1 vector regardless of batch size
 
 
 class NonListProvider(EmbeddingProvider):
     """Provider returning non-list output."""
+
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return {"bad": "output"}  # type: ignore[return-value]
 
 
 class EmptyVectorProvider(EmbeddingProvider):
     """Provider returning an empty vector."""
+
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return [[] for _ in texts]
 
 
 class NonNumericVectorProvider(EmbeddingProvider):
     """Provider returning non-numeric values in vector."""
+
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return [["not", "numbers"] for _ in texts]  # type: ignore[list-item]
 
@@ -522,6 +557,7 @@ class TestProviderContractValidation:
 # 6. Token Counters and Factory Tests
 # ======================================================================
 
+
 class TestTokenCountersAndFactory:
     """Tests for token counter implementations and service factory."""
 
@@ -555,6 +591,7 @@ class TestTokenCountersAndFactory:
 # ======================================================================
 # 7. Data Models Tests
 # ======================================================================
+
 
 class TestEmbeddingModels:
     """Tests for EmbeddingRequest and EmbeddingResult models."""

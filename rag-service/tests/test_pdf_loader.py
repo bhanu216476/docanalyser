@@ -13,6 +13,7 @@ Tests:
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 
 from app.ingestion.models import Document
@@ -30,7 +31,9 @@ def _generate_pdf(path: Path, pages: list[str]) -> None:
     kids_refs = [f"{3 + i * 2} 0 R" for i in range(len(pages))]
     kids_str = " ".join(kids_refs)
     objects.append(
-        f"2 0 obj\n<< /Type /Pages /Kids [{kids_str}] /Count {len(pages)} >>\nendobj\n".encode("latin-1")
+        f"2 0 obj\n<< /Type /Pages /Kids [{kids_str}] /Count {len(pages)} >>\nendobj\n".encode(
+            "latin-1"
+        )
     )
 
     # Font object ID will be after all page and content objects
@@ -42,7 +45,9 @@ def _generate_pdf(path: Path, pages: list[str]) -> None:
         content_obj_id = page_obj_id + 1
 
         # Safe latin-1 escaped text stream
-        escaped_text = page_text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        escaped_text = (
+            page_text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        )
         stream = f"BT /F1 12 Tf 72 720 Td ({escaped_text}) Tj ET".encode("latin-1")
 
         page_obj = (
@@ -54,8 +59,9 @@ def _generate_pdf(path: Path, pages: list[str]) -> None:
         objects.append(page_obj)
 
         content_obj = (
-            f"{content_obj_id} 0 obj\n"
-            f"<< /Length {len(stream)} >>\nstream\n".encode("latin-1")
+            f"{content_obj_id} 0 obj\n<< /Length {len(stream)} >>\nstream\n".encode(
+                "latin-1"
+            )
             + stream
             + b"\nendstream\nendobj\n"
         )
@@ -63,7 +69,9 @@ def _generate_pdf(path: Path, pages: list[str]) -> None:
 
     # Font object
     objects.append(
-        f"{font_id} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".encode("latin-1")
+        f"{font_id} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".encode(
+            "latin-1"
+        )
     )
 
     # Assemble complete PDF with xref table

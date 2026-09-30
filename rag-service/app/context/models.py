@@ -13,8 +13,16 @@ Defines:
 from __future__ import annotations
 
 import re
-from typing import Any, Literal, Optional
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
+from typing import Any, Literal
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.core.config import settings
 
@@ -39,7 +47,7 @@ class Citation(BaseModel):
         metadata: Additional custom chunk metadata.
     """
 
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         description="Integer citation identifier, e.g. 1.",
     )
@@ -47,7 +55,7 @@ class Citation(BaseModel):
         ...,
         description="Formatted citation identifier, e.g. '[1]', '[2]'.",
     )
-    document: Optional[str] = Field(
+    document: str | None = Field(
         default=None,
         description="Canonical document name or source identifier.",
     )
@@ -71,20 +79,20 @@ class Citation(BaseModel):
         default="",
         description="Canonical lowercase file extension.",
     )
-    page: Optional[int] = Field(
+    page: int | None = Field(
         default=None,
         description="0-based page index if known.",
     )
-    page_number: Optional[int] = Field(
+    page_number: int | None = Field(
         default=None,
         ge=1,
         description="1-based page number if known.",
     )
-    section: Optional[str] = Field(
+    section: str | None = Field(
         default=None,
         description="Document section or header.",
     )
-    chunk_index: Optional[int] = Field(
+    chunk_index: int | None = Field(
         default=None,
         ge=0,
         description="0-based sequential chunk index within document.",
@@ -109,7 +117,12 @@ class Citation(BaseModel):
                         data["id"] = int(m.group(0))
             # Derive document if not explicitly passed
             if "document" not in data or data["document"] is None:
-                doc = data.get("file_name") or data.get("source") or data.get("document_id") or ""
+                doc = (
+                    data.get("file_name")
+                    or data.get("source")
+                    or data.get("document_id")
+                    or ""
+                )
                 data["document"] = doc
         return data
 
@@ -151,11 +164,11 @@ class ContextChunk(BaseModel):
         ...,
         description="Associated structured citation object.",
     )
-    retrieval_score: Optional[float] = Field(
+    retrieval_score: float | None = Field(
         default=None,
         description="Similarity or pre-reranking retrieval score if available.",
     )
-    reranker_score: Optional[float] = Field(
+    reranker_score: float | None = Field(
         default=None,
         description="Reranker score if available.",
     )
@@ -187,7 +200,7 @@ class ContextBuilderConfig(BaseModel):
         ge=0,
         description="Total token budget for context.",
     )
-    max_chunks: Optional[int] = Field(
+    max_chunks: int | None = Field(
         default_factory=lambda: settings.context_max_chunks,
         ge=1,
         description="Maximum number of evidence chunks to select.",

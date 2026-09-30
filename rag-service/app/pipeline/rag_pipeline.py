@@ -21,15 +21,12 @@ Coordinates the complete end-to-end RAG workflow:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import inspect
 import logging
-from pathlib import Path
-import re
 import time
-from typing import Any, Optional, Union
-
-from qdrant_client import QdrantClient
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
 from app.citations.mapper import CitationMapper
 from app.confidence.answerability import AnswerabilityEvaluator
@@ -39,18 +36,18 @@ from app.context.context_builder import ContextBuilder
 from app.context.models import BuiltContext, Citation, ContextBuilderConfig
 from app.core.config import settings
 from app.decision.layer import DecisionLayer
-from app.observability import get_tracer
-from app.observability.metrics import RagMetrics
 from app.embeddings.providers import FakeEmbeddingProvider
 from app.embeddings.service import EmbeddingService
 from app.ingestion.base import BaseLoader
-from app.ingestion.chunking import BaseChunker, Chunk, RecursiveChunker
+from app.ingestion.chunking import BaseChunker, RecursiveChunker
 from app.ingestion.markdown_loader import MarkdownLoader
 from app.ingestion.pdf_loader import PDFLoader
 from app.ingestion.txt_loader import TxtLoader
 from app.llm.prompt_builder import PromptBuilder
-from app.llm.prompts.models import Prompt, PromptVersion
+from app.llm.prompts.models import Prompt
 from app.llm.providers import FakeLLMProvider, LLMProvider, LLMResponse
+from app.observability import get_tracer
+from app.observability.metrics import RagMetrics
 from app.pipeline.models import IngestionResponse, RAGQueryRequest, RAGResponse
 from app.reranking.base import BaseReranker
 from app.reranking.mock_reranker import MockReranker
@@ -68,7 +65,7 @@ from app.retrieval.rrf import reciprocal_rank_fusion
 from app.vector_store.qdrant_client import create_qdrant_client
 from app.vector_store.qdrant_store import QdrantVectorStore
 from app.verification.citation_verifier import CitationVerifier
-from app.verification.models import VerificationPolicy, VerificationResult
+from app.verification.models import VerificationPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -95,19 +92,19 @@ class RAGPipeline:
 
     def __init__(
         self,
-        vector_store: Optional[QdrantVectorStore] = None,
-        bm25_index: Optional[BM25Index] = None,
-        embedding_service: Optional[EmbeddingService] = None,
-        chunker: Optional[BaseChunker] = None,
-        hybrid_retriever: Optional[HybridRetriever] = None,
-        reranker: Optional[BaseReranker] = None,
-        context_builder: Optional[ContextBuilder] = None,
-        decision_layer: Optional[DecisionLayer] = None,
-        prompt_builder: Optional[PromptBuilder] = None,
-        llm_provider: Optional[LLMProvider] = None,
-        citation_mapper: Optional[CitationMapper] = None,
-        citation_verifier: Optional[CitationVerifier] = None,
-        confidence_calculator: Optional[ConfidenceCalculator] = None,
+        vector_store: QdrantVectorStore | None = None,
+        bm25_index: BM25Index | None = None,
+        embedding_service: EmbeddingService | None = None,
+        chunker: BaseChunker | None = None,
+        hybrid_retriever: HybridRetriever | None = None,
+        reranker: BaseReranker | None = None,
+        context_builder: ContextBuilder | None = None,
+        decision_layer: DecisionLayer | None = None,
+        prompt_builder: PromptBuilder | None = None,
+        llm_provider: LLMProvider | None = None,
+        citation_mapper: CitationMapper | None = None,
+        citation_verifier: CitationVerifier | None = None,
+        confidence_calculator: ConfidenceCalculator | None = None,
         in_memory: bool = False,
     ) -> None:
         """
@@ -144,7 +141,7 @@ class RAGPipeline:
                     client = create_qdrant_client()
                     # Test connectivity
                     client.get_collections()
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001  # noqa: BLE001
                     logger.warning(
                         "Remote Qdrant connection failed (%s); falling back to in-memory store.",
                         exc,
@@ -242,10 +239,10 @@ class RAGPipeline:
 
     def ingest(
         self,
-        file_path: Union[str, Path],
-        batch_size: Optional[int] = None,
-        document_id: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        file_path: str | Path,
+        batch_size: int | None = None,
+        document_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> IngestionResponse:
         """
         Ingest a document into the RAG system.
@@ -270,7 +267,9 @@ class RAGPipeline:
         """
         path = Path(file_path)
         if not path.is_file():
-            raise IngestionError(f"Target file does not exist or is not a file: {file_path}")
+            raise IngestionError(
+                f"Target file does not exist or is not a file: {file_path}"
+            )
 
         latencies: dict[str, float] = {}
         t_total_start = time.perf_counter()
@@ -311,7 +310,9 @@ class RAGPipeline:
                     )
             except Exception as exc:
                 logger.error("Document loading failed for '%s': %s", file_path, exc)
-                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                RagMetrics().record_ingestion_failure(
+                    file_type=ext, error_type=type(exc).__name__
+                )
                 raise IngestionError(f"Document loading failed: {exc}") from exc
             latencies["load_ms"] = (time.perf_counter() - t0) * 1000.0
 
@@ -321,18 +322,24 @@ class RAGPipeline:
                 chunks = self.chunker.chunk(document)
             except Exception as exc:
                 logger.error("Document chunking failed for '%s': %s", file_path, exc)
-                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                RagMetrics().record_ingestion_failure(
+                    file_type=ext, error_type=type(exc).__name__
+                )
                 raise IngestionError(f"Document chunking failed: {exc}") from exc
             latencies["chunk_ms"] = (time.perf_counter() - t1) * 1000.0
 
             # Resolve canonical document ID
-            doc_id = document.metadata.get("document_id") if isinstance(document.metadata, dict) else None
+            doc_id = (
+                document.metadata.get("document_id")
+                if isinstance(document.metadata, dict)
+                else None
+            )
             if not doc_id and chunks:
                 doc_id = getattr(chunks[0], "document_id", None)
             if not doc_id:
                 try:
                     doc_id = document.to_canonical_metadata().document_id
-                except Exception:
+                except Exception:  # noqa: BLE001  # noqa: BLE001
                     doc_id = path.stem
 
             if not chunks:
@@ -353,7 +360,9 @@ class RAGPipeline:
                 embedded_chunks = self.embedding_service.embed_chunks(chunks)
             except Exception as exc:
                 logger.error("Embedding generation failed: %s", exc)
-                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                RagMetrics().record_ingestion_failure(
+                    file_type=ext, error_type=type(exc).__name__
+                )
                 raise IngestionError(f"Embedding generation failed: {exc}") from exc
             latencies["embed_ms"] = (time.perf_counter() - t2) * 1000.0
 
@@ -368,7 +377,9 @@ class RAGPipeline:
                 )
             except Exception as exc:
                 logger.error("Vector store upsert failed: %s", exc)
-                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                RagMetrics().record_ingestion_failure(
+                    file_type=ext, error_type=type(exc).__name__
+                )
                 raise IngestionError(f"Vector store upsert failed: {exc}") from exc
             latencies["vector_store_ms"] = (time.perf_counter() - t3) * 1000.0
 
@@ -378,7 +389,9 @@ class RAGPipeline:
                 self.bm25_index.index_chunks(chunks)
             except Exception as exc:
                 logger.error("BM25 indexing failed: %s", exc)
-                RagMetrics().record_ingestion_failure(file_type=ext, error_type=type(exc).__name__)
+                RagMetrics().record_ingestion_failure(
+                    file_type=ext, error_type=type(exc).__name__
+                )
                 raise IngestionError(f"BM25 indexing failed: {exc}") from exc
             latencies["bm25_ms"] = (time.perf_counter() - t4) * 1000.0
 
@@ -409,8 +422,8 @@ class RAGPipeline:
     def retrieve(
         self,
         query: str,
-        filters: Optional[RetrievalFilter] = None,
-        top_k: Optional[int] = None,
+        filters: RetrievalFilter | None = None,
+        top_k: int | None = None,
     ) -> tuple[list[RetrievalResult], list[RetrievalResult]]:
         """
         Execute dense and BM25 retrievers independently.
@@ -419,15 +432,19 @@ class RAGPipeline:
             Tuple of (dense_results, bm25_results).
         """
         k = top_k or settings.retrieval_default_top_k
-        dense_results = self.dense_retriever.retrieve(query=query, top_k=k, filters=filters)
-        bm25_results = self.bm25_retriever.retrieve(query=query, top_k=k, filters=filters)
+        dense_results = self.dense_retriever.retrieve(
+            query=query, top_k=k, filters=filters
+        )
+        bm25_results = self.bm25_retriever.retrieve(
+            query=query, top_k=k, filters=filters
+        )
         return dense_results, bm25_results
 
     def fuse(
         self,
         dense_results: list[RetrievalResult],
         bm25_results: list[RetrievalResult],
-        top_k: Optional[int] = None,
+        top_k: int | None = None,
     ) -> list[HybridRetrievalResult]:
         """
         Fuse dense and BM25 candidate lists using Reciprocal Rank Fusion (RRF).
@@ -443,7 +460,7 @@ class RAGPipeline:
         self,
         query: str,
         candidates: Sequence[RetrievalResult],
-        top_k: Optional[int] = None,
+        top_k: int | None = None,
     ) -> list[RerankedResult]:
         """
         Rerank candidate results using the configured candidate reranker.
@@ -453,15 +470,19 @@ class RAGPipeline:
 
     def build_context(
         self,
-        reranked_results: Sequence[Union[RetrievalResult, RerankedResult]],
-        token_budget: Optional[int] = None,
-        max_chunks: Optional[int] = None,
+        reranked_results: Sequence[RetrievalResult | RerankedResult],
+        token_budget: int | None = None,
+        max_chunks: int | None = None,
     ) -> BuiltContext:
         """
         Build an LLM-ready deduplicated context within the token budget.
         """
-        budget = token_budget if token_budget is not None else settings.context_token_budget
-        chunks_cap = max_chunks if max_chunks is not None else settings.context_max_chunks
+        budget = (
+            token_budget if token_budget is not None else settings.context_token_budget
+        )
+        chunks_cap = (
+            max_chunks if max_chunks is not None else settings.context_max_chunks
+        )
         config = ContextBuilderConfig(
             token_budget=budget,
             max_chunks=chunks_cap,
@@ -475,7 +496,7 @@ class RAGPipeline:
         self,
         query: str,
         built_context: BuiltContext,
-        version: Optional[str] = None,
+        version: str | None = None,
     ) -> Prompt:
         """
         Assemble a versioned Prompt from the user query and built context.
@@ -513,10 +534,10 @@ class RAGPipeline:
 
     def query(
         self,
-        request: Union[RAGQueryRequest, str],
-        top_k: Optional[int] = None,
-        prompt_version: Optional[str] = None,
-        filters: Optional[RetrievalFilter] = None,
+        request: RAGQueryRequest | str,
+        top_k: int | None = None,
+        prompt_version: str | None = None,
+        filters: RetrievalFilter | None = None,
     ) -> RAGResponse:
         """
         Execute the complete RAG query pipeline end-to-end.
@@ -544,7 +565,9 @@ class RAGPipeline:
         else:
             query_str = request.query.strip()
             req_top_k = request.top_k or top_k
-            req_version = request.prompt_version or prompt_version or settings.prompt_version
+            req_version = (
+                request.prompt_version or prompt_version or settings.prompt_version
+            )
             req_filters = request.filters or filters
 
         if not query_str:
@@ -569,8 +592,12 @@ class RAGPipeline:
                     filters=req_filters,
                 )
                 dense_dur = time.perf_counter() - t0
-                RagMetrics().record_retrieval_latency(dense_dur, method="dense", outcome="success")
-                RagMetrics().record_retrieval_scores([r.score for r in dense_results], method="dense")
+                RagMetrics().record_retrieval_latency(
+                    dense_dur, method="dense", outcome="success"
+                )
+                RagMetrics().record_retrieval_scores(
+                    [r.score for r in dense_results], method="dense"
+                )
 
                 t0_bm = time.perf_counter()
                 bm25_results = self.bm25_retriever.retrieve(
@@ -579,13 +606,21 @@ class RAGPipeline:
                     filters=req_filters,
                 )
                 bm25_dur = time.perf_counter() - t0_bm
-                RagMetrics().record_retrieval_latency(bm25_dur, method="bm25", outcome="success")
-                RagMetrics().record_retrieval_scores([r.score for r in bm25_results], method="bm25")
+                RagMetrics().record_retrieval_latency(
+                    bm25_dur, method="bm25", outcome="success"
+                )
+                RagMetrics().record_retrieval_scores(
+                    [r.score for r in bm25_results], method="bm25"
+                )
             except Exception as exc:
                 logger.error("Retrieval stage failed: %s", exc)
-                RagMetrics().record_retrieval_latency(time.perf_counter() - t0, method="dense", outcome="failure")
+                RagMetrics().record_retrieval_latency(
+                    time.perf_counter() - t0, method="dense", outcome="failure"
+                )
                 RagMetrics().record_pipeline_failure("retrieval")
-                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                RagMetrics().record_pipeline_duration(
+                    time.perf_counter() - t_total_start, outcome="failure"
+                )
                 raise QueryPipelineError(f"Retrieval stage failed: {exc}") from exc
             latencies["retrieval_ms"] = (time.perf_counter() - t0) * 1000.0
             metadata["dense_candidates_count"] = len(dense_results)
@@ -601,12 +636,18 @@ class RAGPipeline:
                     top_k=candidate_pool_limit,
                 )
                 fusion_dur = time.perf_counter() - t1
-                RagMetrics().record_retrieval_latency(fusion_dur, method="fusion", outcome="success")
-                RagMetrics().record_retrieval_scores([r.score for r in fused_candidates], method="hybrid")
+                RagMetrics().record_retrieval_latency(
+                    fusion_dur, method="fusion", outcome="success"
+                )
+                RagMetrics().record_retrieval_scores(
+                    [r.score for r in fused_candidates], method="hybrid"
+                )
             except Exception as exc:
                 logger.error("Fusion stage failed: %s", exc)
                 RagMetrics().record_pipeline_failure("retrieval")
-                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                RagMetrics().record_pipeline_duration(
+                    time.perf_counter() - t_total_start, outcome="failure"
+                )
                 raise QueryPipelineError(f"Fusion stage failed: {exc}") from exc
             latencies["fusion_ms"] = (time.perf_counter() - t1) * 1000.0
             metadata["fused_candidates_count"] = len(fused_candidates)
@@ -629,7 +670,9 @@ class RAGPipeline:
             except Exception as exc:
                 logger.error("Reranking stage failed: %s", exc)
                 RagMetrics().record_pipeline_failure("reranking")
-                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                RagMetrics().record_pipeline_duration(
+                    time.perf_counter() - t_total_start, outcome="failure"
+                )
                 raise QueryPipelineError(f"Reranking stage failed: {exc}") from exc
             latencies["reranking_ms"] = (time.perf_counter() - t2) * 1000.0
             metadata["reranked_candidates_count"] = len(reranked_results)
@@ -641,7 +684,9 @@ class RAGPipeline:
             except Exception as exc:
                 logger.error("Context building failed: %s", exc)
                 RagMetrics().record_pipeline_failure("context")
-                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                RagMetrics().record_pipeline_duration(
+                    time.perf_counter() - t_total_start, outcome="failure"
+                )
                 raise QueryPipelineError(f"Context building failed: {exc}") from exc
             latencies["context_building_ms"] = (time.perf_counter() - t3) * 1000.0
             metadata["context_token_count"] = built_context.token_count
@@ -656,7 +701,7 @@ class RAGPipeline:
             if not decision.should_answer:
                 latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
                 RagMetrics().record_no_answer(is_no_answer=True)
-                total_dur_s = (time.perf_counter() - t_total_start)
+                total_dur_s = time.perf_counter() - t_total_start
                 RagMetrics().record_pipeline_duration(total_dur_s, outcome="success")
                 return RAGResponse(
                     query=query_str,
@@ -678,18 +723,27 @@ class RAGPipeline:
             except Exception as exc:
                 logger.error("Prompt assembly failed: %s", exc)
                 RagMetrics().record_pipeline_failure("llm")
-                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                RagMetrics().record_pipeline_duration(
+                    time.perf_counter() - t_total_start, outcome="failure"
+                )
                 raise QueryPipelineError(f"Prompt assembly failed: {exc}") from exc
             latencies["prompt_assembly_ms"] = (time.perf_counter() - t4) * 1000.0
 
             # Step 6: LLM Generation
             t5 = time.perf_counter()
-            provider_name = getattr(self.llm_provider, "provider_name", type(self.llm_provider).__name__)
-            is_mock = "Fake" in type(self.llm_provider).__name__ or "Mock" in type(self.llm_provider).__name__
+            provider_name = getattr(
+                self.llm_provider, "provider_name", type(self.llm_provider).__name__
+            )
+            is_mock = (
+                "Fake" in type(self.llm_provider).__name__
+                or "Mock" in type(self.llm_provider).__name__
+            )
             try:
                 llm_response = self.generate(prompt)
                 llm_dur = time.perf_counter() - t5
-                model_name = getattr(llm_response, "model_id", settings.llm_model) or "default"
+                model_name = (
+                    getattr(llm_response, "model_id", settings.llm_model) or "default"
+                )
                 RagMetrics().record_llm_request(
                     duration_s=llm_dur,
                     provider=provider_name,
@@ -711,7 +765,9 @@ class RAGPipeline:
                     error_type=type(exc).__name__,
                 )
                 RagMetrics().record_pipeline_failure("llm")
-                RagMetrics().record_pipeline_duration(time.perf_counter() - t_total_start, outcome="failure")
+                RagMetrics().record_pipeline_duration(
+                    time.perf_counter() - t_total_start, outcome="failure"
+                )
                 raise QueryPipelineError(f"LLM generation failed: {exc}") from exc
             latencies["llm_generation_ms"] = (time.perf_counter() - t5) * 1000.0
             metadata["prompt_tokens"] = llm_response.prompt_tokens
@@ -720,9 +776,11 @@ class RAGPipeline:
             latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
 
             # Step 7: Citation Verification & Attribution
-            verified_citations, citation_validation = self.citation_mapper.map_to_context_citations(
-                answer=llm_response.response_text,
-                registry=built_context.citation_registry,
+            verified_citations, citation_validation = (
+                self.citation_mapper.map_to_context_citations(
+                    answer=llm_response.response_text,
+                    registry=built_context.citation_registry,
+                )
             )
             metadata["citation_validation"] = citation_validation.model_dump()
             if citation_validation.warnings:
@@ -771,7 +829,7 @@ class RAGPipeline:
             # Record no-answer rate and total pipeline duration
             is_no_ans = AnswerabilityEvaluator.is_refusal(llm_response.response_text)
             RagMetrics().record_no_answer(is_no_answer=is_no_ans)
-            total_dur_s = (time.perf_counter() - t_total_start)
+            total_dur_s = time.perf_counter() - t_total_start
             RagMetrics().record_pipeline_duration(total_dur_s, outcome="success")
 
             # Structured logging for observability (no secrets, no full text prompts)
@@ -819,14 +877,14 @@ class RAGPipeline:
 
 def create_rag_pipeline(
     in_memory: bool = False,
-    vector_store: Optional[QdrantVectorStore] = None,
-    embedding_service: Optional[EmbeddingService] = None,
-    llm_provider: Optional[LLMProvider] = None,
-    reranker: Optional[BaseReranker] = None,
-    decision_layer: Optional[DecisionLayer] = None,
-    citation_mapper: Optional[CitationMapper] = None,
-    citation_verifier: Optional[CitationVerifier] = None,
-    confidence_calculator: Optional[ConfidenceCalculator] = None,
+    vector_store: QdrantVectorStore | None = None,
+    embedding_service: EmbeddingService | None = None,
+    llm_provider: LLMProvider | None = None,
+    reranker: BaseReranker | None = None,
+    decision_layer: DecisionLayer | None = None,
+    citation_mapper: CitationMapper | None = None,
+    citation_verifier: CitationVerifier | None = None,
+    confidence_calculator: ConfidenceCalculator | None = None,
 ) -> RAGPipeline:
     """
     Factory function for creating a fully configured RAGPipeline.

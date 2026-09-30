@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Optional, Union
 from uuid import UUID
 
 from app.ingestion.metadata import DocumentMetadata, DocumentStatus
@@ -35,7 +34,7 @@ _MIME_MAP: dict[str, str] = {
 }
 
 
-def compute_content_hash(content: Union[str, bytes]) -> str:
+def compute_content_hash(content: str | bytes) -> str:
     """
     Compute deterministic SHA-256 hexadecimal digest from document content.
 
@@ -98,7 +97,7 @@ def infer_mime_type(file_type: str, fallback: str = "application/octet-stream") 
     return _MIME_MAP.get(canonical_type, fallback)
 
 
-def normalize_source(source: Union[str, Path]) -> str:
+def normalize_source(source: str | Path) -> str:
     """
     Normalize file source location into a consistent path representation.
 
@@ -136,13 +135,13 @@ class MetadataNormalizer:
         *,
         file_name: str,
         content: str,
-        source: Union[str, Path],
-        file_type: Optional[str] = None,
-        mime_type: Optional[str] = None,
-        file_size: Optional[int] = None,
-        content_hash: Optional[str] = None,
+        source: str | Path,
+        file_type: str | None = None,
+        mime_type: str | None = None,
+        file_size: int | None = None,
+        content_hash: str | None = None,
         status: DocumentStatus = DocumentStatus.PENDING,
-        document_id: Optional[UUID] = None,
+        document_id: UUID | None = None,
     ) -> DocumentMetadata:
         """
         Normalize and construct a canonical ``DocumentMetadata`` instance.

@@ -1,11 +1,12 @@
 """Data models and helpers for document chunking."""
 
-from typing import Any, Optional
-from pydantic import BaseModel, Field
+from typing import Any
+
 from langchain_core.documents import Document
+from pydantic import BaseModel, Field
 
 
-def _normalize_page_numbers(page_numbers: Optional[list[int]]) -> Optional[list[int]]:
+def _normalize_page_numbers(page_numbers: list[int] | None) -> list[int] | None:
     """Remove duplicate page numbers while preserving source order."""
     if page_numbers is None:
         return None
@@ -18,25 +19,41 @@ class Chunk(BaseModel):
     chunk_id: str = Field(description="Unique identifier for the chunk")
     content: str = Field(description="Text content of the chunk")
     chunk_index: int = Field(description="0-based index of the chunk in the document")
-    chunking_strategy: str = Field(description="Strategy used to produce chunk: fixed, recursive, semantic")
-    total_chunks: Optional[int] = Field(default=None, description="Total chunks produced for the document")
-    source: Optional[str] = Field(default=None, description="Document source path or URL")
-    source_type: Optional[str] = Field(default=None, description="Document source type (pdf, html, etc.)")
-    document_id: Optional[str] = Field(default=None, description="Parent document identifier if present")
-    page: Optional[int] = Field(default=None, description="0-based page index")
-    page_number: Optional[int] = Field(default=None, description="1-based page number")
-    page_numbers: Optional[list[int]] = Field(default=None, description="List of page numbers covered by chunk")
-    headings: list[str] = Field(default_factory=list, description="Extracted headings for document/section")
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Preserved full original metadata")
+    chunking_strategy: str = Field(
+        description="Strategy used to produce chunk: fixed, recursive, semantic"
+    )
+    total_chunks: int | None = Field(
+        default=None, description="Total chunks produced for the document"
+    )
+    source: str | None = Field(default=None, description="Document source path or URL")
+    source_type: str | None = Field(
+        default=None, description="Document source type (pdf, html, etc.)"
+    )
+    document_id: str | None = Field(
+        default=None, description="Parent document identifier if present"
+    )
+    page: int | None = Field(default=None, description="0-based page index")
+    page_number: int | None = Field(default=None, description="1-based page number")
+    page_numbers: list[int] | None = Field(
+        default=None, description="List of page numbers covered by chunk"
+    )
+    headings: list[str] = Field(
+        default_factory=list, description="Extracted headings for document/section"
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Preserved full original metadata"
+    )
 
     def to_document(self) -> Document:
         """Convert Chunk model to a LangChain Document with normalized metadata."""
         meta = dict(self.metadata)
-        meta.update({
-            "chunk_id": self.chunk_id,
-            "chunk_index": self.chunk_index,
-            "chunking_strategy": self.chunking_strategy,
-        })
+        meta.update(
+            {
+                "chunk_id": self.chunk_id,
+                "chunk_index": self.chunk_index,
+                "chunking_strategy": self.chunking_strategy,
+            }
+        )
         if self.total_chunks is not None:
             meta["total_chunks"] = self.total_chunks
         if self.source is not None:
@@ -64,9 +81,9 @@ def build_chunk_document(
     orig_doc: Document,
     chunk_index: int,
     strategy: str,
-    total_chunks: Optional[int] = None,
-    spanned_page_numbers: Optional[list[int]] = None,
-    doc_id: Optional[str] = None
+    total_chunks: int | None = None,
+    spanned_page_numbers: list[int] | None = None,
+    doc_id: str | None = None,
 ) -> Document:
     """Build a LangChain Document for a chunk preserving original metadata.
 
@@ -85,7 +102,9 @@ def build_chunk_document(
     orig_meta = dict(orig_doc.metadata)
 
     # Base chunk id
-    doc_identifier = doc_id or orig_meta.get("document_id") or orig_meta.get("source") or "doc"
+    doc_identifier = (
+        doc_id or orig_meta.get("document_id") or orig_meta.get("source") or "doc"
+    )
     chunk_id = f"{doc_identifier}_chunk_{chunk_index}"
 
     new_meta = dict(orig_meta)
@@ -100,7 +119,9 @@ def build_chunk_document(
         new_meta["document_id"] = str(doc_identifier)
 
     page_numbers = _normalize_page_numbers(
-        spanned_page_numbers if spanned_page_numbers is not None else orig_meta.get("page_numbers")
+        spanned_page_numbers
+        if spanned_page_numbers is not None
+        else orig_meta.get("page_numbers")
     )
     if page_numbers is not None:
         new_meta["page_numbers"] = page_numbers

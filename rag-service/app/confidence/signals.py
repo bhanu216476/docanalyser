@@ -11,10 +11,10 @@ Aggregates and normalizes evidence from pipeline stages into structured Confiden
 from __future__ import annotations
 
 import logging
-from typing import Optional, Sequence, Union
+from collections.abc import Sequence
 
 from app.confidence.answerability import AnswerabilityEvaluator
-from app.confidence.models import AnswerabilityStatus, ConfidenceSignals
+from app.confidence.models import ConfidenceSignals
 from app.confidence.normalizer import ScoreNormalizer
 from app.reranking.models import RerankedResult
 from app.retrieval.models import HybridRetrievalResult, RetrievalResult
@@ -33,7 +33,7 @@ CITATION_STATUS_SIGNAL_MAP: dict[VerificationStatus, float] = {
 
 
 def calculate_citation_support_signal(
-    verification_result: Optional[VerificationResult],
+    verification_result: VerificationResult | None,
     answer: str = "",
 ) -> float:
     """
@@ -80,9 +80,11 @@ class SignalExtractor:
         cls,
         query: str,
         answer: str,
-        retrieval_candidates: Sequence[Union[RetrievalResult, HybridRetrievalResult, RerankedResult]],
+        retrieval_candidates: Sequence[
+            RetrievalResult | HybridRetrievalResult | RerankedResult
+        ],
         reranked_candidates: Sequence[RerankedResult],
-        verification_result: Optional[VerificationResult] = None,
+        verification_result: VerificationResult | None = None,
         rrf_k: int = 60,
         num_sources: int = 2,
     ) -> ConfidenceSignals:

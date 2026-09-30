@@ -11,16 +11,17 @@ Defines:
 
 from __future__ import annotations
 
-from enum import Enum
 import math
-from typing import Any, Optional
+from enum import Enum
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ConfidenceBand(str, Enum):
     """
     Descriptive confidence classification for engineering diagnostics and UI cues.
-    
+
     NOT a calibrated probability.
     """
 
@@ -120,8 +121,10 @@ class ConfidenceWeights(BaseModel):
         return self.citation_support
 
     @model_validator(mode="after")
-    def validate_sum_to_one(self) -> "ConfidenceWeights":
-        total = self.retrieval + self.reranking + self.citation_support + self.answerability
+    def validate_sum_to_one(self) -> ConfidenceWeights:
+        total = (
+            self.retrieval + self.reranking + self.citation_support + self.answerability
+        )
         if not math.isclose(total, 1.0, rel_tol=1e-5, abs_tol=1e-5):
             raise ValueError(f"Confidence weights must sum to 1.0, got {total:.4f}")
         return self

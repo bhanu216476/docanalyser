@@ -20,17 +20,14 @@ Run with:
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 import re
 import tempfile
 import time
-from typing import Optional
+from pathlib import Path
 
-from app.context.models import BuiltContext
-from app.llm.prompts.models import PromptVersion
-from app.llm.providers import FakeLLMProvider, LLMResponse
+from app.llm.providers import LLMResponse
 from app.pipeline.models import RAGResponse
-from app.pipeline.rag_pipeline import RAGPipeline, create_rag_pipeline
+from app.pipeline.rag_pipeline import RAGPipeline
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -64,7 +61,9 @@ def generate_demo_pdf(path: Path) -> None:
     objects.append(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
     kids_refs = [f"{3 + i * 2} 0 R" for i in range(len(pages))]
     objects.append(
-        f"2 0 obj\n<< /Type /Pages /Kids [{' '.join(kids_refs)}] /Count {len(pages)} >>\nendobj\n".encode("latin-1")
+        f"2 0 obj\n<< /Type /Pages /Kids [{' '.join(kids_refs)}] /Count {len(pages)} >>\nendobj\n".encode(
+            "latin-1"
+        )
     )
 
     font_id = 3 + len(pages) * 2
@@ -91,8 +90,9 @@ def generate_demo_pdf(path: Path) -> None:
         objects.append(page_obj)
 
         content_obj = (
-            f"{content_obj_id} 0 obj\n"
-            f"<< /Length {len(stream)} >>\nstream\n".encode("latin-1")
+            f"{content_obj_id} 0 obj\n<< /Length {len(stream)} >>\nstream\n".encode(
+                "latin-1"
+            )
             + stream
             + b"\nendstream\nendobj\n"
         )
@@ -101,7 +101,9 @@ def generate_demo_pdf(path: Path) -> None:
     # Font object
     objects.append(
         f"{font_id} 0 obj\n"
-        f"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".encode("latin-1")
+        f"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".encode(
+            "latin-1"
+        )
     )
 
     # Build binary PDF
@@ -112,12 +114,16 @@ def generate_demo_pdf(path: Path) -> None:
         pdf_bytes.extend(obj)
 
     xref_offset = len(pdf_bytes)
-    pdf_bytes.extend(f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode("latin-1"))
+    pdf_bytes.extend(
+        f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode("latin-1")
+    )
     for offset in offsets[1:]:
         pdf_bytes.extend(f"{offset:010d} 00000 n \n".encode("latin-1"))
 
     pdf_bytes.extend(
-        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode("latin-1")
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode(
+            "latin-1"
+        )
     )
 
     path.write_bytes(pdf_bytes)
@@ -150,8 +156,8 @@ class DemoLLMProvider:
         context_start = prompt.find(context_marker)
         question_start = prompt.find(question_marker)
         if context_start >= 0 and question_start >= 0:
-            ctx = prompt[context_start + len(context_marker):question_start]
-            query = prompt[question_start + len(question_marker):].strip()
+            ctx = prompt[context_start + len(context_marker) : question_start]
+            query = prompt[question_start + len(question_marker) :].strip()
         else:
             ctx = prompt
             query = prompt
@@ -186,7 +192,7 @@ class DemoLLMProvider:
             else:
                 answer = "The provided sources do not contain sufficient information to answer this query."
 
-        latency_ms = (time.perf_counter() - t0) * 1000.0
+        (time.perf_counter() - t0) * 1000.0
         return LLMResponse(
             text=answer,
             model=model,
@@ -256,7 +262,9 @@ def run_demo() -> None:
 
         print(f"[OK] Document ID   : {ingest_res.document_id}")
         print(f"[OK] Chunks Indexed: {ingest_res.chunk_count}")
-        print(f"[OK] Ingestion Time: {ingest_res.latency_breakdown_ms.get('total_ms', 0.0):.2f}ms")
+        print(
+            f"[OK] Ingestion Time: {ingest_res.latency_breakdown_ms.get('total_ms', 0.0):.2f}ms"
+        )
         for stage, ms in ingest_res.latency_breakdown_ms.items():
             if stage != "total_ms":
                 print(f"     - {stage:<16}: {ms:.2f}ms")
@@ -289,7 +297,7 @@ def run_demo() -> None:
 
         for idx, (category, query_text) in enumerate(test_queries, 1):
             print(f"\n[{idx}] Category : {category}")
-            print(f"    Question : \"{query_text}\"")
+            print(f'    Question : "{query_text}"')
 
             resp: RAGResponse = pipeline.query(query_text)
 

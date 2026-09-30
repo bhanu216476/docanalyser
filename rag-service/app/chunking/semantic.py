@@ -1,13 +1,12 @@
 """Semantic document chunking implementation using dependency-injected embeddings."""
 
 import re
-from typing import Any, Optional
+
 import numpy as np
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
 from app.chunking.models import build_chunk_document
-
 
 _SUPPORTED_THRESHOLD_TYPES = {
     "percentile",
@@ -57,26 +56,28 @@ def _validate_embeddings(embeddings: list[list[float]], expected_count: int) -> 
             f"Embedding model returned {len(embeddings)} vectors; expected {expected_count}"
         )
 
-    expected_dimension: Optional[int] = None
+    expected_dimension: int | None = None
     for embedding in embeddings:
         try:
             vector = np.asarray(embedding, dtype=float)
         except (TypeError, ValueError) as exc:
             raise ValueError("Embedding vectors must contain numeric values") from exc
         if vector.ndim != 1 or vector.size == 0:
-            raise ValueError("Embedding vectors must be non-empty one-dimensional vectors")
+            raise ValueError(
+                "Embedding vectors must be non-empty one-dimensional vectors"
+            )
         if not np.isfinite(vector).all():
             raise ValueError("Embedding vectors must contain only finite values")
         if expected_dimension is None:
             expected_dimension = vector.size
         elif vector.size != expected_dimension:
-            raise ValueError("Embedding model returned vectors with mismatched dimensions")
+            raise ValueError(
+                "Embedding model returned vectors with mismatched dimensions"
+            )
 
 
 def _calculate_breakpoint_threshold(
-    distances: list[float],
-    threshold_type: str,
-    threshold_amount: float
+    distances: list[float], threshold_type: str, threshold_amount: float
 ) -> float:
     """Calculate distance threshold for semantic boundary detection."""
     if not distances:
@@ -109,7 +110,7 @@ def semantic_chunk_documents(
     embedding_model: Embeddings,
     breakpoint_threshold_type: str = "percentile",
     breakpoint_threshold_amount: float = 95.0,
-    buffer_size: int = 1
+    buffer_size: int = 1,
 ) -> list[Document]:
     """Split documents semantically based on embedding similarity of sentences/paragraphs.
 
@@ -201,13 +202,15 @@ def semantic_chunk_documents(
     for doc, chunk_text, parent_id in pending_chunks:
         chunk_index = parent_indices.get(parent_id, 0)
         parent_indices[parent_id] = chunk_index + 1
-        all_chunks.append(build_chunk_document(
-            content=chunk_text,
-            orig_doc=doc,
-            chunk_index=chunk_index,
-            strategy="semantic",
-            total_chunks=parent_totals[parent_id],
-            doc_id=parent_id
-        ))
+        all_chunks.append(
+            build_chunk_document(
+                content=chunk_text,
+                orig_doc=doc,
+                chunk_index=chunk_index,
+                strategy="semantic",
+                total_chunks=parent_totals[parent_id],
+                doc_id=parent_id,
+            )
+        )
 
     return all_chunks

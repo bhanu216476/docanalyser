@@ -14,15 +14,14 @@ Tests:
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 
-from app.context.models import BuiltContext, Citation
+from app.context.models import BuiltContext
 from app.decision.models import DecisionResult
-from app.embeddings.providers import FakeEmbeddingProvider
-from app.embeddings.service import EmbeddingService
 from app.llm.prompts.models import Prompt
 from app.llm.providers import FakeLLMProvider
-from app.pipeline.models import IngestionResponse, RAGQueryRequest, RAGResponse
+from app.pipeline.models import IngestionResponse, RAGResponse
 from app.pipeline.rag_pipeline import (
     IngestionError,
     QueryPipelineError,
@@ -30,8 +29,6 @@ from app.pipeline.rag_pipeline import (
     create_rag_pipeline,
 )
 from app.verification.citation_verifier import CitationVerifier
-from app.reranking.mock_reranker import MockReranker
-from app.retrieval.models import RetrievalResult
 
 
 @pytest.fixture
@@ -97,7 +94,9 @@ def test_ingest_unsupported_extension(pipeline: RAGPipeline, tmp_path: Path) -> 
         pipeline.ingest(invalid)
 
 
-def test_retrieve_and_fuse_stages(pipeline: RAGPipeline, sample_text_file: Path) -> None:
+def test_retrieve_and_fuse_stages(
+    pipeline: RAGPipeline, sample_text_file: Path
+) -> None:
     """Verify retrieve and fuse stages execute correctly on indexed content."""
     pipeline.ingest(sample_text_file)
 
@@ -111,7 +110,9 @@ def test_retrieve_and_fuse_stages(pipeline: RAGPipeline, sample_text_file: Path)
         assert fused[0].chunk_id != ""
 
 
-def test_rerank_and_context_stages(pipeline: RAGPipeline, sample_text_file: Path) -> None:
+def test_rerank_and_context_stages(
+    pipeline: RAGPipeline, sample_text_file: Path
+) -> None:
     """Verify candidate reranking and context building produce token-budgeted context."""
     pipeline.ingest(sample_text_file)
     dense_res, bm25_res = pipeline.retrieve("annual leave", top_k=5)
@@ -125,7 +126,9 @@ def test_rerank_and_context_stages(pipeline: RAGPipeline, sample_text_file: Path
     assert built_ctx.token_count >= 0
 
 
-def test_prompt_and_generation_stages(pipeline: RAGPipeline, sample_text_file: Path) -> None:
+def test_prompt_and_generation_stages(
+    pipeline: RAGPipeline, sample_text_file: Path
+) -> None:
     """Verify prompt assembly and LLM generation produce expected response."""
     pipeline.ingest(sample_text_file)
     dense_res, bm25_res = pipeline.retrieve("annual leave", top_k=5)
@@ -133,7 +136,9 @@ def test_prompt_and_generation_stages(pipeline: RAGPipeline, sample_text_file: P
     reranked = pipeline.rerank("annual leave", fused)
     built_ctx = pipeline.build_context(reranked)
 
-    prompt: Prompt = pipeline.build_prompt("How many annual leave days?", built_ctx, version="v2")
+    prompt: Prompt = pipeline.build_prompt(
+        "How many annual leave days?", built_ctx, version="v2"
+    )
     assert prompt.query == "How many annual leave days?"
     assert prompt.context_text != ""
 
@@ -148,7 +153,9 @@ def test_query_end_to_end_empty_query_raises_error(pipeline: RAGPipeline) -> Non
         pipeline.query("   ")
 
 
-def test_query_end_to_end_success(pipeline: RAGPipeline, sample_text_file: Path) -> None:
+def test_query_end_to_end_success(
+    pipeline: RAGPipeline, sample_text_file: Path
+) -> None:
     """Verify end-to-end query returns RAGResponse with answer, metadata, and latencies."""
     pipeline.ingest(sample_text_file)
 
@@ -174,7 +181,9 @@ def test_query_weak_evidence_returns_fallback_without_calling_llm(
 
     response = pipeline.query("What is the policy for quantum entanglement?")
 
-    assert response.answer == "I don't have enough information in the provided documents."
+    assert (
+        response.answer == "I don't have enough information in the provided documents."
+    )
     assert llm_provider.call_count == 0
     assert response.metadata["decision"]["should_answer"] is False
     assert "decision_layer_ms" in response.latency_breakdown_ms
@@ -191,7 +200,9 @@ def test_query_good_evidence_calls_llm_and_keeps_generation_path(
 
     assert llm_provider.call_count == 1
     assert response.metadata["decision"]["should_answer"] is True
-    assert response.answer != "I don't have enough information in the provided documents."
+    assert (
+        response.answer != "I don't have enough information in the provided documents."
+    )
     assert "verification" in response.metadata
 
 
@@ -216,7 +227,9 @@ def test_query_respects_injected_decision_layer(
 
     response = pipeline.query("What are the working hours?")
 
-    assert response.answer == "I don't have enough information in the provided documents."
+    assert (
+        response.answer == "I don't have enough information in the provided documents."
+    )
     assert llm_provider.call_count == 0
     assert response.metadata["decision"]["reason"] == "injected_refusal"
 

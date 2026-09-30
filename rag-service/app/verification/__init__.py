@@ -21,41 +21,40 @@ This package is independent from retrieval. It only consumes the
 authoritative CitationRegistry produced by the Context Builder.
 """
 
+from app.verification.citation_verifier import CitationVerifier
+from app.verification.claim_extractor import ClaimExtractor
+from app.verification.evidence_verifier import (
+    EvidenceVerifier,
+    LLMEvidenceVerifier,
+    MockEvidenceVerifier,
+    SemanticVerificationOutcome,
+)
 from app.verification.models import (
     Claim,
     ClaimVerificationResult,
-    VerificationResult,
-    VerificationStatus,
     VerificationMode,
     VerificationPolicy,
+    VerificationResult,
+    VerificationStatus,
 )
-from app.verification.claim_extractor import ClaimExtractor
-from app.verification.citation_verifier import CitationVerifier
 from app.verification.rules import RuleBasedVerifier, RuleCheckOutcome
-from app.verification.evidence_verifier import (
-    EvidenceVerifier,
-    MockEvidenceVerifier,
-    LLMEvidenceVerifier,
-    SemanticVerificationOutcome,
-)
 
 __all__ = [
+    "CitationVerifier",
     # Models
     "Claim",
-    "ClaimVerificationResult",
-    "VerificationResult",
-    "VerificationStatus",
-    "VerificationMode",
-    "VerificationPolicy",
     # Core components
     "ClaimExtractor",
-    "CitationVerifier",
-    "RuleBasedVerifier",
-    "RuleCheckOutcome",
+    "ClaimVerificationResult",
     # Evidence verifier abstraction + implementations
     "EvidenceVerifier",
-    "MockEvidenceVerifier",
     "LLMEvidenceVerifier",
+    "MockEvidenceVerifier",
+    "RuleBasedVerifier",
+    "RuleCheckOutcome",
     "SemanticVerificationOutcome",
+    "VerificationMode",
+    "VerificationPolicy",
+    "VerificationResult",
+    "VerificationStatus",
 ]
-

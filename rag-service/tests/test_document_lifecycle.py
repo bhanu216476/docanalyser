@@ -11,7 +11,10 @@ from app.api.documents import (
 )
 from app.api.rag import set_pipeline
 from app.main import app
-from app.pipeline.document_lifecycle import DocumentLifecycleError, DocumentLifecycleService
+from app.pipeline.document_lifecycle import (
+    DocumentLifecycleError,
+    DocumentLifecycleService,
+)
 
 
 class FakeVectorStore:
@@ -76,7 +79,9 @@ def test_api_rejects_blank_document_id(document_id):
 
 
 def test_api_accepts_non_blank_document_id():
-    request = DocumentLifecycleRequest(event=DocumentEvent.DOCUMENT_DELETED, document_id="doc-123")
+    request = DocumentLifecycleRequest(
+        event=DocumentEvent.DOCUMENT_DELETED, document_id="doc-123"
+    )
 
     assert request.document_id == "doc-123"
 
@@ -86,7 +91,9 @@ def test_added_event_routes_to_existing_ingestion(fake_service, tmp_path):
     source = tmp_path / "research.txt"
     source.write_text("content", encoding="utf-8")
 
-    result = DocumentLifecycleService(pipeline).process(lifecycle_request(DocumentEvent.DOCUMENT_ADDED, source))
+    result = DocumentLifecycleService(pipeline).process(
+        lifecycle_request(DocumentEvent.DOCUMENT_ADDED, source)
+    )
 
     assert result["status"] == "PROCESSED"
     assert pipeline.ingested == [(source, "doc-123", {})]
@@ -98,7 +105,9 @@ def test_updated_event_removes_old_vectors_before_ingestion(fake_service, tmp_pa
     source = tmp_path / "research.txt"
     source.write_text("updated content", encoding="utf-8")
 
-    DocumentLifecycleService(pipeline).process(lifecycle_request(DocumentEvent.DOCUMENT_UPDATED, source))
+    DocumentLifecycleService(pipeline).process(
+        lifecycle_request(DocumentEvent.DOCUMENT_UPDATED, source)
+    )
 
     assert pipeline.vector_store.deleted == ["doc-123"]
     assert pipeline.bm25_index.removed == ["doc-123"]
@@ -110,8 +119,12 @@ def test_added_event_replaces_existing_chunks_on_retry(fake_service, tmp_path):
     source = tmp_path / "research.txt"
     source.write_text("content", encoding="utf-8")
 
-    DocumentLifecycleService(pipeline).process(lifecycle_request(DocumentEvent.DOCUMENT_ADDED, source))
-    DocumentLifecycleService(pipeline).process(lifecycle_request(DocumentEvent.DOCUMENT_ADDED, source))
+    DocumentLifecycleService(pipeline).process(
+        lifecycle_request(DocumentEvent.DOCUMENT_ADDED, source)
+    )
+    DocumentLifecycleService(pipeline).process(
+        lifecycle_request(DocumentEvent.DOCUMENT_ADDED, source)
+    )
 
     assert pipeline.vector_store.deleted == ["doc-123", "doc-123"]
 
@@ -119,7 +132,9 @@ def test_added_event_replaces_existing_chunks_on_retry(fake_service, tmp_path):
 def test_deleted_event_removes_vectors_and_bm25(fake_service):
     _, pipeline = fake_service
 
-    result = DocumentLifecycleService(pipeline).process(lifecycle_request(DocumentEvent.DOCUMENT_DELETED))
+    result = DocumentLifecycleService(pipeline).process(
+        lifecycle_request(DocumentEvent.DOCUMENT_DELETED)
+    )
 
     assert result["success"] is True
     assert pipeline.vector_store.deleted == ["doc-123"]
@@ -128,7 +143,9 @@ def test_deleted_event_removes_vectors_and_bm25(fake_service):
 
 def test_api_rejects_unsupported_event():
     client = TestClient(app)
-    response = client.post("/api/v1/documents", json={"event": "IGNORED", "document_id": "doc-123"})
+    response = client.post(
+        "/api/v1/documents", json={"event": "IGNORED", "document_id": "doc-123"}
+    )
     assert response.status_code == 422
 
 

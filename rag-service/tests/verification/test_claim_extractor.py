@@ -15,8 +15,8 @@ Tests:
 from __future__ import annotations
 
 import pytest
+
 from app.verification.claim_extractor import ClaimExtractor
-from app.verification.models import Claim
 
 
 @pytest.fixture
@@ -120,7 +120,9 @@ class TestClaimExtractorEdgeCases:
         for c in claims:
             assert c.text.strip() not in ("", "[1]")
 
-    def test_citation_ids_deduplicated_per_claim(self, extractor: ClaimExtractor) -> None:
+    def test_citation_ids_deduplicated_per_claim(
+        self, extractor: ClaimExtractor
+    ) -> None:
         answer = "The policy states [1] this is true [1]."
         claims = extractor.extract(answer)
         # Claim should only contain unique IDs

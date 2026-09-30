@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.retrieval.hybrid_service import HybridRetrievalService
 from app.retrieval.hybrid_retriever import HybridRetriever
+from app.retrieval.hybrid_service import HybridRetrievalService
 from app.retrieval.models import RetrievalFilter, RetrievalResult
 from app.retrieval.reranker import IdentityReranker
 
@@ -18,7 +18,12 @@ class RecordingHybrid:
     def __init__(self) -> None:
         self.calls: list[tuple[str, int, RetrievalFilter | None]] = []
 
-    def retrieve(self, query: str, top_k: int | None = None, filters: RetrievalFilter | None = None) -> list[RetrievalResult]:
+    def retrieve(
+        self,
+        query: str,
+        top_k: int | None = None,
+        filters: RetrievalFilter | None = None,
+    ) -> list[RetrievalResult]:
         self.calls.append((query, top_k or 0, filters))
         return [result("a"), result("b")]
 
@@ -28,7 +33,9 @@ class RecordingSource:
         self.results = results
         self.calls: list[tuple[str, int, RetrievalFilter | None]] = []
 
-    def retrieve(self, query: str, top_k: int, filters: RetrievalFilter | None = None) -> list[RetrievalResult]:
+    def retrieve(
+        self, query: str, top_k: int, filters: RetrievalFilter | None = None
+    ) -> list[RetrievalResult]:
         self.calls.append((query, top_k, filters))
         return self.results
 
@@ -37,7 +44,9 @@ class RecordingReranker:
     def __init__(self) -> None:
         self.calls: list[tuple[str, list[RetrievalResult], int]] = []
 
-    def rerank(self, query: str, candidates: list[RetrievalResult], top_k: int) -> list[RetrievalResult]:
+    def rerank(
+        self, query: str, candidates: list[RetrievalResult], top_k: int
+    ) -> list[RetrievalResult]:
         self.calls.append((query, candidates, top_k))
         return candidates[:top_k]
 
@@ -68,7 +77,9 @@ def test_invalid_pipeline_limits_fail() -> None:
     with pytest.raises(ValueError):
         HybridRetrievalService(hybrid, reranker, rerank_candidate_top_k=21)
     with pytest.raises(ValueError):
-        HybridRetrievalService(hybrid, reranker, rerank_candidate_top_k=2, rerank_top_k=3)
+        HybridRetrievalService(
+            hybrid, reranker, rerank_candidate_top_k=2, rerank_top_k=3
+        )
 
     service = HybridRetrievalService(
         hybrid, reranker, rerank_candidate_top_k=2, rerank_top_k=1

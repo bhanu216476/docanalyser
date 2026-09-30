@@ -10,7 +10,7 @@ Pipeline position:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -54,12 +54,12 @@ class Chunk(BaseModel):
         ge=0,
         description="0-based sequential index of the chunk within the document.",
     )
-    start_char: Optional[int] = Field(
+    start_char: int | None = Field(
         default=None,
         ge=0,
         description="Starting character offset in the source document.",
     )
-    end_char: Optional[int] = Field(
+    end_char: int | None = Field(
         default=None,
         ge=0,
         description="Ending character offset in the source document.",
@@ -82,7 +82,7 @@ class Chunk(BaseModel):
     @model_validator(mode="after")
     def validate_char_offsets(self) -> Chunk:
         """Ensure start_char <= end_char when both are provided."""
-        if self.start_char is not None and self.end_char is not None:
+        if self.start_char is not None and self.end_char is not None:  # noqa: SIM102
             if self.start_char > self.end_char:
                 raise ValueError(
                     f"start_char ({self.start_char}) cannot be greater than end_char ({self.end_char})"

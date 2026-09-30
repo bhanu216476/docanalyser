@@ -25,18 +25,17 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping, Sequence
-from typing import Optional
 
-from app.core.config import settings
 from app.retrieval.models import HybridRetrievalResult, RetrievalResult
 
 logger = logging.getLogger(__name__)
 
 
 def reciprocal_rank_fusion(
-    rankings: Sequence[Sequence[RetrievalResult]] | Mapping[str, Sequence[RetrievalResult]],
+    rankings: Sequence[Sequence[RetrievalResult]]
+    | Mapping[str, Sequence[RetrievalResult]],
     k: int = 60,
-    top_k: Optional[int] = None,
+    top_k: int | None = None,
 ) -> list[HybridRetrievalResult]:
     """
     Execute Reciprocal Rank Fusion over multiple ranked result sets.
@@ -66,8 +65,7 @@ def reciprocal_rank_fusion(
         named_rankings = list(rankings.items())
     else:
         named_rankings = [
-            (f"source_{i}", result_list)
-            for i, result_list in enumerate(rankings)
+            (f"source_{i}", result_list) for i, result_list in enumerate(rankings)
         ]
 
     # Track scores, metadata, and per-source rank positions

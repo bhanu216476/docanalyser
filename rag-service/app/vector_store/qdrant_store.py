@@ -32,12 +32,11 @@ Strictly Out of Scope:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import logging
 import math
 import random
 import time
-from typing import Any, Optional, Union
+from collections.abc import Sequence
 
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
@@ -54,7 +53,6 @@ from app.vector_store.exceptions import (
 )
 from app.vector_store.filters import FilterBuilder, VectorStoreFilter
 from app.vector_store.models import (
-    VectorPayload,
     VectorPoint,
     build_payload_from_chunk,
     generate_point_id,
@@ -67,7 +65,7 @@ logger = logging.getLogger(__name__)
 _JITTER_MAX: float = 0.1
 
 
-def _resolve_distance(distance: Union[str, models.Distance]) -> models.Distance:
+def _resolve_distance(distance: str | models.Distance) -> models.Distance:
     """
     Convert a string or Distance enum to a native Qdrant Distance enum.
 
@@ -106,13 +104,13 @@ class QdrantVectorStore:
 
     def __init__(
         self,
-        client: Optional[QdrantClient] = None,
-        collection_name: Optional[str] = None,
-        vector_size: Optional[int] = None,
-        distance: Optional[Union[str, models.Distance]] = None,
-        batch_size: Optional[int] = None,
-        max_retries: Optional[int] = None,
-        retry_base_delay: Optional[float] = None,
+        client: QdrantClient | None = None,
+        collection_name: str | None = None,
+        vector_size: int | None = None,
+        distance: str | models.Distance | None = None,
+        batch_size: int | None = None,
+        max_retries: int | None = None,
+        retry_base_delay: float | None = None,
     ) -> None:
         """
         Initialize the QdrantVectorStore.
@@ -131,9 +129,13 @@ class QdrantVectorStore:
         self.vector_size = vector_size or settings.qdrant_vector_size
         self.distance = _resolve_distance(distance or settings.qdrant_distance)
         self.batch_size = batch_size or settings.qdrant_batch_size
-        self.max_retries = max_retries if max_retries is not None else settings.qdrant_max_retries
+        self.max_retries = (
+            max_retries if max_retries is not None else settings.qdrant_max_retries
+        )
         self.retry_base_delay = (
-            retry_base_delay if retry_base_delay is not None else settings.qdrant_retry_base_delay
+            retry_base_delay
+            if retry_base_delay is not None
+            else settings.qdrant_retry_base_delay
         )
 
         logger.info(
@@ -150,9 +152,9 @@ class QdrantVectorStore:
 
     def ensure_collection(
         self,
-        collection_name: Optional[str] = None,
-        vector_size: Optional[int] = None,
-        distance: Optional[Union[str, models.Distance]] = None,
+        collection_name: str | None = None,
+        vector_size: int | None = None,
+        distance: str | models.Distance | None = None,
     ) -> bool:
         """
         Idempotently verify or create a collection with payload indexes.
@@ -284,7 +286,8 @@ class QdrantVectorStore:
         ]
         with warnings.catch_warnings():
             warnings.filterwarnings(
-                "ignore", message=".*Payload indexes have no effect in the local Qdrant.*"
+                "ignore",
+                message=".*Payload indexes have no effect in the local Qdrant.*",
             )
             for field_name, schema_type in indexed_fields:
                 try:
@@ -299,7 +302,7 @@ class QdrantVectorStore:
                         schema_type,
                         collection_name,
                     )
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001  # noqa: BLE001
                     logger.warning(
                         "Could not create payload index for '%s' in '%s': %s",
                         field_name,
@@ -314,9 +317,9 @@ class QdrantVectorStore:
     def upsert_chunks(
         self,
         chunks: Sequence[Chunk],
-        embeddings: Sequence[Union[list[float], EmbeddingResult]],
-        batch_size: Optional[int] = None,
-        collection_name: Optional[str] = None,
+        embeddings: Sequence[list[float] | EmbeddingResult],
+        batch_size: int | None = None,
+        collection_name: str | None = None,
     ) -> int:
         """
         Store chunks and corresponding embeddings in Qdrant with deterministic point IDs.
@@ -395,8 +398,8 @@ class QdrantVectorStore:
     def upsert_points(
         self,
         points: Sequence[VectorPoint],
-        batch_size: Optional[int] = None,
-        collection_name: Optional[str] = None,
+        batch_size: int | None = None,
+        collection_name: str | None = None,
     ) -> int:
         """
         Upsert pre-constructed VectorPoint instances into Qdrant.
@@ -492,7 +495,7 @@ class QdrantVectorStore:
             VectorStoreBatchError: If Qdrant returns a non-transient error (e.g. 400).
         """
         attempt = 0
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         while attempt <= self.max_retries:
             try:
@@ -518,7 +521,13 @@ class QdrantVectorStore:
                 err_str = str(exc).lower()
                 is_transient = any(
                     marker in err_str
-                    for marker in ("connection", "timeout", "unavailable", "reset", "refused")
+                    for marker in (
+                        "connection",
+                        "timeout",
+                        "unavailable",
+                        "reset",
+                        "refused",
+                    )
                 )
                 last_error = exc
                 if not is_transient:
@@ -528,7 +537,9 @@ class QdrantVectorStore:
 
             if attempt < self.max_retries:
                 attempt += 1
-                delay = self.retry_base_delay * (2 ** (attempt - 1)) + random.uniform(0, _JITTER_MAX)
+                delay = self.retry_base_delay * (2 ** (attempt - 1)) + random.uniform(
+                    0, _JITTER_MAX
+                )
                 logger.warning(
                     "Transient error during Qdrant upsert (attempt %d/%d): %s. Retrying in %.2fs...",
                     attempt,
@@ -552,7 +563,7 @@ class QdrantVectorStore:
     def delete_by_document_id(
         self,
         document_id: str,
-        collection_name: Optional[str] = None,
+        collection_name: str | None = None,
     ) -> bool:
         """
         Delete all vector points belonging to a specific document_id.
@@ -574,14 +585,18 @@ class QdrantVectorStore:
             raise VectorValidationError("document_id cannot be empty for deletion")
 
         target_name = collection_name or self.collection_name
-        doc_filter = FilterBuilder.build(VectorStoreFilter(document_id=document_id.strip()))
+        doc_filter = FilterBuilder.build(
+            VectorStoreFilter(document_id=document_id.strip())
+        )
 
         try:
             self._client.delete(
                 collection_name=target_name,
                 points_selector=models.FilterSelector(filter=doc_filter),
             )
-            logger.info("Deleted chunks for document_id='%s' in '%s'", document_id, target_name)
+            logger.info(
+                "Deleted chunks for document_id='%s' in '%s'", document_id, target_name
+            )
             return True
         except Exception as exc:
             raise VectorStoreError(
@@ -594,8 +609,8 @@ class QdrantVectorStore:
 
     def count(
         self,
-        collection_name: Optional[str] = None,
-        filter_spec: Optional[VectorStoreFilter] = None,
+        collection_name: str | None = None,
+        filter_spec: VectorStoreFilter | None = None,
     ) -> int:
         """Return the count of points matching the optional filter in the collection."""
         target_name = collection_name or self.collection_name
@@ -610,8 +625,8 @@ class QdrantVectorStore:
     def get_point(
         self,
         point_id: str,
-        collection_name: Optional[str] = None,
-    ) -> Optional[models.Record]:
+        collection_name: str | None = None,
+    ) -> models.Record | None:
         """Retrieve a single point by ID (for inspection/testing)."""
         target_name = collection_name or self.collection_name
         resolved_id = generate_point_id(point_id)

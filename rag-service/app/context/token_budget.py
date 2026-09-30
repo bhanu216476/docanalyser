@@ -12,7 +12,7 @@ Provides:
 from __future__ import annotations
 
 import re
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -80,9 +80,10 @@ class TiktokenCounter:
 
         try:
             import tiktoken  # type: ignore[import-not-found]
+
             self._encoder = tiktoken.get_encoding(encoding_name)
             self._tiktoken_available = True
-        except (ImportError, Exception):
+        except (ImportError, Exception):  # noqa: BLE001
             self._tiktoken_available = False
             self._encoder = None
             # Standard subword/word pattern fallback using Python's standard re module

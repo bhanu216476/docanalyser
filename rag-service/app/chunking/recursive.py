@@ -1,6 +1,5 @@
 """Recursive character text splitting implementation."""
 
-from typing import Optional
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -11,7 +10,7 @@ def recursive_chunk_documents(
     documents: list[Document],
     chunk_size: int = 1000,
     chunk_overlap: int = 100,
-    separators: Optional[list[str]] = None
+    separators: list[str] | None = None,
 ) -> list[Document]:
     """Split documents using recursive character text splitting.
 
@@ -53,7 +52,9 @@ def recursive_chunk_documents(
         raw_chunks = splitter.split_text(doc.page_content)
         non_empty_chunks = [c for c in raw_chunks if c and c.strip()]
         parent_id = str(doc.metadata.get("document_id") or f"doc_{doc_idx}")
-        pending_chunks.extend((doc, chunk_text, parent_id) for chunk_text in non_empty_chunks)
+        pending_chunks.extend(
+            (doc, chunk_text, parent_id) for chunk_text in non_empty_chunks
+        )
 
     parent_totals: dict[str, int] = {}
     parent_indices: dict[str, int] = {}
@@ -64,13 +65,15 @@ def recursive_chunk_documents(
     for doc, chunk_text, parent_id in pending_chunks:
         chunk_index = parent_indices.get(parent_id, 0)
         parent_indices[parent_id] = chunk_index + 1
-        all_chunks.append(build_chunk_document(
-            content=chunk_text,
-            orig_doc=doc,
-            chunk_index=chunk_index,
-            strategy="recursive",
-            total_chunks=parent_totals[parent_id],
-            doc_id=parent_id
-        ))
+        all_chunks.append(
+            build_chunk_document(
+                content=chunk_text,
+                orig_doc=doc,
+                chunk_index=chunk_index,
+                strategy="recursive",
+                total_chunks=parent_totals[parent_id],
+                doc_id=parent_id,
+            )
+        )
 
     return all_chunks

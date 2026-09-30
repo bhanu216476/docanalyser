@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.pipeline.document_lifecycle import DocumentLifecycleError, DocumentLifecycleService
+from app.pipeline.document_lifecycle import (
+    DocumentLifecycleError,
+    DocumentLifecycleService,
+)
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
-_lifecycle_service: Optional[DocumentLifecycleService] = None
+_lifecycle_service: DocumentLifecycleService | None = None
 
 
 class DocumentEvent(StrEnum):
@@ -23,12 +26,12 @@ class DocumentEvent(StrEnum):
 class DocumentLifecycleRequest(BaseModel):
     event: DocumentEvent
     document_id: str = Field(..., min_length=1)
-    file_name: Optional[str] = Field(default=None, min_length=1)
-    source_url: Optional[str] = Field(default=None, min_length=1)
-    content_type: Optional[str] = Field(default=None, min_length=1)
+    file_name: str | None = Field(default=None, min_length=1)
+    source_url: str | None = Field(default=None, min_length=1)
+    content_type: str | None = Field(default=None, min_length=1)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    version: Optional[str] = Field(default=None, min_length=1)
-    updated_at: Optional[str] = Field(default=None, min_length=1)
+    version: str | None = Field(default=None, min_length=1)
+    updated_at: str | None = Field(default=None, min_length=1)
 
     @field_validator("document_id")
     @classmethod
@@ -38,10 +41,12 @@ class DocumentLifecycleRequest(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_source_for_ingestion(self) -> "DocumentLifecycleRequest":
+    def validate_source_for_ingestion(self) -> DocumentLifecycleRequest:
         if self.event in (DocumentEvent.DOCUMENT_ADDED, DocumentEvent.DOCUMENT_UPDATED):
             if not self.source_url:
-                raise ValueError("source_url is required for document add/update events")
+                raise ValueError(
+                    "source_url is required for document add/update events"
+                )
             if not self.file_name:
                 raise ValueError("file_name is required for document add/update events")
         return self
@@ -64,19 +69,30 @@ def get_document_lifecycle_service() -> DocumentLifecycleService:
     return _lifecycle_service
 
 
-def set_document_lifecycle_service(service: Optional[DocumentLifecycleService]) -> None:
+def set_document_lifecycle_service(service: DocumentLifecycleService | None) -> None:
     global _lifecycle_service
     _lifecycle_service = service
 
 
-@router.post("", response_model=DocumentLifecycleResponse, status_code=status.HTTP_200_OK)
-def process_document_event(request: DocumentLifecycleRequest) -> DocumentLifecycleResponse:
+@router.post(
+    "", response_model=DocumentLifecycleResponse, status_code=status.HTTP_200_OK
+)
+def process_document_event(
+    request: DocumentLifecycleRequest,
+) -> DocumentLifecycleResponse:
     try:
         result = get_document_lifecycle_service().process(request)
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     except DocumentLifecycleError as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Document processing failed") from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document processing failed",
+        ) from exc
     return DocumentLifecycleResponse(**result)

@@ -4,18 +4,16 @@ Unit and integration tests for BM25Retriever and API endpoint.
 
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from app.api.retrieval import set_bm25_retriever
-from app.chunking.models import Chunk as ChunkModel
 from app.ingestion.chunking.models import Chunk as IngestionChunk
 from app.main import app
 from app.retrieval import (
     BM25Retriever,
     RetrievalFilter,
     RetrievalQueryError,
-    RetrievalRequest,
     Retriever,
     create_bm25_retriever,
 )
@@ -80,7 +78,9 @@ def populated_retriever(sample_chunks: list[dict]) -> BM25Retriever:
 class TestBM25RetrieverProtocolAndBehavior:
     """Verification that BM25Retriever satisfies Retriever protocol and requirements."""
 
-    def test_satisfies_retriever_protocol(self, populated_retriever: BM25Retriever) -> None:
+    def test_satisfies_retriever_protocol(
+        self, populated_retriever: BM25Retriever
+    ) -> None:
         """BM25Retriever conforms structurally to the Retriever protocol."""
         assert isinstance(populated_retriever, Retriever)
 
@@ -134,7 +134,9 @@ class TestBM25RetrieverProtocolAndBehavior:
         with pytest.raises(RetrievalQueryError):
             populated_retriever.retrieve(None)  # type: ignore[arg-type]
 
-    def test_unknown_terms_return_empty(self, populated_retriever: BM25Retriever) -> None:
+    def test_unknown_terms_return_empty(
+        self, populated_retriever: BM25Retriever
+    ) -> None:
         """Query with terms nonexistent in corpus returns empty list deterministically."""
         results = populated_retriever.retrieve("xyzabc123 qwerty987")
         assert results == []
@@ -145,12 +147,16 @@ class TestBM25RetrieverProtocolAndBehavior:
         results = empty_retriever.retrieve("casual leave")
         assert results == []
 
-    def test_pre_ranking_metadata_filtering(self, populated_retriever: BM25Retriever) -> None:
+    def test_pre_ranking_metadata_filtering(
+        self, populated_retriever: BM25Retriever
+    ) -> None:
         """Metadata filters are applied before ranking."""
         # Query matches both MD (HR) and TXT (IT) if unconstrained,
         # but filter by file_type='txt'
         filter_txt = RetrievalFilter(file_type="txt")
-        results_txt = populated_retriever.retrieve("encryption access", filters=filter_txt)
+        results_txt = populated_retriever.retrieve(
+            "encryption access", filters=filter_txt
+        )
         assert len(results_txt) > 0
         for r in results_txt:
             assert r.file_type == "txt"

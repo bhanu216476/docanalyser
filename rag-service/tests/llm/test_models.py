@@ -7,8 +7,11 @@ from app.llm.models import LLMRequest, LLMResponse
 def test_valid_request_and_response_are_frozen() -> None:
     request = LLMRequest(prompt="Explain this", max_output_tokens=50, temperature=0.2)
     response = LLMResponse(
-        text="An explanation", model="test-model", input_tokens=4,
-        output_tokens=3, total_tokens=7,
+        text="An explanation",
+        model="test-model",
+        input_tokens=4,
+        output_tokens=3,
+        total_tokens=7,
     )
     assert request.prompt == "Explain this"
     assert response.total_tokens == 7

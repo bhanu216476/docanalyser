@@ -4,13 +4,13 @@ Citation metrics: Precision, Recall, and Accuracy against expected evidence.
 
 from __future__ import annotations
 
-from collections.abc import Sequence, Set
-from typing import Union
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 
 
 def evaluate_citation_metrics(
     generated_chunk_ids: Sequence[str],
-    expected_chunk_ids: Union[Set[str], Sequence[str]],
+    expected_chunk_ids: AbstractSet[str] | Sequence[str],
 ) -> tuple[float, float, float]:
     """
     Evaluate generated citations against ground-truth expected chunks.

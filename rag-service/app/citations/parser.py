@@ -8,7 +8,7 @@ Preserves exact appearance order and records duplicate references.
 from __future__ import annotations
 
 import re
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 
 class CitationSpan(NamedTuple):
@@ -40,7 +40,7 @@ class CitationParser:
     # Matches bracketed sequences of positive integers separated by commas
     _CITATION_GROUP_PATTERN = re.compile(r"\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]")
 
-    def parse(self, text: Optional[str]) -> list[int]:
+    def parse(self, text: str | None) -> list[int]:
         """
         Extract all citation integer IDs in order of appearance.
 
@@ -71,7 +71,7 @@ class CitationParser:
 
         return citation_ids
 
-    def parse_unique(self, text: Optional[str]) -> list[int]:
+    def parse_unique(self, text: str | None) -> list[int]:
         """
         Extract unique citation IDs, strictly preserving order of first appearance.
 
@@ -90,7 +90,7 @@ class CitationParser:
                 unique_ids.append(cid)
         return unique_ids
 
-    def parse_spans(self, text: Optional[str]) -> list[CitationSpan]:
+    def parse_spans(self, text: str | None) -> list[CitationSpan]:
         """
         Extract detailed span information for each valid citation reference.
 
@@ -124,6 +124,6 @@ class CitationParser:
                     continue
         return spans
 
-    def has_citations(self, text: Optional[str]) -> bool:
+    def has_citations(self, text: str | None) -> bool:
         """Return True if text contains at least one valid citation identifier."""
         return len(self.parse(text)) > 0

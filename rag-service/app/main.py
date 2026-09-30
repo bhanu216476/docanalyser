@@ -29,7 +29,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 # Setup OpenTelemetry tracing
-from app.observability.metrics import setup_tracing, rag_metrics  # noqa: E402
+from app.observability.metrics import rag_metrics, setup_tracing
 
 _otel_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
 _sample_rate = float(os.environ.get("OTEL_TRACES_SAMPLER_ARG", "1.0"))
@@ -41,12 +41,15 @@ setup_tracing(
 
 # Instrument FastAPI with OpenTelemetry (no-op if SDK unavailable)
 try:
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # type: ignore[import]
+    from opentelemetry.instrumentation.fastapi import (
+        FastAPIInstrumentor,  # type: ignore[import]
+    )
+
     _FASTAPI_INSTRUMENTOR_AVAILABLE = True
 except ImportError:
     _FASTAPI_INSTRUMENTOR_AVAILABLE = False
 
-from app.api import documents, health, rag, retrieval  # noqa: E402
+from app.api import documents, health, rag, retrieval
 
 app = FastAPI(
     title="DocAnalyser RAG Service",
@@ -77,7 +80,7 @@ async def prometheus_middleware(request: Request, call_next: Any) -> Response:
     try:
         response = await call_next(request)
         status_code = response.status_code
-    except Exception as exc:
+    except Exception:
         status_code = 500
         duration = time.perf_counter() - start
         rag_metrics.http_requests_total.labels(
@@ -115,10 +118,16 @@ async def prometheus_middleware(request: Request, call_next: Any) -> Response:
 async def metrics_endpoint() -> Response:
     """Expose Prometheus metrics in text format."""
     try:
-        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST  # type: ignore[import]
+        from prometheus_client import (  # type: ignore[import]
+            CONTENT_TYPE_LATEST,
+            generate_latest,
+        )
+
         return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
     except ImportError:
-        return Response(content="# prometheus_client not available\n", media_type="text/plain")
+        return Response(
+            content="# prometheus_client not available\n", media_type="text/plain"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +173,7 @@ if _FASTAPI_INSTRUMENTOR_AVAILABLE:
             excluded_urls="metrics,health",
         )
         logger.info("FastAPI OpenTelemetry instrumentation enabled")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  # noqa: BLE001
         logger.warning("FastAPI OTel instrumentation failed: %s", exc)
 
 

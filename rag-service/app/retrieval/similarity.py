@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import math
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -34,8 +34,7 @@ def cosine_similarity(
 
     if first_vector.shape != second_vector.shape:
         raise ValueError(
-            "Vector dimensions must match: "
-            f"{first_vector.size} != {second_vector.size}"
+            f"Vector dimensions must match: {first_vector.size} != {second_vector.size}"
         )
 
     first_norm = np.linalg.norm(first_vector)

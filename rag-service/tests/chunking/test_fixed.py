@@ -2,12 +2,16 @@
 
 import pytest
 from langchain_core.documents import Document
+
 from app.chunking.fixed import fixed_chunk_documents
 
 
 def test_fixed_chunking_basic():
     text = "A" * 2500
-    doc = Document(page_content=text, metadata={"source": "test.txt", "source_type": "pdf", "page_number": 1})
+    doc = Document(
+        page_content=text,
+        metadata={"source": "test.txt", "source_type": "pdf", "page_number": 1},
+    )
     chunks = fixed_chunk_documents([doc], chunk_size=1000, chunk_overlap=100)
 
     assert len(chunks) == 3

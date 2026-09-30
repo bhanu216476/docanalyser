@@ -45,7 +45,9 @@ class TestMessageRole:
 
 class TestPromptMessage:
     def test_valid_system_message(self) -> None:
-        msg = PromptMessage(role=MessageRole.SYSTEM, content="You are a helpful assistant.")
+        msg = PromptMessage(
+            role=MessageRole.SYSTEM, content="You are a helpful assistant."
+        )
         assert msg.role is MessageRole.SYSTEM
         assert msg.content == "You are a helpful assistant."
 
@@ -59,7 +61,10 @@ class TestPrompt:
     def _make_prompt(self, version: PromptVersion = PromptVersion.V2) -> Prompt:
         messages = [
             PromptMessage(role=MessageRole.SYSTEM, content="System text"),
-            PromptMessage(role=MessageRole.USER, content="<context>Evidence</context>\n<question>Q?</question>"),
+            PromptMessage(
+                role=MessageRole.USER,
+                content="<context>Evidence</context>\n<question>Q?</question>",
+            ),
         ]
         return Prompt(
             version=version,

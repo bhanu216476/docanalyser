@@ -1,4 +1,4 @@
-﻿{
+{
   "evaluation_version": "rag_eval_v1",
   "configuration": "hybrid_reranking",
   "dataset_size": 10,

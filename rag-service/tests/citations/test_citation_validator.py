@@ -13,13 +13,13 @@ from __future__ import annotations
 
 import pytest
 
-from app.context.models import Citation
 from app.citations.models import (
     CitationValidationPolicy,
     CitationValidationResult,
     InvalidCitationError,
 )
 from app.citations.validator import CitationValidator
+from app.context.models import Citation
 
 
 @pytest.fixture

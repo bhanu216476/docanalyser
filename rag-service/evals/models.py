@@ -13,10 +13,11 @@ Defines:
 
 from __future__ import annotations
 
-from enum import Enum
 import json
+from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
@@ -61,7 +62,9 @@ class EvaluationCase(BaseModel):
     id: str = Field(..., min_length=1, description="Unique case identifier.")
     question: str = Field(..., min_length=1, description="Query text.")
     category: EvaluationCategory = Field(..., description="Evaluation category.")
-    expected_answer: str = Field(default="", description="Ground-truth reference answer.")
+    expected_answer: str = Field(
+        default="", description="Ground-truth reference answer."
+    )
     relevant_document_ids: list[str] = Field(
         default_factory=list, description="IDs of relevant source documents."
     )
@@ -71,13 +74,13 @@ class EvaluationCase(BaseModel):
     expected_citations: list[str] = Field(
         default_factory=list, description="Expected citation identifiers."
     )
-    answerable: bool = Field(default=True, description="Whether question is answerable.")
-    required_evidence: Optional[list[str]] = Field(
+    answerable: bool = Field(
+        default=True, description="Whether question is answerable."
+    )
+    required_evidence: list[str] | None = Field(
         default=None, description="Key verbatim evidence fragments required."
     )
-    notes: Optional[str] = Field(
-        default=None, description="Additional context or notes."
-    )
+    notes: str | None = Field(default=None, description="Additional context or notes.")
 
     model_config = ConfigDict(frozen=True)
 
@@ -136,7 +139,7 @@ class CaseEvaluationResult(BaseModel):
     citation_precision: float = Field(default=0.0, ge=0.0, le=1.0)
     citation_recall: float = Field(default=0.0, ge=0.0, le=1.0)
     citation_accuracy: float = Field(default=0.0, ge=0.0, le=1.0)
-    correct_abstention: Optional[bool] = None
+    correct_abstention: bool | None = None
     latency_breakdown_ms: dict[str, float] = Field(default_factory=dict)
     total_latency_ms: float = 0.0
 
@@ -175,7 +178,7 @@ class EvaluationDataset(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     @classmethod
-    def load_from_jsonl(cls, file_path: Union[str, Path]) -> EvaluationDataset:
+    def load_from_jsonl(cls, file_path: str | Path) -> EvaluationDataset:
         """Load and validate an evaluation dataset from a JSONL file."""
         path = Path(file_path)
         if not path.is_file():
@@ -206,13 +209,12 @@ class EvaluationDataset(BaseModel):
 
         return cls(cases=cases)
 
-    def save_to_jsonl(self, file_path: Union[str, Path]) -> None:
+    def save_to_jsonl(self, file_path: str | Path) -> None:
         """Save dataset to a JSONL file."""
         path = Path(file_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            for case in self.cases:
-                f.write(case.model_dump_json() + "\n")
+            f.writelines(case.model_dump_json() + "\n" for case in self.cases)
 
     def __len__(self) -> int:
         return len(self.cases)

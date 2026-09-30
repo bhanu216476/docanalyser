@@ -2,8 +2,6 @@
 Unit tests for AnswerabilityEvaluator.
 """
 
-import pytest
-
 from app.confidence.answerability import AnswerabilityEvaluator
 from app.confidence.models import AnswerabilityStatus
 from app.retrieval.models import RetrievalResult

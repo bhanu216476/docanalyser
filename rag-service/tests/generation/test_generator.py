@@ -1,5 +1,5 @@
-from unittest.mock import Mock
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 from app.context.models import StructuredContext
 from app.generation.generator import AnswerGenerator

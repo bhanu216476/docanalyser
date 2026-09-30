@@ -31,14 +31,16 @@ def make_context(content: str, *, selected: bool = True) -> BuiltContext:
 
 
 def test_empty_evidence_is_rejected() -> None:
-    result = DecisionLayer().evaluate("annual leave", make_context("" , selected=False))
+    result = DecisionLayer().evaluate("annual leave", make_context("", selected=False))
 
     assert result.should_answer is False
     assert result.reason == "no_selected_chunks"
 
 
 def test_no_selected_chunks_is_rejected() -> None:
-    result = DecisionLayer().evaluate("annual leave", make_context("annual leave", selected=False))
+    result = DecisionLayer().evaluate(
+        "annual leave", make_context("annual leave", selected=False)
+    )
 
     assert result.should_answer is False
     assert result.reason == "no_selected_chunks"

@@ -4,29 +4,19 @@ Comprehensive unit, integration, and edge-case tests for the Context Builder mod
 
 from __future__ import annotations
 
-import pytest
+from app.context.citation import extract_citation
+from app.context.context_builder import ContextBuilder, format_context_block
 from app.context.models import (
-    BuiltContext,
-    Citation,
     ContextBuilderConfig,
-    ContextChunk,
 )
 from app.context.token_budget import (
-    BudgetTracker,
     DeterministicCharRatioTokenCounter,
     TiktokenCounter,
     TokenCounter,
     WhitespaceTokenCounter,
 )
-from app.context.citation import extract_citation, format_citation_id
-from app.context.deduplicator import (
-    deduplicate_results,
-    is_valid_result,
-    normalize_content_for_dedup,
-)
-from app.context.context_builder import ContextBuilder, format_context_block
-from app.retrieval.models import RetrievalProvenance, RetrievalResult
 from app.reranking.models import RerankedResult
+from app.retrieval.models import RetrievalProvenance, RetrievalResult
 
 
 class MockDeterministicTokenCounter:
@@ -120,6 +110,7 @@ def create_reranked_result(
 # 1. Selection & Ordering Tests
 # --------------------------------------------------------------------------
 
+
 def test_selection_preserves_ranked_order():
     """Context Builder evaluates and includes chunks in their original rank order."""
     r1 = create_retrieval_result("chunk-C", "Content for C", rank=1)
@@ -132,7 +123,11 @@ def test_selection_preserves_ranked_order():
     built = builder.build([r1, r2, r3], config=config)
 
     assert len(built.selected_chunks) == 3
-    assert [c.chunk_id for c in built.selected_chunks] == ["chunk-C", "chunk-A", "chunk-B"]
+    assert [c.chunk_id for c in built.selected_chunks] == [
+        "chunk-C",
+        "chunk-A",
+        "chunk-B",
+    ]
     assert [c.final_rank for c in built.selected_chunks] == [1, 2, 3]
     assert [c.citation_id for c in built.selected_chunks] == ["[1]", "[2]", "[3]"]
 
@@ -150,7 +145,11 @@ def test_selection_respects_max_chunks():
     built = builder.build(results, config=config)
 
     assert len(built.selected_chunks) == 3
-    assert [c.chunk_id for c in built.selected_chunks] == ["chunk-1", "chunk-2", "chunk-3"]
+    assert [c.chunk_id for c in built.selected_chunks] == [
+        "chunk-1",
+        "chunk-2",
+        "chunk-3",
+    ]
     assert built.dropped_chunks_count == 6
 
 
@@ -158,11 +157,14 @@ def test_selection_respects_max_chunks():
 # 2. Duplicate Removal Tests
 # --------------------------------------------------------------------------
 
+
 def test_deduplication_by_chunk_id():
     """Duplicate chunk IDs (e.g. A, B, A, C) are eliminated while preserving first occurrence."""
     r_a1 = create_retrieval_result("chunk-A", "First copy of chunk A", rank=1)
     r_b = create_retrieval_result("chunk-B", "Content of chunk B", rank=2)
-    r_a2 = create_retrieval_result("chunk-A", "Second copy of chunk A with diff text", rank=3)
+    r_a2 = create_retrieval_result(
+        "chunk-A", "Second copy of chunk A with diff text", rank=3
+    )
     r_c = create_retrieval_result("chunk-C", "Content of chunk C", rank=4)
 
     builder = ContextBuilder(token_counter=MockDeterministicTokenCounter())
@@ -170,7 +172,11 @@ def test_deduplication_by_chunk_id():
 
     built = builder.build([r_a1, r_b, r_a2, r_c], config=config)
 
-    assert [c.chunk_id for c in built.selected_chunks] == ["chunk-A", "chunk-B", "chunk-C"]
+    assert [c.chunk_id for c in built.selected_chunks] == [
+        "chunk-A",
+        "chunk-B",
+        "chunk-C",
+    ]
     assert built.selected_chunks[0].content == "First copy of chunk A"
     assert len(built.citations) == 3
     assert [cit.citation_id for cit in built.citations] == ["[1]", "[2]", "[3]"]
@@ -178,9 +184,15 @@ def test_deduplication_by_chunk_id():
 
 def test_deduplication_by_normalized_content():
     """Different chunk IDs with identical normalized text are deduplicated."""
-    r1 = create_retrieval_result("chunk-1", "Employees receive 12 casual leave days.", rank=1)
-    r2 = create_retrieval_result("chunk-2", "Employees   receive 12  casual leave days.  \n", rank=2)
-    r3 = create_retrieval_result("chunk-3", "Leave requests must be submitted through portal.", rank=3)
+    r1 = create_retrieval_result(
+        "chunk-1", "Employees receive 12 casual leave days.", rank=1
+    )
+    r2 = create_retrieval_result(
+        "chunk-2", "Employees   receive 12  casual leave days.  \n", rank=2
+    )
+    r3 = create_retrieval_result(
+        "chunk-3", "Leave requests must be submitted through portal.", rank=3
+    )
 
     builder = ContextBuilder(token_counter=MockDeterministicTokenCounter())
     config = ContextBuilderConfig(token_budget=1000, deduplicate_content=True)
@@ -209,6 +221,7 @@ def test_deduplicate_content_can_be_disabled():
 # 3. Token Budget & Overhead Tests
 # --------------------------------------------------------------------------
 
+
 def test_token_budget_enforcement():
     """Assembled context strictly stays within the configured token budget."""
     counter = WhitespaceTokenCounter()
@@ -217,7 +230,11 @@ def test_token_budget_enforcement():
     # Each chunk text is ~20 words. Plus header overhead (~6 words).
     # Total per chunk ~ 26 words. With separators (\n\n = 0 words in whitespace split, or 2 in full tokenizers).
     chunks = [
-        create_retrieval_result(f"chunk-{i}", f"This is chunk number {i} providing specific evidence details about policy rules.", rank=i)
+        create_retrieval_result(
+            f"chunk-{i}",
+            f"This is chunk number {i} providing specific evidence details about policy rules.",
+            rank=i,
+        )
         for i in range(1, 15)
     ]
 
@@ -250,11 +267,15 @@ def test_token_budget_accounts_for_formatting_and_citations():
     block_tokens = counter.count(block)
 
     # Budget exactly matching block tokens should succeed
-    built_exact = builder.build([r1], config=ContextBuilderConfig(token_budget=block_tokens))
+    built_exact = builder.build(
+        [r1], config=ContextBuilderConfig(token_budget=block_tokens)
+    )
     assert len(built_exact.selected_chunks) == 1
 
     # Budget 1 token less should fail (skip)
-    built_under = builder.build([r1], config=ContextBuilderConfig(token_budget=block_tokens - 1))
+    built_under = builder.build(
+        [r1], config=ContextBuilderConfig(token_budget=block_tokens - 1)
+    )
     assert len(built_under.selected_chunks) == 0
     assert built_under.context_text == ""
 
@@ -262,6 +283,7 @@ def test_token_budget_accounts_for_formatting_and_citations():
 # --------------------------------------------------------------------------
 # 4. Oversized Chunk Policy Tests
 # --------------------------------------------------------------------------
+
 
 def test_oversized_chunk_skipped_by_default():
     """Default policy skips a chunk that exceeds remaining budget without exceeding limit."""
@@ -303,6 +325,7 @@ def test_oversized_chunk_truncate_policy():
 # --------------------------------------------------------------------------
 # 5. Metadata & Score Preservation Tests
 # --------------------------------------------------------------------------
+
 
 def test_metadata_preservation_and_no_fabrication():
     """Verifies all present metadata fields are retained and missing fields are NOT fabricated."""
@@ -371,6 +394,7 @@ def test_score_preservation_with_reranked_results():
 # 6. Budget Edge Cases Tests
 # --------------------------------------------------------------------------
 
+
 def test_budget_zero():
     """token_budget=0 returns an empty context."""
     r1 = create_retrieval_result("chunk-1", "Some content")
@@ -412,6 +436,7 @@ def test_empty_results_input():
 # 7. Invalid Results Handling
 # --------------------------------------------------------------------------
 
+
 def test_invalid_and_malformed_results_skipped():
     """Malformed chunks (blank chunk_id or whitespace content) are skipped without error."""
     valid_1 = create_retrieval_result("valid-1", "Good evidence 1", rank=1)
@@ -420,7 +445,10 @@ def test_invalid_and_malformed_results_skipped():
     valid_2 = create_retrieval_result("valid-2", "Good evidence 3", rank=4)
 
     builder = ContextBuilder(token_counter=MockDeterministicTokenCounter())
-    built = builder.build([valid_1, empty_content, empty_id, valid_2], config=ContextBuilderConfig(token_budget=1000))
+    built = builder.build(
+        [valid_1, empty_content, empty_id, valid_2],
+        config=ContextBuilderConfig(token_budget=1000),
+    )
 
     assert [c.chunk_id for c in built.selected_chunks] == ["valid-1", "valid-2"]
     assert [c.citation_id for c in built.selected_chunks] == ["[1]", "[2]"]
@@ -430,13 +458,20 @@ def test_invalid_and_malformed_results_skipped():
 # 8. Determinism Test
 # --------------------------------------------------------------------------
 
+
 def test_determinism_across_repeated_runs():
     """Executing build multiple times on identical input produces strictly identical results."""
     results = [
-        create_retrieval_result("c1", "Content 1", rank=1, source="doc.pdf", page_number=2),
-        create_retrieval_result("c2", "Content 2", rank=2, source="doc.pdf", page_number=3),
+        create_retrieval_result(
+            "c1", "Content 1", rank=1, source="doc.pdf", page_number=2
+        ),
+        create_retrieval_result(
+            "c2", "Content 2", rank=2, source="doc.pdf", page_number=3
+        ),
         create_retrieval_result("c1", "Duplicate 1", rank=3),
-        create_retrieval_result("c3", "Content 3", rank=4, source="doc.pdf", page_number=4),
+        create_retrieval_result(
+            "c3", "Content 3", rank=4, source="doc.pdf", page_number=4
+        ),
     ]
 
     builder = ContextBuilder(token_counter=WhitespaceTokenCounter())
@@ -447,13 +482,18 @@ def test_determinism_across_repeated_runs():
 
     assert out1.context_text == out2.context_text
     assert out1.token_count == out2.token_count
-    assert [c.chunk_id for c in out1.selected_chunks] == [c.chunk_id for c in out2.selected_chunks]
-    assert [c.citation_id for c in out1.selected_chunks] == [c.citation_id for c in out2.selected_chunks]
+    assert [c.chunk_id for c in out1.selected_chunks] == [
+        c.chunk_id for c in out2.selected_chunks
+    ]
+    assert [c.citation_id for c in out1.selected_chunks] == [
+        c.citation_id for c in out2.selected_chunks
+    ]
 
 
 # --------------------------------------------------------------------------
 # 9. TokenCounter Protocol & Counter Implementations
 # --------------------------------------------------------------------------
+
 
 def test_token_counter_implementations():
     """Verify TokenCounter implementations conform to the protocol."""
@@ -478,6 +518,7 @@ def test_token_counter_implementations():
 # --------------------------------------------------------------------------
 # 10. End-to-End Test (Leave Policy Example from Spec)
 # --------------------------------------------------------------------------
+
 
 def test_end_to_end_leave_policy_use_case():
     """
@@ -548,16 +589,16 @@ def test_end_to_end_leave_policy_use_case():
         "Leave requests must be submitted through the HR portal."
     )
     expected_block_3 = (
-        "[3]\n"
-        "source: employee_handbook.pdf\n"
-        "page: 12\n\n"
-        "Handbook introduction content."
+        "[3]\nsource: employee_handbook.pdf\npage: 12\n\nHandbook introduction content."
     )
 
     assert built.selected_chunks[0].formatted_text == expected_block_1
     assert built.selected_chunks[1].formatted_text == expected_block_2
     assert built.selected_chunks[2].formatted_text == expected_block_3
 
-    assert built.context_text == f"{expected_block_1}\n\n{expected_block_2}\n\n{expected_block_3}"
+    assert (
+        built.context_text
+        == f"{expected_block_1}\n\n{expected_block_2}\n\n{expected_block_3}"
+    )
     assert built.token_count <= 500
     assert built.dropped_chunks_count == 1  # 1 duplicate dropped

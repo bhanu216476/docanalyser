@@ -132,4 +132,3 @@ class HybridRetrievalError(RetrievalError):
         - All retrieval sources fail in degraded mode
         - Incompatible or corrupted ranking inputs
     """
-

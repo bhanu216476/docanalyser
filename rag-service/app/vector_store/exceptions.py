@@ -25,7 +25,9 @@ class VectorStoreConnectionError(VectorStoreError):
     Typically transient and eligible for bounded retry.
     """
 
-    def __init__(self, message: str, is_transient: bool = True, details: dict | None = None) -> None:
+    def __init__(
+        self, message: str, is_transient: bool = True, details: dict | None = None
+    ) -> None:
         super().__init__(message, details=details)
         self.is_transient = is_transient
 

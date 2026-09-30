@@ -10,7 +10,6 @@ Evaluates how the smoothing parameter k (e.g. k=20, 40, 60, 100) influences:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,9 +33,10 @@ class KExperimentRecord(BaseModel):
 
 
 def run_k_experiment(
-    rankings: Sequence[Sequence[RetrievalResult]] | Mapping[str, Sequence[RetrievalResult]],
+    rankings: Sequence[Sequence[RetrievalResult]]
+    | Mapping[str, Sequence[RetrievalResult]],
     k_values: Sequence[int] = (20, 40, 60, 100),
-    top_k: Optional[int] = None,
+    top_k: int | None = None,
 ) -> dict[int, list[KExperimentRecord]]:
     """
     Run RRF across multiple k values on the same input rankings.

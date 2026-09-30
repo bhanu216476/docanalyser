@@ -18,12 +18,12 @@ from app.pipeline.rag_pipeline import (
 )
 
 __all__ = [
-    "RAGPipeline",
-    "create_rag_pipeline",
-    "RAGPipelineError",
     "IngestionError",
-    "QueryPipelineError",
     "IngestionResponse",
+    "QueryPipelineError",
+    "RAGPipeline",
+    "RAGPipelineError",
     "RAGQueryRequest",
     "RAGResponse",
+    "create_rag_pipeline",
 ]

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Sequence
 
 from app.chunking.models import Chunk
 from app.embeddings.models import EmbeddedChunk
@@ -126,8 +126,7 @@ def format_comparison(comparison: BenchmarkComparison) -> str:
     ]
     lines = ["| Metric | Dense Search | BM25 |", "|---|---:|---:|"]
     lines.extend(
-        f"| {label} | {dense:.4f} | {bm25:.4f} |"
-        for label, dense, bm25 in rows
+        f"| {label} | {dense:.4f} | {bm25:.4f} |" for label, dense, bm25 in rows
     )
     return "\n".join(lines)
 
@@ -172,9 +171,7 @@ def compare_dense_and_bm25(
     )
 
 
-def _metrics(
-    comparisons: Sequence[QueryComparison], strategy: str
-) -> RetrievalMetrics:
+def _metrics(comparisons: Sequence[QueryComparison], strategy: str) -> RetrievalMetrics:
     if not comparisons:
         raise ValueError("queries cannot be empty")
 

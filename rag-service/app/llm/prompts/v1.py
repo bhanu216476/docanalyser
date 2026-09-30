@@ -61,13 +61,10 @@ class V1PromptTemplate(BasePromptTemplate):
         citation_ids = self._extract_citation_ids(context)
 
         if context.context_text.strip():
-            user_content = (
-                f"CONTEXT:\n{context.context_text}\n\nQUESTION:\n{query}"
-            )
+            user_content = f"CONTEXT:\n{context.context_text}\n\nQUESTION:\n{query}"
         else:
             user_content = (
-                "CONTEXT:\nNo relevant context was retrieved.\n\nQUESTION:\n"
-                + query
+                "CONTEXT:\nNo relevant context was retrieved.\n\nQUESTION:\n" + query
             )
 
         messages = [

@@ -18,7 +18,7 @@ Future strategies:
 
 from __future__ import annotations
 
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from app.retrieval.models import RetrievalFilter, RetrievalResult
 
@@ -48,7 +48,7 @@ class Retriever(Protocol):
         self,
         query: str,
         top_k: int = 10,
-        filters: Optional[RetrievalFilter] = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[RetrievalResult]:
         """
         Execute a retrieval operation and return ranked results.

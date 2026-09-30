@@ -29,11 +29,10 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional, Sequence
 
 from app.core.config import settings
-from app.retrieval.bm25_retriever import BM25Retriever, create_bm25_retriever
-from app.retrieval.dense_retriever import DenseRetriever, create_dense_retriever
+from app.retrieval.bm25_retriever import create_bm25_retriever
+from app.retrieval.dense_retriever import create_dense_retriever
 from app.retrieval.exceptions import (
     HybridRetrievalError,
     RetrievalQueryError,
@@ -71,25 +70,19 @@ class HybridRetriever:
 
     def __init__(
         self,
-        dense_retriever: Optional[Retriever] = None,
-        bm25_retriever: Optional[Retriever] = None,
-        k: Optional[int] = None,
-        rrf_k: Optional[int] = None,
-        dense_top_k: Optional[int] = None,
-        bm25_top_k: Optional[int] = None,
-        candidate_top_k: Optional[int] = None,
-        max_top_k: Optional[int] = None,
+        dense_retriever: Retriever | None = None,
+        bm25_retriever: Retriever | None = None,
+        k: int | None = None,
+        rrf_k: int | None = None,
+        dense_top_k: int | None = None,
+        bm25_top_k: int | None = None,
+        candidate_top_k: int | None = None,
+        max_top_k: int | None = None,
         allow_degraded: bool = False,
     ) -> None:
         self.dense_retriever = dense_retriever or create_dense_retriever()
         self.bm25_retriever = bm25_retriever or create_bm25_retriever()
-        self.k = (
-            k
-            if k is not None
-            else rrf_k
-            if rrf_k is not None
-            else settings.rrf_k
-        )
+        self.k = k if k is not None else rrf_k if rrf_k is not None else settings.rrf_k
         self.dense_top_k = (
             dense_top_k if dense_top_k is not None else settings.hybrid_dense_top_k
         )
@@ -118,8 +111,7 @@ class HybridRetriever:
             raise ValueError("candidate_top_k must be positive")
         if self.candidate_top_k > self.dense_top_k + self.bm25_top_k:
             raise ValueError(
-                "candidate_top_k must be less than or equal to "
-                "dense_top_k + bm25_top_k"
+                "candidate_top_k must be less than or equal to dense_top_k + bm25_top_k"
             )
 
         logger.info(
@@ -139,8 +131,8 @@ class HybridRetriever:
     def retrieve(
         self,
         query: str,
-        top_k: Optional[int] = None,
-        filters: Optional[RetrievalFilter] = None,
+        top_k: int | None = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[HybridRetrievalResult]:
         """
         Execute hybrid retrieval combining dense and BM25 results with RRF.
@@ -324,9 +316,7 @@ class HybridRetriever:
             )
         stripped = query.strip()
         if not stripped:
-            raise RetrievalQueryError(
-                "Query cannot be empty or whitespace-only."
-            )
+            raise RetrievalQueryError("Query cannot be empty or whitespace-only.")
         return stripped
 
     def _validate_top_k(self, top_k: int) -> int:
@@ -350,12 +340,12 @@ class HybridRetriever:
 
 
 def create_hybrid_retriever(
-    dense_retriever: Optional[Retriever] = None,
-    bm25_retriever: Optional[Retriever] = None,
-    k: Optional[int] = None,
-    dense_top_k: Optional[int] = None,
-    bm25_top_k: Optional[int] = None,
-    max_top_k: Optional[int] = None,
+    dense_retriever: Retriever | None = None,
+    bm25_retriever: Retriever | None = None,
+    k: int | None = None,
+    dense_top_k: int | None = None,
+    bm25_top_k: int | None = None,
+    max_top_k: int | None = None,
     allow_degraded: bool = False,
 ) -> HybridRetriever:
     """Factory function creating a configured HybridRetriever instance."""

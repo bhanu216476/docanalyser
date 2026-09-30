@@ -56,7 +56,9 @@ class TestCitationParser:
         text2 = "Refer to guidelines [1, 2, 3]."
         assert parser.parse(text2) == [1, 2, 3]
 
-    def test_duplicate_citations_preserved_in_parse(self, parser: CitationParser) -> None:
+    def test_duplicate_citations_preserved_in_parse(
+        self, parser: CitationParser
+    ) -> None:
         """Verify parse() keeps repeated occurrences for duplicate analysis."""
         text = "Leave is 12 days [1]. The same rule applies to interns [1]."
         ids = parser.parse(text)

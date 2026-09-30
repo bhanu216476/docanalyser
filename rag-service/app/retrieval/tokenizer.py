@@ -12,7 +12,7 @@ Guarantees:
 from __future__ import annotations
 
 import re
-from typing import Optional, Sequence, Set
+from collections.abc import Sequence
 
 # Regex matches alphanumeric sequences (words, numbers, tokens)
 _TOKEN_PATTERN = re.compile(r"\b\w+\b", re.UNICODE)
@@ -29,7 +29,7 @@ class BM25Tokenizer:
 
     def __init__(
         self,
-        stopwords: Optional[Sequence[str] | Set[str]] = None,
+        stopwords: Sequence[str] | set[str] | None = None,
     ) -> None:
         if stopwords:
             self.stopwords: set[str] = {w.lower() for w in stopwords}

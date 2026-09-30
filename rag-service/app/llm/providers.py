@@ -80,7 +80,7 @@ class OpenAILLMProvider(LLMProvider):
 
     def __init__(self, api_key: str, *, timeout: float = 60.0) -> None:
         try:
-            import openai  # noqa: PLC0415
+            import openai
         except ImportError as exc:
             raise ImportError(
                 "openai package is required for OpenAILLMProvider. "

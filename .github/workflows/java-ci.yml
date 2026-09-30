@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Java CI — Spring Boot Service Build & Test
 # ==============================================================================
 #
@@ -35,6 +35,17 @@ jobs:
     name: Java 21 - Build & Test
     runs-on: ubuntu-latest
 
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     defaults:
       run:
         working-directory: backend/spring-boot-service
@@ -53,14 +64,14 @@ jobs:
       - name: Display Java and Maven versions
         run: |
           java --version
-          ./mvnw --version
+          mvn --version
 
       - name: Compile Spring Boot service
-        run: ./mvnw compile --no-transfer-progress -B
+        run: mvn compile --no-transfer-progress -B
 
       - name: Run full test suite
         run: |
-          ./mvnw verify --no-transfer-progress -B \
+          mvn verify --no-transfer-progress -B \
             -Dspring.profiles.active=test
         env:
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL

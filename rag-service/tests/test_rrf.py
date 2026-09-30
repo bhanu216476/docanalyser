@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import pytest
 
-from app.retrieval.models import HybridRetrievalResult, RetrievalResult
-
+from app.retrieval.models import RetrievalResult
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_result(chunk_id: str, score: float = 1.0, rank: int = 1) -> RetrievalResult:
     return RetrievalResult(
@@ -31,7 +31,10 @@ def _make_result(chunk_id: str, score: float = 1.0, rank: int = 1) -> RetrievalR
 
 def _ranked(*chunk_ids: str) -> list[RetrievalResult]:
     """Create a ranked list of RetrievalResult with 1-based ranks."""
-    return [_make_result(cid, score=1.0 - i * 0.1, rank=i + 1) for i, cid in enumerate(chunk_ids)]
+    return [
+        _make_result(cid, score=1.0 - i * 0.1, rank=i + 1)
+        for i, cid in enumerate(chunk_ids)
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -40,10 +43,10 @@ def _ranked(*chunk_ids: str) -> list[RetrievalResult]:
 
 from app.retrieval.rrf import reciprocal_rank_fusion
 
-
 # ---------------------------------------------------------------------------
 # Hand-calculated expected values
 # ---------------------------------------------------------------------------
+
 
 class TestRRFHandCalculated:
     """
@@ -119,6 +122,7 @@ class TestRRFHandCalculated:
 # Source rank metadata
 # ---------------------------------------------------------------------------
 
+
 class TestSourceRanks:
     def test_dense_rank_recorded(self) -> None:
         dense = _ranked("A", "B")
@@ -161,6 +165,7 @@ class TestSourceRanks:
 # Empty inputs
 # ---------------------------------------------------------------------------
 
+
 class TestEmptyInputs:
     def test_both_empty(self) -> None:
         results = reciprocal_rank_fusion({"dense": [], "bm25": []}, k=60)
@@ -186,6 +191,7 @@ class TestEmptyInputs:
 # ---------------------------------------------------------------------------
 # Duplicate handling
 # ---------------------------------------------------------------------------
+
 
 class TestDuplicateHandling:
     def test_dedup_within_single_list(self) -> None:
@@ -217,6 +223,7 @@ class TestDuplicateHandling:
 # Deterministic tie-breaking
 # ---------------------------------------------------------------------------
 
+
 class TestDeterministicTieBreaking:
     def test_tie_breaks_on_chunk_id_alphabetically(self) -> None:
         """When two docs have equal scores, chunk_id alphabetical order is used."""
@@ -247,6 +254,7 @@ class TestDeterministicTieBreaking:
 # top_k truncation
 # ---------------------------------------------------------------------------
 
+
 class TestTopKTruncation:
     def test_top_k_limits_output(self) -> None:
         dense = _ranked("A", "B", "C", "D")
@@ -268,6 +276,7 @@ class TestTopKTruncation:
 # k validation
 # ---------------------------------------------------------------------------
 
+
 class TestKValidation:
     def test_k_zero_raises(self) -> None:
         with pytest.raises(ValueError, match="positive"):
@@ -285,6 +294,7 @@ class TestKValidation:
 # ---------------------------------------------------------------------------
 # Multi-source (>2 ranking lists)
 # ---------------------------------------------------------------------------
+
 
 class TestMultiSource:
     def test_three_sources(self) -> None:
@@ -317,6 +327,7 @@ class TestMultiSource:
 # Score vs. rank invariants
 # ---------------------------------------------------------------------------
 
+
 class TestScoreInvariants:
     def test_score_field_mirrors_rrf_score(self) -> None:
         dense = _ranked("A", "B")
@@ -336,7 +347,9 @@ class TestScoreInvariants:
         bm25 = _ranked("C", "A")
 
         # Use mapping form
-        mapping_result = reciprocal_rank_fusion({"source_0": dense, "source_1": bm25}, k=60)
+        mapping_result = reciprocal_rank_fusion(
+            {"source_0": dense, "source_1": bm25}, k=60
+        )
         # Use sequence form
         sequence_result = reciprocal_rank_fusion([dense, bm25], k=60)
 

@@ -10,7 +10,6 @@ Pipeline position:
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -36,7 +35,8 @@ class Document(BaseModel):
     source: str = Field(..., description="Absolute path of the source file.")
     file_name: str = Field(..., description="Basename of the source file.")
     file_type: str = Field(
-        ..., description="File extension without leading dot, lowercase (e.g. 'txt', 'md')."
+        ...,
+        description="File extension without leading dot, lowercase (e.g. 'txt', 'md').",
     )
     metadata: dict[str, Any] = Field(
         default_factory=dict,
