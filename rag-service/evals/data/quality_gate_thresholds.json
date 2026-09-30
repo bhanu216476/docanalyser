@@ -1,0 +1,29 @@
+﻿{
+  "metrics": {
+    "recall_at_5": {
+      "type": "relative",
+      "limit": 0.05,
+      "description": "No more than 5% relative drop in Recall@5"
+    },
+    "mrr": {
+      "type": "relative",
+      "limit": 0.05,
+      "description": "No more than 5% relative drop in MRR"
+    },
+    "answer_correctness": {
+      "type": "absolute",
+      "limit": 0.05,
+      "description": "No more than 5 percentage point drop in Answer Correctness"
+    },
+    "citation_accuracy": {
+      "type": "absolute",
+      "limit": 0.02,
+      "description": "No more than 2 percentage point drop in Citation Accuracy"
+    },
+    "faithfulness": {
+      "type": "absolute",
+      "limit": 0.05,
+      "description": "No more than 5 percentage point drop in Faithfulness"
+    }
+  }
+}

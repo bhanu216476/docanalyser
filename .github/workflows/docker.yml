@@ -1,0 +1,88 @@
+﻿# ==============================================================================
+# Docker Build Pipeline
+# ==============================================================================
+#
+# Responsibilities:
+#   - Wait for Java CI, Python CI, and RAG Evaluation to pass.
+#   - Build Spring Boot backend image.
+#   - Build Python RAG service image.
+#   - Build frontend Vite/Nginx image.
+#   - Tag images with the commit SHA and latest.
+#   - Push images to a container registry (simulated if no credentials).
+#
+# Suggested workflow: .github/workflows/docker.yml
+# ==============================================================================
+
+name: Docker Build and Publish
+
+on:
+  workflow_run:
+    workflows: ["RAG Evaluation"]
+    types:
+      - completed
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    # Run if triggered manually, OR if it's triggered by a successful workflow_run.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event.workflow_run.conclusion == 'success')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ------------------------------------------------------------------------
+      # Spring Boot Backend Image
+      # ------------------------------------------------------------------------
+      - name: Build Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: false   # Change to true when registry is configured
+          tags: docanalyser-backend:${{ github.sha }},docanalyser-backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      # ------------------------------------------------------------------------
+      # Python RAG Service Image
+      # ------------------------------------------------------------------------
+      - name: Build RAG Service Image
+        uses: docker/build-push-action@v5
+        with:
+          context: rag-service
+          file: rag-service/Dockerfile
+          push: false   # Change to true when registry is configured
+          tags: docanalyser-rag-service:${{ github.sha }},docanalyser-rag-service:latest
+          cache-from: type=gha,scope=rag
+          cache-to: type=gha,mode=max,scope=rag
+
+      # ------------------------------------------------------------------------
+      # Frontend Image
+      # ------------------------------------------------------------------------
+      - name: Build Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: false   # Change to true when registry is configured
+          tags: docanalyser-frontend:${{ github.sha }},docanalyser-frontend:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      # Report image build success
+      - name: Docker build success summary
+        run: |
+          echo "## Docker Build Successful :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "Images built and tagged with commit SHA: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY

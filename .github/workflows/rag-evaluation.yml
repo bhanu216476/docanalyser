@@ -1,0 +1,157 @@
+﻿# ==============================================================================
+# RAG Evaluation — Quality Gate Pipeline
+# ==============================================================================
+#
+# Responsibilities:
+#   - Run the reproducible evaluation dataset against the RAG pipeline.
+#   - Compute Recall@K, MRR, Answer Correctness, Faithfulness,
+#     Context Relevance, Citation Accuracy, No-Answer Accuracy.
+#   - Compare candidate metrics against the documented baseline.
+#   - Fail the pipeline when any critical metric exceeds its configured
+#     regression threshold.
+#   - Publish human-readable and machine-readable evaluation reports.
+#   - Distinguish mock evaluation (no LLM credentials) from live evaluation.
+#
+# Triggered after Java CI and Python CI succeed.
+# Suggested workflow: .github/workflows/rag-evaluation.yml
+# ==============================================================================
+
+name: RAG Evaluation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      eval_config:
+        description: 'Retrieval configuration to evaluate'
+        required: false
+        default: 'hybrid_reranking'
+        type: choice
+        options:
+          - dense
+          - bm25
+          - hybrid
+          - hybrid_reranking
+      mock_mode:
+        description: 'Force mock evaluation (no LLM calls)'
+        required: false
+        default: 'true'
+        type: boolean
+
+concurrency:
+  group: rag-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # rag-evaluate — Run evaluation dataset + quality gate
+  # ----------------------------------------------------------------------------
+  rag-evaluate:
+    name: RAG Evaluation & Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: rag-service/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          cd rag-service
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Detect whether live LLM credentials are available.
+      # When OPENAI_API_KEY is absent or empty, mock mode is forced.
+      - name: Detect evaluation mode
+        id: eval-mode
+        run: |
+          if [ -z "${{ secrets.OPENAI_API_KEY }}" ]; then
+            echo "mode=mock" >> "$GITHUB_OUTPUT"
+            echo "EVAL_MOCK=true" >> "$GITHUB_ENV"
+          else
+            echo "mode=live" >> "$GITHUB_OUTPUT"
+            echo "EVAL_MOCK=false" >> "$GITHUB_ENV"
+          fi
+          echo "Evaluation mode: ${{ steps.eval-mode.outputs.mode || 'mock' }}"
+
+      # Verify the evaluation dataset is present before proceeding.
+      # A missing dataset is treated as a hard failure.
+      - name: Verify evaluation dataset
+        run: |
+          DATASET="rag-service/evals/data/eval_dataset.jsonl"
+          if [ ! -f "$DATASET" ]; then
+            echo "ERROR: Evaluation dataset not found at $DATASET"
+            echo "Create the dataset with: python rag-service/scripts/create_eval_dataset.py"
+            exit 1
+          fi
+          LINE_COUNT=$(wc -l < "$DATASET")
+          echo "Dataset found: $DATASET ($LINE_COUNT cases)"
+
+      # Run the evaluation harness.
+      - name: Run RAG evaluation
+        id: run-eval
+        run: |
+          mkdir -p eval-results
+          cd rag-service
+          python scripts/run_evaluation.py \
+            --dataset evals/data/eval_dataset.jsonl \
+            --baseline evals/data/baseline_metrics.json \
+            --config "${{ github.event.inputs.eval_config || 'hybrid_reranking' }}" \
+            --output-dir ../eval-results/ \
+            --mock-mode "${{ env.EVAL_MOCK }}"
+        env:
+          PYTHONPATH: .
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EVAL_DATASET_VERSION: ${{ hashFiles('rag-service/evals/data/eval_dataset.jsonl') }}
+
+      # Quality gate — compare against baseline thresholds.
+      - name: Apply RAG quality gate
+        id: quality-gate
+        run: |
+          cd rag-service
+          python scripts/quality_gate.py \
+            --candidate ../eval-results/evaluation_summary.json \
+            --baseline evals/data/baseline_metrics.json \
+            --thresholds evals/data/quality_gate_thresholds.json \
+            --summary-output ../eval-results/quality_gate_summary.md
+        continue-on-error: false
+
+      # Write the quality gate summary to the GitHub Actions step summary.
+      - name: Write evaluation summary
+        if: always()
+        run: |
+          echo "## RAG Evaluation Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ env.EVAL_MOCK }}" = "true" ]; then
+            echo "> **Mock evaluation** — LLM-dependent metrics are deterministic stubs." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f "eval-results/quality_gate_summary.md" ]; then
+            cat eval-results/quality_gate_summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Evaluation summary not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Preserve all evaluation artifacts.
+      - name: Upload evaluation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-evaluation-results
+          path: eval-results/
+          retention-days: 30

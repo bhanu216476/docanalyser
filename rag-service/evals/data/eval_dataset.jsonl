@@ -1,0 +1,2 @@
+{"id": "eval-001", "question": "What is DocAnalyser?", "category": "simple_lookup", "expected_answer": "DocAnalyser is an Enterprise RAG Platform.", "relevant_document_ids": ["doc-1"], "relevant_chunk_ids": ["chunk-1"], "expected_citations": ["chunk-1"], "answerable": true}
+{"id": "eval-002", "question": "How does Hybrid RAG work?", "category": "semantic", "expected_answer": "Hybrid RAG combines dense and BM25 retrievers.", "relevant_document_ids": ["doc-2"], "relevant_chunk_ids": ["chunk-2"], "expected_citations": ["chunk-2"], "answerable": true}

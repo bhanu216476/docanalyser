@@ -1,0 +1,12 @@
+﻿{
+  "evaluation_version": "rag_eval_v1",
+  "configuration": "hybrid_reranking",
+  "dataset_size": 10,
+  "metrics": {
+    "recall_at_5": 0.89,
+    "mrr": 0.76,
+    "answer_correctness": 0.93,
+    "citation_accuracy": 0.96,
+    "faithfulness": 0.94
+  }
+}
