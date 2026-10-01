@@ -49,7 +49,7 @@ try:
 except ImportError:
     _FASTAPI_INSTRUMENTOR_AVAILABLE = False
 
-from app.api import documents, health, rag, retrieval
+from app.api import documents, health, jobs, rag, retrieval  # noqa: E402
 
 app = FastAPI(
     title="DocAnalyser RAG Service",
@@ -137,6 +137,7 @@ app.include_router(health.router)
 app.include_router(retrieval.router)
 app.include_router(rag.router)
 app.include_router(documents.router)
+app.include_router(jobs.router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -190,6 +191,9 @@ async def startup_event() -> None:
 
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
+    # Release the queued-ingestion worker if one was started. This does not
+    # create a job service (and therefore no RAG pipeline) when unused.
+    await jobs.stop_worker_if_running()
     logger.info("RAG Service shutting down")
 
 

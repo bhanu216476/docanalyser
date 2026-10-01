@@ -21,6 +21,7 @@ Coordinates the complete end-to-end RAG workflow:
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 import time
@@ -418,6 +419,32 @@ class RAGPipeline:
     # -----------------------------------------------------------------------
     # Step-by-Step Retrieval & Processing Pipeline
     # -----------------------------------------------------------------------
+
+    async def ingest_async(
+        self,
+        file_path: Union[str, Path],
+        *,
+        batch_size: Optional[int] = None,
+        document_id: Optional[str] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> IngestionResponse:
+        """
+        Async wrapper around :meth:`ingest`.
+
+        The ingestion stages use synchronous libraries (filesystem loaders,
+        embedding provider SDK, Qdrant client, in-memory BM25), so the whole
+        synchronous pipeline runs in a worker thread via ``asyncio.to_thread``
+        rather than blocking the event loop. Behaviour, exceptions
+        (``IngestionError``) and the returned ``IngestionResponse`` are
+        identical to the synchronous implementation.
+        """
+        return await asyncio.to_thread(
+            self.ingest,
+            file_path,
+            batch_size=batch_size,
+            document_id=document_id,
+            metadata=metadata,
+        )
 
     def retrieve(
         self,

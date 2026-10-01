@@ -47,6 +47,7 @@ Usage example::
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import random
@@ -211,6 +212,26 @@ class EmbeddingService:
             math.ceil(len(requests) / self._batch_size),
         )
         return results
+
+    # ------------------------------------------------------------------
+    # Async helpers
+    # ------------------------------------------------------------------
+
+    async def embed_texts_async(self, texts: Sequence[str]) -> list[EmbeddingResult]:
+        """
+        Async wrapper around :meth:`embed_texts`.
+
+        Embedding provider SDKs are synchronous, so the blocking provider
+        calls (and their retries) run in a worker thread via
+        ``asyncio.to_thread`` instead of blocking the event loop. Validation,
+        batching, ordering, retry and error semantics are identical to the
+        synchronous implementation.
+        """
+        return await asyncio.to_thread(self.embed_texts, texts)
+
+    async def embed_chunks_async(self, chunks: Sequence[object]) -> list[EmbeddedChunk]:
+        """Async wrapper around :meth:`embed_chunks` (see embed_texts_async)."""
+        return await asyncio.to_thread(self.embed_chunks, chunks)
 
     @staticmethod
     def _validate_result_dimensions(results: Sequence[EmbeddingResult]) -> None:

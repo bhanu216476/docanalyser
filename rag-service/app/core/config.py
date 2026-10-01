@@ -182,6 +182,22 @@ class Settings(BaseSettings):
     confidence_high_threshold: float = 0.80
     confidence_low_threshold: float = 0.50
 
+    # ------------------------------------------------------------------
+    # Queued Ingestion Configuration (in-process asyncio job queue)
+    # ------------------------------------------------------------------
+    # When True, submitting an ingestion job starts the in-process
+    # background worker that drains the queue. When False, jobs remain
+    # QUEUED until a worker is started explicitly (used by tests).
+    ingestion_worker_enabled: bool = True
+
+    # Maximum number of jobs allowed to wait in the queue. Additional
+    # distinct submissions are rejected instead of growing memory.
+    ingestion_queue_max_size: int = 100
+
+    # Maximum number of job records (any state) retained in memory.
+    # Once exceeded, the oldest terminal jobs are evicted first.
+    ingestion_job_history_size: int = 500
+
     @field_validator("bm25_k1")
     @classmethod
     def validate_bm25_k1(cls, v: float) -> float:
@@ -247,6 +263,8 @@ class Settings(BaseSettings):
         "rerank_top_k",
         "context_token_budget",
         "context_max_chunks",
+        "ingestion_queue_max_size",
+        "ingestion_job_history_size",
     )
     @classmethod
     def validate_positive_int(cls, v: int) -> int:

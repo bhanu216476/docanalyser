@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -61,3 +62,14 @@ class DocumentLifecycleService:
             "status": "PROCESSED",
             "chunk_count": response.chunk_count,
         }
+
+    async def process_async(self, request: Any) -> dict[str, Any]:
+        """
+        Async wrapper around :meth:`process`.
+
+        Document loading, chunking, embedding and indexing are synchronous
+        (filesystem, provider SDK, Qdrant client), so they are isolated in a
+        worker thread instead of blocking the event loop. Behaviour and
+        error semantics are identical to the synchronous implementation.
+        """
+        return await asyncio.to_thread(self.process, request)
