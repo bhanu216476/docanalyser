@@ -8,9 +8,7 @@ from __future__ import annotations
 import pytest
 
 from app.verification.models import (
-    Claim,
     ClaimVerificationResult,
-    VerificationPolicy,
     VerificationResult,
     VerificationStatus,
 )

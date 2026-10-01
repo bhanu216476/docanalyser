@@ -13,6 +13,7 @@ Validates the full workflow against a synthetic PDF document:
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 
 from app.pipeline.demo_cli import DemoLLMProvider, generate_demo_pdf
@@ -60,7 +61,9 @@ def test_e2e_factual_query_casual_leave(e2e_pipeline: tuple[RAGPipeline, Path]) 
     assert len(citation_ids) == len(set(citation_ids)), "Duplicate citation IDs found!"
 
     chunk_ids = [c.chunk_id for c in resp.citations]
-    assert len(chunk_ids) == len(set(chunk_ids)), "Duplicate chunk IDs found in citations!"
+    assert len(chunk_ids) == len(set(chunk_ids)), (
+        "Duplicate chunk IDs found in citations!"
+    )
 
 
 def test_e2e_factual_query_sick_leave(e2e_pipeline: tuple[RAGPipeline, Path]) -> None:
@@ -107,7 +110,9 @@ def test_e2e_prompt_version_override(e2e_pipeline: tuple[RAGPipeline, Path]) -> 
     assert "10 paid sick leave days" in resp.answer
 
 
-def test_e2e_latency_breakdown_populated(e2e_pipeline: tuple[RAGPipeline, Path]) -> None:
+def test_e2e_latency_breakdown_populated(
+    e2e_pipeline: tuple[RAGPipeline, Path],
+) -> None:
     """
     Verify high-resolution latency breakdown covers all stages.
     """

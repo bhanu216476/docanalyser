@@ -9,17 +9,16 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Optional
 
-from app.retrieval.models import RetrievalResult
 from app.reranking.models import (
     LatencyMetrics,
     RankingChangeMetrics,
     RerankedResult,
 )
+from app.retrieval.models import RetrievalResult
 
 
-def _spearman_correlation(rank_a: list[int], rank_b: list[int]) -> Optional[float]:
+def _spearman_correlation(rank_a: list[int], rank_b: list[int]) -> float | None:
     """
     Compute Spearman rank correlation between two equal-length rank lists.
 
@@ -126,4 +125,3 @@ def compute_latency(
         reranking_latency_ms=round(reranking_ms, 4),
         total_latency_ms=round(total_ms, 4),
     )
-

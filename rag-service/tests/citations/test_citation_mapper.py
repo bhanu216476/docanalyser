@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import pytest
 
-from app.context.models import Citation
-from app.citations.models import GroundedCitation
 from app.citations.mapper import CitationMapper
+from app.citations.models import GroundedCitation
+from app.context.models import Citation
 
 
 @pytest.fixture
@@ -91,9 +91,7 @@ class TestCitationMapper:
         self, mapper: CitationMapper, authoritative_registry: dict[int, Citation]
     ) -> None:
         """Verify multiple citations are resolved to their distinct sources."""
-        answer = (
-            "Employees receive 12 casual leave days [1] and 10 paid sick leave days [2]."
-        )
+        answer = "Employees receive 12 casual leave days [1] and 10 paid sick leave days [2]."
         citations, val_result = mapper.map_citations(answer, authoritative_registry)
 
         assert val_result.valid is True
@@ -110,9 +108,7 @@ class TestCitationMapper:
         Verify citations are returned in the exact order of their FIRST appearance in the answer.
         E.g. [2] appears before [1] -> output must have 2 then 1.
         """
-        answer = (
-            "Sick leave is 10 days [2]. Casual leave is 12 days [1]. Note: sick leave [2]."
-        )
+        answer = "Sick leave is 10 days [2]. Casual leave is 12 days [1]. Note: sick leave [2]."
         citations, val_result = mapper.map_citations(answer, authoritative_registry)
 
         assert val_result.valid is True
@@ -218,7 +214,7 @@ class TestCitationMapper:
         is NOT parsed, because CitationMapper operates strictly on the generated answer.
         """
         generated_answer = "Employees receive 12 casual leave days [1]."
-        citations, val_result = mapper.map_citations(
+        _citations, val_result = mapper.map_citations(
             answer=generated_answer,
             registry=authoritative_registry,
         )

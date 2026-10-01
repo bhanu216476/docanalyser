@@ -11,18 +11,16 @@ Verifies:
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 
-from app.context.context_builder import ContextBuilder
-from app.context.models import ContextBuilderConfig
 from app.citations.mapper import CitationMapper
 from app.citations.models import CitationValidationPolicy, InvalidCitationError
-from app.llm.prompt_builder import PromptBuilder
 from app.llm.prompts.models import Prompt
-from app.llm.providers import FakeLLMProvider, LLMResponse
+from app.llm.providers import LLMResponse
 from app.pipeline.demo_cli import generate_demo_pdf
 from app.pipeline.models import RAGResponse
-from app.pipeline.rag_pipeline import RAGPipeline, create_rag_pipeline
+from app.pipeline.rag_pipeline import create_rag_pipeline
 
 
 class CustomAnswerLLM:
@@ -69,7 +67,9 @@ class TestCitationEndToEnd:
         pipeline.ingest(policy_pdf)
 
         # Step 2: Query pipeline
-        response: RAGResponse = pipeline.query("How many casual leave days do employees receive?")
+        response: RAGResponse = pipeline.query(
+            "How many casual leave days do employees receive?"
+        )
 
         # Step 3: Verify structured response
         assert "12 casual leave days [1]" in response.answer
@@ -78,7 +78,10 @@ class TestCitationEndToEnd:
         citation = response.citations[0]
         assert citation.id == 1
         assert citation.citation_id == "[1]"
-        assert "leave_policy.pdf" in citation.file_name or "leave_policy.pdf" in citation.document
+        assert (
+            "leave_policy.pdf" in citation.file_name
+            or "leave_policy.pdf" in citation.document
+        )
         assert citation.chunk_id != ""
 
         # Verify metadata records clean validation
@@ -109,7 +112,9 @@ class TestCitationEndToEnd:
         )
         pipeline.ingest(policy_pdf)
 
-        response: RAGResponse = pipeline.query("How many casual leave days do employees receive?")
+        response: RAGResponse = pipeline.query(
+            "How many casual leave days do employees receive?"
+        )
 
         # Raw answer preserved
         assert response.answer == "Employees receive 12 casual leave days [99]."
@@ -145,7 +150,9 @@ class TestCitationEndToEnd:
 
         assert exc_info.value.invalid_ids == [99]
 
-    def test_e2e_multiple_citations_first_appearance_order(self, policy_pdf: Path) -> None:
+    def test_e2e_multiple_citations_first_appearance_order(
+        self, policy_pdf: Path
+    ) -> None:
         """
         Verify multi-citation response preserves first appearance order [2] then [1].
         """

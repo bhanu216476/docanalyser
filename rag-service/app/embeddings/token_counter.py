@@ -129,7 +129,7 @@ class TiktokenCounter:
 
     def __init__(self, model: str = "text-embedding-3-small") -> None:
         try:
-            import tiktoken  # noqa: PLC0415
+            import tiktoken
         except ImportError as exc:
             raise ImportError(
                 "tiktoken is required for TiktokenCounter. "
@@ -185,9 +185,7 @@ def make_token_counter(
     if auto:
         try:
             counter = TiktokenCounter(model=model)
-            logger.info(
-                "Token counter: using TiktokenCounter for model '%s'", model
-            )
+            logger.info("Token counter: using TiktokenCounter for model '%s'", model)
             return counter
         except ImportError:
             logger.info(

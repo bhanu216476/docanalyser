@@ -9,8 +9,8 @@ from app.chunking.service import chunk_documents
 __all__ = [
     "Chunk",
     "build_chunk_document",
+    "chunk_documents",
     "fixed_chunk_documents",
     "recursive_chunk_documents",
     "semantic_chunk_documents",
-    "chunk_documents",
 ]

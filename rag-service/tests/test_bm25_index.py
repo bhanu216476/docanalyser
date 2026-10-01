@@ -41,10 +41,22 @@ class TestBM25Index:
         # Create identical-length documents with varying TF of target term 'audit'
         # Total tokens = 10 for all docs to isolate TF saturation from length normalization
         docs = [
-            {"chunk_id": "tf1", "content": "audit filler filler filler filler filler filler filler filler filler"},
-            {"chunk_id": "tf2", "content": "audit audit filler filler filler filler filler filler filler filler"},
-            {"chunk_id": "tf5", "content": "audit audit audit audit audit filler filler filler filler filler"},
-            {"chunk_id": "tf10", "content": "audit audit audit audit audit audit audit audit audit audit"},
+            {
+                "chunk_id": "tf1",
+                "content": "audit filler filler filler filler filler filler filler filler filler",
+            },
+            {
+                "chunk_id": "tf2",
+                "content": "audit audit filler filler filler filler filler filler filler filler",
+            },
+            {
+                "chunk_id": "tf5",
+                "content": "audit audit audit audit audit filler filler filler filler filler",
+            },
+            {
+                "chunk_id": "tf10",
+                "content": "audit audit audit audit audit audit audit audit audit audit",
+            },
         ]
         index = BM25Index()
         index.index_chunks(docs)

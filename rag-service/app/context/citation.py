@@ -8,10 +8,10 @@ Ensures no metadata is fabricated or hallucinated when absent.
 from __future__ import annotations
 
 import re
-from typing import Any, Union
-from app.retrieval.models import RetrievalResult
-from app.reranking.models import RerankedResult
+
 from app.context.models import Citation
+from app.reranking.models import RerankedResult
+from app.retrieval.models import RetrievalResult
 
 
 def format_citation_id(index: int) -> str:
@@ -28,7 +28,7 @@ def format_citation_id(index: int) -> str:
 
 
 def extract_citation(
-    result: Union[RetrievalResult, RerankedResult],
+    result: RetrievalResult | RerankedResult,
     citation_id: str,
 ) -> Citation:
     """
@@ -96,7 +96,11 @@ def extract_citation(
     if page is None and "page" in metadata and isinstance(metadata["page"], int):
         page = metadata["page"]
 
-    if page_number is None and "page_number" in metadata and isinstance(metadata["page_number"], int):
+    if (
+        page_number is None
+        and "page_number" in metadata
+        and isinstance(metadata["page_number"], int)
+    ):
         page_number = metadata["page_number"]
     elif page_number is None and page is not None:
         page_number = page + 1
@@ -108,7 +112,11 @@ def extract_citation(
 
     # Chunk index
     chunk_index = result.chunk_index
-    if chunk_index is None and "chunk_index" in metadata and isinstance(metadata["chunk_index"], int):
+    if (
+        chunk_index is None
+        and "chunk_index" in metadata
+        and isinstance(metadata["chunk_index"], int)
+    ):
         chunk_index = metadata["chunk_index"]
 
     # Integer ID and canonical document name

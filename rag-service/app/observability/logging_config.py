@@ -11,25 +11,25 @@ import json
 import logging
 import os
 import sys
-import traceback
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
 # OpenTelemetry trace context injection (optional)
 # ---------------------------------------------------------------------------
-def _get_otel_context() -> tuple[Optional[str], Optional[str]]:
+def _get_otel_context() -> tuple[str | None, str | None]:
     """Return (trace_id, span_id) hex strings from the active OTel span."""
     try:
         from opentelemetry import trace  # type: ignore[import]
+
         span = trace.get_current_span()
         ctx = span.get_span_context() if span else None
         if ctx and ctx.is_valid:
             trace_id = format(ctx.trace_id, "032x")
             span_id = format(ctx.span_id, "016x")
             return trace_id, span_id
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
     return None, None
 
@@ -63,11 +63,13 @@ class JsonFormatter(logging.Formatter):
         self._service = os.environ.get("SERVICE_NAME", "rag-service")
         self._environment = os.environ.get("ENVIRONMENT", "development")
 
-    def format(self, record: logging.LogRecord) -> str:  # noqa: A003
+    def format(self, record: logging.LogRecord) -> str:
         trace_id, span_id = _get_otel_context()
 
         payload: dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(
+                record.created, tz=timezone.utc
+            ).isoformat(),
             "severity": record.levelname,
             "service": self._service,
             "environment": self._environment,
@@ -96,11 +98,29 @@ class JsonFormatter(logging.Formatter):
 
 _LOG_RECORD_BUILTIN_ATTRS = frozenset(
     [
-        "args", "created", "exc_info", "exc_text", "filename",
-        "funcName", "getMessage", "levelname", "levelno", "lineno",
-        "module", "msecs", "message", "msg", "name", "pathname",
-        "process", "processName", "relativeCreated", "stack_info",
-        "thread", "threadName", "taskName",
+        "args",
+        "created",
+        "exc_info",
+        "exc_text",
+        "filename",
+        "funcName",
+        "getMessage",
+        "levelname",
+        "levelno",
+        "lineno",
+        "module",
+        "msecs",
+        "message",
+        "msg",
+        "name",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "thread",
+        "threadName",
+        "taskName",
     ]
 )
 
@@ -108,7 +128,7 @@ _LOG_RECORD_BUILTIN_ATTRS = frozenset(
 # ---------------------------------------------------------------------------
 # Logging setup
 # ---------------------------------------------------------------------------
-def setup_logging(log_level: Optional[str] = None) -> None:
+def setup_logging(log_level: str | None = None) -> None:
     """
     Configure the root logger to emit structured JSON to stdout.
 

@@ -7,7 +7,9 @@ from app.context.models import ContextItem, StructuredContext
 
 
 def test_context_item_defaults_and_structured_count() -> None:
-    item = ContextItem(position=1, chunk_id="chunk", content="Evidence", citation="[1] doc")
+    item = ContextItem(
+        position=1, chunk_id="chunk", content="Evidence", citation="[1] doc"
+    )
     context = StructuredContext(items=[item])
 
     assert item.page_numbers == []
@@ -33,6 +35,8 @@ def test_context_item_rejects_blank_evidence() -> None:
 
 
 def test_models_are_frozen() -> None:
-    item = ContextItem(position=1, chunk_id="chunk", content="Evidence", citation="[1] doc")
+    item = ContextItem(
+        position=1, chunk_id="chunk", content="Evidence", citation="[1] doc"
+    )
     with pytest.raises(ValidationError):
         item.position = 2  # type: ignore[misc]

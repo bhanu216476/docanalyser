@@ -14,10 +14,10 @@ import unicodedata
 from collections.abc import Sequence
 from typing import Union
 
-from app.retrieval.models import RetrievalResult
 from app.reranking.models import RerankedResult
+from app.retrieval.models import RetrievalResult
 
-CandidateType = Union[RetrievalResult, RerankedResult]
+CandidateType = Union[RetrievalResult, RerankedResult]  # noqa: UP007
 
 
 def normalize_content_for_dedup(text: str) -> str:
@@ -58,10 +58,7 @@ def is_valid_result(result: CandidateType) -> bool:
         return False
 
     content = getattr(result, "content", None)
-    if not content or not isinstance(content, str) or not content.strip():
-        return False
-
-    return True
+    return not (not content or not isinstance(content, str) or not content.strip())
 
 
 def deduplicate_results(

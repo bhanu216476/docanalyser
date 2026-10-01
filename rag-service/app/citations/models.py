@@ -11,7 +11,8 @@ Defines:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.context.models import Citation
@@ -33,9 +34,12 @@ class CitationValidationPolicy(str, Enum):
 class InvalidCitationError(ValueError):
     """Raised when an answer references citation IDs not present in the citation registry."""
 
-    def __init__(self, invalid_ids: list[int], message: Optional[str] = None) -> None:
+    def __init__(self, invalid_ids: list[int], message: str | None = None) -> None:
         self.invalid_ids = invalid_ids
-        msg = message or f"Encountered invalid citation IDs not in registry: {invalid_ids}"
+        msg = (
+            message
+            or f"Encountered invalid citation IDs not in registry: {invalid_ids}"
+        )
         super().__init__(msg)
 
 
@@ -103,32 +107,32 @@ class GroundedCitation(BaseModel):
         min_length=1,
         description="Canonical document name or source identifier.",
     )
-    page: Optional[int] = Field(
+    page: int | None = Field(
         default=None,
         ge=1,
         description="Page number if present in authoritative source metadata.",
     )
-    chunk_id: Optional[str] = Field(
+    chunk_id: str | None = Field(
         default=None,
         description="Deterministic chunk identifier from registry.",
     )
-    document_id: Optional[str] = Field(
+    document_id: str | None = Field(
         default=None,
         description="Source document identifier.",
     )
-    source: Optional[str] = Field(
+    source: str | None = Field(
         default=None,
         description="Normalized source location or path.",
     )
-    file_name: Optional[str] = Field(
+    file_name: str | None = Field(
         default=None,
         description="Basename of source document.",
     )
-    section: Optional[str] = Field(
+    section: str | None = Field(
         default=None,
         description="Document section or header.",
     )
-    chunk_index: Optional[int] = Field(
+    chunk_index: int | None = Field(
         default=None,
         ge=0,
         description="0-based sequential chunk index within document.",
@@ -144,7 +148,7 @@ class GroundedCitation(BaseModel):
     def from_citation(
         cls,
         citation: Citation,
-        id_override: Optional[int] = None,
+        id_override: int | None = None,
     ) -> GroundedCitation:
         """
         Create a GroundedCitation from an authoritative Context Citation object.

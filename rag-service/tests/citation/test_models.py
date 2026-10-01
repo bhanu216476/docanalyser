@@ -26,5 +26,5 @@ def test_citations_reject_negative_values() -> None:
 def test_citations_model_is_frozen() -> None:
     citations = ExtractedCitations(citations=[1])
 
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017  # noqa: B017
         citations.citations = [2]  # type: ignore[misc]

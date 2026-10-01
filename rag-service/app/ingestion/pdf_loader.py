@@ -68,7 +68,9 @@ class PDFLoader(BaseLoader):
             reader = PdfReader(str(path))
             num_pages = len(reader.pages)
         except (PdfReadError, Exception) as exc:
-            raise ValueError(f"Failed to read or parse PDF file '{path}': {exc}") from exc
+            raise ValueError(
+                f"Failed to read or parse PDF file '{path}': {exc}"
+            ) from exc
 
         page_texts: list[str] = []
         page_records: list[dict[str, Any]] = []
@@ -76,18 +78,22 @@ class PDFLoader(BaseLoader):
         for idx, page in enumerate(reader.pages):
             try:
                 raw_text = page.extract_text() or ""
-            except Exception as exc:
-                logger.warning("Error extracting text from page %d of %s: %s", idx + 1, path, exc)
+            except Exception as exc:  # noqa: BLE001  # noqa: BLE001
+                logger.warning(
+                    "Error extracting text from page %d of %s: %s", idx + 1, path, exc
+                )
                 raw_text = ""
 
             cleaned = self._clean(raw_text)
             if cleaned:
                 page_texts.append(cleaned)
-                page_records.append({
-                    "page_index": idx,
-                    "page_number": idx + 1,
-                    "char_count": len(cleaned),
-                })
+                page_records.append(
+                    {
+                        "page_index": idx,
+                        "page_number": idx + 1,
+                        "char_count": len(cleaned),
+                    }
+                )
 
         full_content = "\n\n".join(page_texts).strip()
 

@@ -7,14 +7,16 @@ from app.evaluation.dataset import EvaluationCase, load_evaluation_dataset
 
 
 def test_loads_single_case_json(tmp_path: Path) -> None:
-    payload = [{
-        "id": "q001",
-        "question": "What are the working hours?",
-        "expected_answer": "9 AM to 5 PM",
-        "relevant_document_ids": ["doc-1"],
-        "relevant_chunk_ids": ["chunk-7"],
-        "expected_citations": [1],
-    }]
+    payload = [
+        {
+            "id": "q001",
+            "question": "What are the working hours?",
+            "expected_answer": "9 AM to 5 PM",
+            "relevant_document_ids": ["doc-1"],
+            "relevant_chunk_ids": ["chunk-7"],
+            "expected_citations": [1],
+        }
+    ]
     path = tmp_path / "dataset.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
 

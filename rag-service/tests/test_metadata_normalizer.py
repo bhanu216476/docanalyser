@@ -3,20 +3,18 @@ Unit tests for document metadata model and Python metadata normalization.
 """
 
 from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from app.ingestion import (
-    Document,
     DocumentMetadata,
     DocumentStatus,
     MarkdownLoader,
     MetadataNormalizer,
     TxtLoader,
     compute_content_hash,
-    infer_mime_type,
     normalize_file_type,
-    normalize_source,
 )
 
 
@@ -53,7 +51,7 @@ def test_markdown_metadata_normalization():
     assert meta.file_type == "md"
     assert meta.mime_type == "text/markdown"
     assert meta.status == DocumentStatus.PENDING
-    assert meta.file_size == len("# Overview\n\nDocAnalyser documentation.".encode("utf-8"))
+    assert meta.file_size == len(b"# Overview\n\nDocAnalyser documentation.")
 
 
 def test_extension_normalization():

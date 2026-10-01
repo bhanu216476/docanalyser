@@ -11,9 +11,9 @@ Enforces citation integrity:
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping, Optional, Union
+from collections.abc import Mapping
+from typing import Any
 
-from app.context.models import Citation
 from app.citations.models import (
     CitationValidationPolicy,
     CitationValidationResult,
@@ -22,7 +22,7 @@ from app.citations.models import (
 
 logger = logging.getLogger(__name__)
 
-RegistryType = Mapping[Union[int, str], Any]
+RegistryType = Mapping[int | str, Any]
 
 
 class CitationValidator:
@@ -47,7 +47,7 @@ class CitationValidator:
         self,
         parsed_ids: list[int],
         registry: RegistryType,
-        policy: Optional[CitationValidationPolicy] = None,
+        policy: CitationValidationPolicy | None = None,
     ) -> CitationValidationResult:
         """
         Validate a list of parsed citation IDs against the citation registry.
@@ -67,7 +67,7 @@ class CitationValidator:
 
         # Normalize registry keys to integers for fast, consistent O(1) membership checks
         normalized_keys: set[int] = set()
-        for k in registry.keys():
+        for k in registry:
             if isinstance(k, int):
                 normalized_keys.add(k)
             elif isinstance(k, str):
@@ -107,9 +107,7 @@ class CitationValidator:
             logger.warning("Citation validation failure: %s", warning_msg)
 
         if duplicates:
-            dup_msg = (
-                f"Citation IDs referenced multiple times: {[f'[{x}]' for x in duplicates]}."
-            )
+            dup_msg = f"Citation IDs referenced multiple times: {[f'[{x}]' for x in duplicates]}."
             warnings.append(dup_msg)
 
         # Policy enforcement

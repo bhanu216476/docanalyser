@@ -31,7 +31,9 @@ def test_prompt_handles_empty_context() -> None:
 
 
 def test_prompt_is_deterministic() -> None:
-    item = ContextItem(position=1, chunk_id="chunk-1", content="Evidence", citation="[1]")
+    item = ContextItem(
+        position=1, chunk_id="chunk-1", content="Evidence", citation="[1]"
+    )
     context = StructuredContext(items=[item], formatted_text="[1] Evidence")
 
     assert PromptBuilder().build("Question", context) == PromptBuilder().build(

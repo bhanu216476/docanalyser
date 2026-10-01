@@ -10,7 +10,13 @@ and the full token-budgeted context builder (feature/context-builder, BuiltConte
 # Imported by tests/context/test_builder.py.
 # --------------------------------------------------------------------------
 from app.context.builder import ContextBuilder
-from app.context.models import ContextItem, StructuredContext
+from app.context.citation import extract_citation, format_citation_id
+from app.context.context_builder import format_context_block
+from app.context.deduplicator import (
+    deduplicate_results,
+    is_valid_result,
+    normalize_content_for_dedup,
+)
 
 # --------------------------------------------------------------------------
 # Full context-builder models and utilities (BuiltContext-based).
@@ -20,6 +26,8 @@ from app.context.models import (
     Citation,
     ContextBuilderConfig,
     ContextChunk,
+    ContextItem,
+    StructuredContext,
 )
 from app.context.token_budget import (
     BudgetTracker,
@@ -28,37 +36,30 @@ from app.context.token_budget import (
     TokenCounter,
     WhitespaceTokenCounter,
 )
-from app.context.citation import extract_citation, format_citation_id
-from app.context.deduplicator import (
-    deduplicate_results,
-    is_valid_result,
-    normalize_content_for_dedup,
-)
-from app.context.context_builder import format_context_block
 
 __all__ = [
-    # origin/main backward-compatible exports
-    "ContextBuilder",
-    "ContextItem",
-    "StructuredContext",
+    "BudgetTracker",
     # full context-builder models
     "BuiltContext",
     "Citation",
+    # origin/main backward-compatible exports
+    "ContextBuilder",
     "ContextBuilderConfig",
     "ContextChunk",
+    "ContextItem",
+    "DeterministicCharRatioTokenCounter",
+    "StructuredContext",
+    "TiktokenCounter",
     # token counting
     "TokenCounter",
-    "TiktokenCounter",
     "WhitespaceTokenCounter",
-    "DeterministicCharRatioTokenCounter",
-    "BudgetTracker",
+    # deduplication helpers
+    "deduplicate_results",
     # citation helpers
     "extract_citation",
     "format_citation_id",
-    # deduplication helpers
-    "deduplicate_results",
-    "is_valid_result",
-    "normalize_content_for_dedup",
     # formatting
     "format_context_block",
+    "is_valid_result",
+    "normalize_content_for_dedup",
 ]

@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
-
-from app.context.models import BuiltContext, Citation, ContextChunk
-from app.llm.dataset import EXPERIMENT_CASES, CASE_C1, CASE_C3
+from app.llm.dataset import CASE_C1, CASE_C3, EXPERIMENT_CASES
 from app.llm.experiment import (
-    PromptExperimentCase,
     PromptExperimentRecord,
     PromptExperimentReport,
     PromptExperimentRunner,
@@ -37,7 +33,9 @@ class TestFakeLLMProvider:
     def test_offline_generation_no_api_keys(self) -> None:
         provider = FakeLLMProvider()
         builder = PromptBuilder()
-        prompt = builder.build(query=CASE_C1.query, context=CASE_C1.context, version=PromptVersion.V2)
+        prompt = builder.build(
+            query=CASE_C1.query, context=CASE_C1.context, version=PromptVersion.V2
+        )
         response = provider.generate(prompt)
 
         assert isinstance(response, LLMResponse)
@@ -51,7 +49,9 @@ class TestFakeLLMProvider:
             custom_responses={PromptVersion.V1: "Custom V1 output"}
         )
         builder = PromptBuilder()
-        prompt = builder.build(query=CASE_C1.query, context=CASE_C1.context, version=PromptVersion.V1)
+        prompt = builder.build(
+            query=CASE_C1.query, context=CASE_C1.context, version=PromptVersion.V1
+        )
         response = provider.generate(prompt)
         assert response.response_text == "Custom V1 output"
 

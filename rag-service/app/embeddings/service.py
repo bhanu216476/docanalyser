@@ -47,11 +47,11 @@ Usage example::
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
 import logging
 import math
 import random
 import time
+from collections.abc import Callable, Sequence
 
 from app.embeddings.exceptions import (
     EmbeddingProviderError,
@@ -190,7 +190,9 @@ class EmbeddingService:
             EmbeddingRetryExhaustedError: If all retries are exhausted on a batch.
         """
         if not texts:
-            logger.debug("embed_texts: empty input — returning [] without provider call")
+            logger.debug(
+                "embed_texts: empty input — returning [] without provider call"
+            )
             return []
 
         # Build and validate EmbeddingRequest objects
@@ -404,8 +406,7 @@ class EmbeddingService:
             if attempt > 0:
                 actual_delay = self._calculate_delay(attempt)
                 logger.warning(
-                    "Batch %d: retry attempt %d/%d after %.2fs delay. "
-                    "Last error: %s",
+                    "Batch %d: retry attempt %d/%d after %.2fs delay. Last error: %s",
                     batch_idx,
                     attempt,
                     self._max_retries,

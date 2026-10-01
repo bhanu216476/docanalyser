@@ -22,11 +22,18 @@ class DocumentLifecycleService:
         if event == "DOCUMENT_DELETED":
             self.pipeline.vector_store.delete_by_document_id(document_id)
             self.pipeline.bm25_index.remove_by_document_id(document_id)
-            return {"success": True, "document_id": document_id, "event": request.event, "status": "PROCESSED"}
+            return {
+                "success": True,
+                "document_id": document_id,
+                "event": request.event,
+                "status": "PROCESSED",
+            }
 
         source = Path(request.source_url)
         if not source.is_file():
-            raise FileNotFoundError(f"Document source does not exist: {request.source_url}")
+            raise FileNotFoundError(
+                f"Document source does not exist: {request.source_url}"
+            )
 
         if event in ("DOCUMENT_ADDED", "DOCUMENT_UPDATED"):
             self.pipeline.vector_store.delete_by_document_id(document_id)

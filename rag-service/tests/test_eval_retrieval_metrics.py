@@ -70,7 +70,9 @@ def test_context_relevance_known_sets() -> None:
     # 2 relevant out of top 5
     retrieved = ["c1", "c2", "c3", "c4", "c5"]
     relevant = {"c1", "c3"}
-    assert compute_context_relevance(retrieved, relevant, k=5) == pytest_approx(2.0 / 5.0)
+    assert compute_context_relevance(retrieved, relevant, k=5) == pytest_approx(
+        2.0 / 5.0
+    )
 
     # 0 relevant out of top 5
     assert compute_context_relevance(retrieved, {"c99"}, k=5) == 0.0

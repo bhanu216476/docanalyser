@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from app.context import ContextBuilder
-from app.retrieval.models import RetrievalProvenance
 from app.reranking.models import RerankedResult
+from app.retrieval.models import RetrievalProvenance
 
 
 def _result(
@@ -40,7 +40,10 @@ def test_empty_results() -> None:
 
 
 def test_order_content_identity_and_determinism() -> None:
-    results = [_result("B", rank=1), _result("A", rank=2, content="Unicode: cafe\u0301")]
+    results = [
+        _result("B", rank=1),
+        _result("A", rank=2, content="Unicode: cafe\u0301"),
+    ]
     builder = ContextBuilder()
     first = builder.build(results)
     second = builder.build(results)
@@ -77,7 +80,9 @@ def test_provenance_page_priority_and_heading_fallback() -> None:
         (RetrievalProvenance(chunk_id="x"), []),
     ],
 )
-def test_page_normalization(provenance: RetrievalProvenance, expected: list[int]) -> None:
+def test_page_normalization(
+    provenance: RetrievalProvenance, expected: list[int]
+) -> None:
     item = ContextBuilder().build([_result(provenance=provenance)]).items[0]
     assert item.page_numbers == expected
 

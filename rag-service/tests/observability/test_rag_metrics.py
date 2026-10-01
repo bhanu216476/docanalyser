@@ -11,18 +11,16 @@ from __future__ import annotations
 
 import json
 import logging
-from io import StringIO
-from unittest.mock import patch
 
 import pytest
 
-from app.observability.metrics import RagMetrics
 from app.observability.logging_config import JsonFormatter
-
+from app.observability.metrics import RagMetrics
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def fresh_metrics() -> RagMetrics:
@@ -30,6 +28,7 @@ def fresh_metrics() -> RagMetrics:
     Return a fresh RagMetrics instance by passing an isolated CollectorRegistry.
     """
     from prometheus_client import CollectorRegistry
+
     reg = CollectorRegistry()
     return RagMetrics(registry=reg)
 
@@ -38,10 +37,13 @@ def fresh_metrics() -> RagMetrics:
 # Retrieval latency and score recording
 # ---------------------------------------------------------------------------
 
+
 class TestRetrievalMetrics:
     def test_record_retrieval_latency_dense(self, fresh_metrics):
         fresh_metrics.record_retrieval_latency(0.12, method="dense", outcome="success")
-        metric_sum = fresh_metrics.retrieval_latency_seconds.labels(retrieval_method="dense")._sum.get()
+        metric_sum = fresh_metrics.retrieval_latency_seconds.labels(
+            retrieval_method="dense"
+        )._sum.get()
         assert metric_sum >= 0.12
 
     def test_record_retrieval_latency_bm25(self, fresh_metrics):
@@ -56,24 +58,32 @@ class TestRetrievalMetrics:
 
     def test_record_retrieval_scores_values(self, fresh_metrics):
         scores = [0.9, 0.7, 0.6, 0.4, 0.3]
-        fresh_metrics.record_retrieval_scores(scores, method="dense", score_type="cosine")
+        fresh_metrics.record_retrieval_scores(
+            scores, method="dense", score_type="cosine"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Reranking latency recording
 # ---------------------------------------------------------------------------
 
+
 class TestRerankingMetrics:
     def test_record_reranking_basic(self, fresh_metrics):
-        fresh_metrics.record_reranking(duration_s=0.03, candidate_count=10, reranker_type="mock")
+        fresh_metrics.record_reranking(
+            duration_s=0.03, candidate_count=10, reranker_type="mock"
+        )
 
     def test_record_reranking_large_candidate_pool(self, fresh_metrics):
-        fresh_metrics.record_reranking(duration_s=0.25, candidate_count=50, reranker_type="cross_encoder")
+        fresh_metrics.record_reranking(
+            duration_s=0.25, candidate_count=50, reranker_type="cross_encoder"
+        )
 
 
 # ---------------------------------------------------------------------------
 # LLM request and token usage recording
 # ---------------------------------------------------------------------------
+
 
 class TestLLMMetrics:
     def test_record_llm_success_with_tokens(self, fresh_metrics):
@@ -124,31 +134,41 @@ class TestLLMMetrics:
 # No-answer rate
 # ---------------------------------------------------------------------------
 
+
 class TestNoAnswerMetrics:
     def test_no_answer_rate_zero_when_no_queries(self, fresh_metrics):
         # Gauge should default to 0 — no calls made yet
         # Just verify record_no_answer doesn't raise
-        fresh_metrics.record_no_answer(is_no_answer=False, completed_count=0, no_answer_count=0)
+        fresh_metrics.record_no_answer(
+            is_no_answer=False, completed_count=0, no_answer_count=0
+        )
 
     def test_no_answer_rate_calculation(self, fresh_metrics):
         """Rate = no_answer_count / completed_count."""
-        fresh_metrics.record_no_answer(is_no_answer=True, completed_count=5, no_answer_count=1)
+        fresh_metrics.record_no_answer(
+            is_no_answer=True, completed_count=5, no_answer_count=1
+        )
         # gauge should be 1/5 = 0.2
 
     def test_no_answer_rate_all_answered(self, fresh_metrics):
-        fresh_metrics.record_no_answer(is_no_answer=False, completed_count=100, no_answer_count=0)
+        fresh_metrics.record_no_answer(
+            is_no_answer=False, completed_count=100, no_answer_count=0
+        )
 
     def test_no_answer_excludes_failed_from_denominator(self, fresh_metrics):
         """Failed requests (pipeline errors) should NOT count as completed queries."""
         # Record 3 successful queries, 1 no-answer
         for _ in range(3):
-            fresh_metrics.record_no_answer(is_no_answer=False, completed_count=3, no_answer_count=1)
+            fresh_metrics.record_no_answer(
+                is_no_answer=False, completed_count=3, no_answer_count=1
+            )
         # Rate = 1/3 ≈ 0.33 — not affected by pipeline failures not passed here
 
 
 # ---------------------------------------------------------------------------
 # Citation failure rate
 # ---------------------------------------------------------------------------
+
 
 class TestCitationMetrics:
     def test_record_citation_passed(self, fresh_metrics):
@@ -202,6 +222,7 @@ class TestCitationMetrics:
 # Structured logging
 # ---------------------------------------------------------------------------
 
+
 class TestStructuredLogging:
     def test_json_formatter_basic_fields(self):
         formatter = JsonFormatter()
@@ -230,6 +251,7 @@ class TestStructuredLogging:
             raise ValueError("test error")
         except ValueError:
             import sys
+
             exc_info = sys.exc_info()
 
         record = logging.LogRecord(
@@ -251,8 +273,13 @@ class TestStructuredLogging:
     def test_json_formatter_timestamp_is_utc(self):
         formatter = JsonFormatter()
         record = logging.LogRecord(
-            name="t", level=logging.DEBUG, pathname="t.py",
-            lineno=1, msg="ts test", args=(), exc_info=None,
+            name="t",
+            level=logging.DEBUG,
+            pathname="t.py",
+            lineno=1,
+            msg="ts test",
+            args=(),
+            exc_info=None,
         )
         output = formatter.format(record)
         parsed = json.loads(output)
@@ -263,8 +290,13 @@ class TestStructuredLogging:
     def test_json_formatter_no_sensitive_info(self):
         formatter = JsonFormatter()
         record = logging.LogRecord(
-            name="t", level=logging.INFO, pathname="t.py",
-            lineno=1, msg="operation complete", args=(), exc_info=None,
+            name="t",
+            level=logging.INFO,
+            pathname="t.py",
+            lineno=1,
+            msg="operation complete",
+            args=(),
+            exc_info=None,
         )
         output = formatter.format(record)
         # Ensure no API keys / passwords appear in output

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,7 +30,7 @@ class PromptVersion(str, Enum):
     V3 = "v3"
 
     @classmethod
-    def from_string(cls, value: str) -> "PromptVersion":
+    def from_string(cls, value: str) -> PromptVersion:
         """
         Parse a version string (case-insensitive) to a PromptVersion.
 
@@ -49,9 +48,7 @@ class PromptVersion(str, Enum):
             if member.value == normalized:
                 return member
         valid = ", ".join(m.value for m in cls)
-        raise ValueError(
-            f"Unknown prompt version '{value}'. Valid versions: {valid}."
-        )
+        raise ValueError(f"Unknown prompt version '{value}'. Valid versions: {valid}.")
 
 
 class MessageRole(str, Enum):

@@ -8,13 +8,12 @@ for explicit unit test assertions.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 import re
 import time
-from typing import Optional
+from collections.abc import Mapping, Sequence
 
-from app.retrieval.models import RetrievalResult
 from app.reranking.base import BaseReranker
+from app.retrieval.models import RetrievalResult
 
 
 class MockReranker(BaseReranker):
@@ -30,8 +29,8 @@ class MockReranker(BaseReranker):
 
     def __init__(
         self,
-        custom_scores: Optional[Mapping[str, float]] = None,
-        default_top_k: Optional[int] = None,
+        custom_scores: Mapping[str, float] | None = None,
+        default_top_k: int | None = None,
         simulated_delay_ms: float = 0.0,
     ) -> None:
         super().__init__(default_top_k=default_top_k)

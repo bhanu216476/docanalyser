@@ -1,8 +1,9 @@
 """Benchmark generator and evaluator for 100-page synthetic document chunking comparison."""
 
-import time
 import math
-from typing import Any, Optional
+import time
+from typing import Any
+
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
@@ -27,14 +28,54 @@ def generate_synthetic_100_page_doc() -> list[Document]:
     - Pages 96-100: Conclusion and References
     """
     sections = [
-        (1, 1, "1. Introduction", "Introduction to Intent-Aware Adaptive Retrieval-Augmented Generation. Modern RAG systems must adaptively segment complex multi-domain technical documents while preserving fine-grained context and source alignment."),
-        (2, 10, "2. Background & Related Work", "Background on document segmentation and vector representation. Classical fixed-window slicing often disrupts multi-sentence discourse structures, leading to semantic fragmentation."),
-        (11, 25, "3. Related Literature", "Comprehensive survey of recursive splitting and semantic boundary detection mechanisms in high-dimensional text embeddings."),
-        (26, 45, "4. Adaptive Chunking Methodology", "Detailed specification of hierarchical character splitting, semantic similarity thresholding, and metadata tracking across page boundaries."),
-        (46, 65, "5. Experimental Evaluation", "Experimental setup across multi-page PDF corpora. We evaluate chunk granularity, page boundary preservation, and context retrieval precision."),
-        (66, 85, "6. Empirical Results", "Quantitative metrics and comparative performance analysis across fixed, recursive, and semantic segmentation algorithms."),
-        (86, 95, "7. Technical Discussion", "In-depth analysis of computational complexity, embedding call overhead, and optimal chunk parameter tuning for dense vector indexing."),
-        (96, 100, "8. Conclusion and References", "Concluding remarks, future research directions, and academic citations for evidence-grounded multi-document question answering.")
+        (
+            1,
+            1,
+            "1. Introduction",
+            "Introduction to Intent-Aware Adaptive Retrieval-Augmented Generation. Modern RAG systems must adaptively segment complex multi-domain technical documents while preserving fine-grained context and source alignment.",
+        ),
+        (
+            2,
+            10,
+            "2. Background & Related Work",
+            "Background on document segmentation and vector representation. Classical fixed-window slicing often disrupts multi-sentence discourse structures, leading to semantic fragmentation.",
+        ),
+        (
+            11,
+            25,
+            "3. Related Literature",
+            "Comprehensive survey of recursive splitting and semantic boundary detection mechanisms in high-dimensional text embeddings.",
+        ),
+        (
+            26,
+            45,
+            "4. Adaptive Chunking Methodology",
+            "Detailed specification of hierarchical character splitting, semantic similarity thresholding, and metadata tracking across page boundaries.",
+        ),
+        (
+            46,
+            65,
+            "5. Experimental Evaluation",
+            "Experimental setup across multi-page PDF corpora. We evaluate chunk granularity, page boundary preservation, and context retrieval precision.",
+        ),
+        (
+            66,
+            85,
+            "6. Empirical Results",
+            "Quantitative metrics and comparative performance analysis across fixed, recursive, and semantic segmentation algorithms.",
+        ),
+        (
+            86,
+            95,
+            "7. Technical Discussion",
+            "In-depth analysis of computational complexity, embedding call overhead, and optimal chunk parameter tuning for dense vector indexing.",
+        ),
+        (
+            96,
+            100,
+            "8. Conclusion and References",
+            "Concluding remarks, future research directions, and academic citations for evidence-grounded multi-document question answering.",
+        ),
     ]
 
     documents: list[Document] = []
@@ -45,7 +86,7 @@ def generate_synthetic_100_page_doc() -> list[Document]:
             paragraphs = [
                 f"{section_title} - Section Page {p} (Document Page {p}). {section_text}",
                 f"Page {p} Paragraph 2: Technical analysis of evidence grounding in retrieval augmented generation pipelines. We maintain deterministic page indexing.",
-                f"Page {p} Paragraph 3: Additional structural evidence and section details demonstrating page boundary tracking across large multi-page corpora."
+                f"Page {p} Paragraph 3: Additional structural evidence and section details demonstrating page boundary tracking across large multi-page corpora.",
             ]
             content = "\n\n".join(paragraphs)
             metadata = {
@@ -54,7 +95,7 @@ def generate_synthetic_100_page_doc() -> list[Document]:
                 "page": p - 1,
                 "page_number": p,
                 "document_id": "doc_synth_100p",
-                "headings": headings
+                "headings": headings,
             }
             documents.append(Document(page_content=content, metadata=metadata))
 
@@ -64,8 +105,8 @@ def generate_synthetic_100_page_doc() -> list[Document]:
 def evaluate_chunking_strategy(
     documents: list[Document],
     strategy: str,
-    config: Optional[dict[str, Any]] = None,
-    embedding_model: Optional[Embeddings] = None
+    config: dict[str, Any] | None = None,
+    embedding_model: Embeddings | None = None,
 ) -> dict[str, Any]:
     """Execute a chunking strategy on document list and compute metrics.
 
@@ -85,7 +126,7 @@ def evaluate_chunking_strategy(
         documents=documents,
         strategy=strategy,
         config=config,
-        embedding_model=embedding_model
+        embedding_model=embedding_model,
     )
     elapsed_time = (time.perf_counter() - start_time) * 1000.0  # ms
 
@@ -100,7 +141,9 @@ def evaluate_chunking_strategy(
             "page_crossings": 0,
             "heading_chunks": 0,
             "execution_time_ms": round(elapsed_time, 2),
-            "embedding_calls": getattr(embedding_model, "embed_call_count", "N/A") if embedding_model else "N/A"
+            "embedding_calls": getattr(embedding_model, "embed_call_count", "N/A")
+            if embedding_model
+            else "N/A",
         }
 
     lengths = [len(c.page_content) for c in chunks]
@@ -126,7 +169,7 @@ def evaluate_chunking_strategy(
 
     emb_calls = "N/A"
     if hasattr(embedding_model, "embed_call_count"):
-        emb_calls = getattr(embedding_model, "embed_call_count")
+        emb_calls = embedding_model.embed_call_count
 
     return {
         "strategy": strategy,
@@ -138,16 +181,27 @@ def evaluate_chunking_strategy(
         "page_crossings": page_crossings,
         "heading_chunks": heading_chunks,
         "execution_time_ms": round(elapsed_time, 2),
-        "embedding_calls": emb_calls
+        "embedding_calls": emb_calls,
     }
 
 
 def format_benchmark_table(results: list[dict[str, Any]]) -> str:
     """Format benchmark results into Markdown table."""
-    headers = ["Strategy", "Chunks", "Avg Length", "Min", "Max", "Std Dev", "Page Crossings", "Heading Chunks", "Time (ms)", "Emb Calls"]
+    headers = [
+        "Strategy",
+        "Chunks",
+        "Avg Length",
+        "Min",
+        "Max",
+        "Std Dev",
+        "Page Crossings",
+        "Heading Chunks",
+        "Time (ms)",
+        "Emb Calls",
+    ]
     table_lines = [
         "| " + " | ".join(headers) + " |",
-        "| " + " | ".join(["---"] * len(headers)) + " |"
+        "| " + " | ".join(["---"] * len(headers)) + " |",
     ]
     for r in results:
         line = f"| {r['strategy'].capitalize()} | {r['total_chunks']} | {r['avg_length']} | {r['min_length']} | {r['max_length']} | {r['std_length']} | {r['page_crossings']} | {r['heading_chunks']} | {r['execution_time_ms']} | {r['embedding_calls']} |"

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
 import random
 import time
+from collections.abc import Callable
 
 from app.embeddings.token_counter import TokenCounter, make_token_counter
 from app.llm.exceptions import (

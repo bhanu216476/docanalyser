@@ -20,7 +20,6 @@ Error mapping:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -49,9 +48,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/retrieval", tags=["retrieval"])
 
 # Global BM25 retriever instance (injected or default)
-_bm25_retriever: Optional[BM25Retriever] = None
+_bm25_retriever: BM25Retriever | None = None
 # Global Hybrid retriever instance (injected or default)
-_hybrid_retriever: Optional[HybridRetriever] = None
+_hybrid_retriever: HybridRetriever | None = None
 
 
 def get_hybrid_retriever() -> HybridRetriever:
@@ -118,19 +117,25 @@ def dense_retrieve(request: RetrievalRequest) -> list[RetrievalResult]:
             detail=str(exc),
         ) from exc
     except RetrievalEmbeddingError as exc:
-        logger.error("Dense retrieval embedding failed (transient=%s): %s", exc.is_transient, exc)
+        logger.error(
+            "Dense retrieval embedding failed (transient=%s): %s", exc.is_transient, exc
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Embedding service unavailable. Please retry.",
         ) from exc
     except RetrievalQdrantError as exc:
-        logger.error("Dense retrieval Qdrant search failed (transient=%s): %s", exc.is_transient, exc)
+        logger.error(
+            "Dense retrieval Qdrant search failed (transient=%s): %s",
+            exc.is_transient,
+            exc,
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Vector search service unavailable. Please retry.",
         ) from exc
     except Exception as exc:
-        logger.exception("Unexpected error during dense retrieval: %s", exc)
+        logger.exception("Unexpected error during dense retrieval")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during retrieval.",
@@ -186,7 +191,7 @@ def bm25_retrieve(request: RetrievalRequest) -> list[RetrievalResult]:
             detail="Lexical search index failure.",
         ) from exc
     except Exception as exc:
-        logger.exception("Unexpected error during BM25 retrieval: %s", exc)
+        logger.exception("Unexpected error during BM25 retrieval")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during retrieval.",
@@ -244,7 +249,7 @@ def hybrid_retrieve(request: HybridRetrievalRequest) -> list[HybridRetrievalResu
             detail=f"Hybrid retrieval service unavailable: {exc}",
         ) from exc
     except Exception as exc:
-        logger.exception("Unexpected error during hybrid retrieval: %s", exc)
+        logger.exception("Unexpected error during hybrid retrieval")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during hybrid retrieval.",
@@ -256,4 +261,3 @@ def hybrid_retrieve(request: HybridRetrievalRequest) -> list[HybridRetrievalResu
         request.top_k,
     )
     return results
-

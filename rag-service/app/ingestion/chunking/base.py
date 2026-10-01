@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from app.ingestion.chunking.models import Chunk
 from app.ingestion.metadata_normalizer import compute_content_hash
@@ -110,7 +111,7 @@ class BaseChunker(ABC):
         document: Document,
         chunk_index: int,
         document_id: str,
-        extra_metadata: Optional[dict[str, Any]] = None,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Construct a comprehensive metadata dictionary for a generated chunk.

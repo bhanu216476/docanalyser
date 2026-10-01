@@ -1,0 +1,123 @@
+# ==============================================================================
+# Python CI — RAG Service Tests & Linting
+# ==============================================================================
+#
+# Responsibilities:
+#   - Lint and format-check with Ruff (replaces flake8 from existing workflow).
+#   - Run the full Python unit test suite under rag-service/tests/.
+#   - Skip integration tests (marked with @pytest.mark.integration) when
+#     external services are unavailable.
+#   - Generate JUnit XML and coverage reports.
+#   - Fail the pipeline on any lint or test failure.
+#
+# Suggested workflow: .github/workflows/python-ci.yml
+# ==============================================================================
+
+name: Python CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: python-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # lint — Ruff lint + format checks
+  # ----------------------------------------------------------------------------
+  lint:
+    name: Python 3.12 - Lint (Ruff)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: rag-service/requirements.txt
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Ruff lint check
+        run: |
+          ruff check rag-service/
+        continue-on-error: false
+
+      - name: Ruff format check
+        run: |
+          ruff format --check rag-service/
+        continue-on-error: false
+
+  # ----------------------------------------------------------------------------
+  # unit-tests — Full pytest suite (unit only, no integration marker)
+  # ----------------------------------------------------------------------------
+  unit-tests:
+    name: Python 3.12 - Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: rag-service/requirements.txt
+
+      - name: Install RAG service dependencies
+        run: |
+          cd rag-service
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-cov pytest-xdist
+
+      - name: Run unit test suite
+        run: |
+          cd rag-service
+          mkdir -p ../test-results
+          python -m pytest tests/ \
+            -m "not integration" \
+            --junit-xml=../test-results/python-unit.xml \
+            --cov=app \
+            --cov=evals \
+            --cov-report=xml:../test-results/coverage.xml \
+            --cov-report=term-missing \
+            -v
+        env:
+          PYTHONPATH: .
+          OPENAI_API_KEY: sk-test-not-real
+          QDRANT_URL: http://localhost:6333
+
+      - name: Upload Python test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-test-results
+          path: test-results/
+          retention-days: 14
+
+      - name: Publish Python test summary
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Python Unit Tests
+          path: test-results/python-unit.xml
+          reporter: java-junit
+          fail-on-error: true

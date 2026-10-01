@@ -6,7 +6,9 @@ from app.retrieval.fusion import reciprocal_rank_fusion
 from app.retrieval.models import RetrievalResult
 
 
-def result(chunk_id: str, score: float = 0.5, content: str | None = None) -> RetrievalResult:
+def result(
+    chunk_id: str, score: float = 0.5, content: str | None = None
+) -> RetrievalResult:
     return RetrievalResult(
         chunk_id=chunk_id,
         content=content or f"content for {chunk_id}",
@@ -53,7 +55,9 @@ def test_ties_use_chunk_id_and_candidate_limit() -> None:
 
 
 @pytest.mark.parametrize("ranked_lists", [[], [[], []]])
-def test_empty_ranked_lists_return_empty(ranked_lists: list[list[RetrievalResult]]) -> None:
+def test_empty_ranked_lists_return_empty(
+    ranked_lists: list[list[RetrievalResult]],
+) -> None:
     assert reciprocal_rank_fusion(ranked_lists) == []
 
 

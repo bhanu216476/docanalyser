@@ -18,7 +18,7 @@ import com.docanalyser.dto.request.IngestionRequest;
 import java.time.Duration;
 import java.util.Map;
 
-@Service
+@Service("documentRagServiceClient")
 public class RagServiceClient {
 
     @Value("${app.rag-service.url:http://localhost:8000}")
@@ -108,4 +108,3 @@ public class RagServiceClient {
         }
     }
 }
-

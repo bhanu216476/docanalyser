@@ -7,13 +7,12 @@ citation-ready context for prompt injection.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import logging
-from typing import Optional, Union
+from collections.abc import Sequence
+from typing import Union
 
-from app.core.config import settings
-from app.retrieval.models import RetrievalResult
-from app.reranking.models import RerankedResult
+from app.context.citation import extract_citation, format_citation_id
+from app.context.deduplicator import deduplicate_results
 from app.context.models import (
     BuiltContext,
     Citation,
@@ -21,12 +20,12 @@ from app.context.models import (
     ContextChunk,
 )
 from app.context.token_budget import BudgetTracker, TiktokenCounter, TokenCounter
-from app.context.deduplicator import deduplicate_results, is_valid_result
-from app.context.citation import extract_citation, format_citation_id
+from app.reranking.models import RerankedResult
+from app.retrieval.models import RetrievalResult
 
 logger = logging.getLogger(__name__)
 
-CandidateType = Union[RetrievalResult, RerankedResult]
+CandidateType = Union[RetrievalResult, RerankedResult]  # noqa: UP007
 
 
 def format_context_block(
@@ -91,7 +90,7 @@ class ContextBuilder:
     6. Return a typed BuiltContext model.
     """
 
-    def __init__(self, token_counter: Optional[TokenCounter] = None) -> None:
+    def __init__(self, token_counter: TokenCounter | None = None) -> None:
         """
         Initialize ContextBuilder with a pluggable token counter.
 
@@ -103,7 +102,7 @@ class ContextBuilder:
     def build(
         self,
         results: Sequence[CandidateType],
-        config: Optional[ContextBuilderConfig] = None,
+        config: ContextBuilderConfig | None = None,
     ) -> BuiltContext:
         """
         Build an LLM-ready context from a ranked sequence of results.
@@ -229,14 +228,19 @@ class ContextBuilder:
                         trunc_tokens = self.token_counter.count(temp_formatted)
 
                         # Fine-tune if slightly over
-                        while trunc_tokens > (avail_for_content + header_tokens) and len(truncated_content) > 10:
+                        while (
+                            trunc_tokens > (avail_for_content + header_tokens)
+                            and len(truncated_content) > 10
+                        ):
                             truncated_content = truncated_content[:-10].rstrip() + "..."
                             temp_formatted = f"{header_block}\n\n{truncated_content}"
                             trunc_tokens = self.token_counter.count(temp_formatted)
 
                         if budget_tracker.can_fit(trunc_tokens):
                             budget_tracker.add(trunc_tokens)
-                            retrieval_score = getattr(candidate, "retrieval_score", None)
+                            retrieval_score = getattr(
+                                candidate, "retrieval_score", None
+                            )
                             if retrieval_score is None and hasattr(candidate, "score"):
                                 retrieval_score = candidate.score
                             reranker_score = getattr(candidate, "reranker_score", None)

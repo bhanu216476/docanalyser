@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Optional, Sequence, Union
+from collections.abc import Sequence
 
 from app.reranking.models import RerankedResult
 from app.retrieval.models import HybridRetrievalResult, RetrievalResult
@@ -142,7 +142,7 @@ class ScoreNormalizer:
     @classmethod
     def normalize_retrieval_candidate(
         cls,
-        candidate: Union[RetrievalResult, HybridRetrievalResult, RerankedResult],
+        candidate: RetrievalResult | HybridRetrievalResult | RerankedResult,
         k: int = 60,
         num_sources: int = 2,
     ) -> float:
@@ -154,9 +154,15 @@ class ScoreNormalizer:
         if isinstance(candidate, RerankedResult):
             # Check if retrieval_score appears to be RRF (typically < 0.1 for k=60)
             if hasattr(candidate, "source_ranks") and candidate.source_ranks:
-                return cls.normalize_rrf(candidate.retrieval_score, k=k, num_sources=len(candidate.source_ranks))
+                return cls.normalize_rrf(
+                    candidate.retrieval_score,
+                    k=k,
+                    num_sources=len(candidate.source_ranks),
+                )
             if candidate.dense_rank is not None or candidate.bm25_rank is not None:
-                return cls.normalize_rrf(candidate.retrieval_score, k=k, num_sources=num_sources)
+                return cls.normalize_rrf(
+                    candidate.retrieval_score, k=k, num_sources=num_sources
+                )
             return cls.normalize_cosine(candidate.retrieval_score)
         if isinstance(candidate, RetrievalResult):
             return cls.normalize_cosine(candidate.score)
@@ -165,7 +171,7 @@ class ScoreNormalizer:
     @classmethod
     def aggregate_retrieval_signal(
         cls,
-        candidates: Sequence[Union[RetrievalResult, HybridRetrievalResult, RerankedResult]],
+        candidates: Sequence[RetrievalResult | HybridRetrievalResult | RerankedResult],
         k: int = 60,
         num_sources: int = 2,
         strategy: str = "top1",

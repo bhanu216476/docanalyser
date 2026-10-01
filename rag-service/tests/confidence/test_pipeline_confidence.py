@@ -3,19 +3,16 @@ Integration and edge case tests for RAG pipeline Confidence Scoring.
 """
 
 from pathlib import Path
+
 import pytest
 
 from app.confidence.calculator import ConfidenceCalculator
 from app.confidence.models import (
-    AnswerabilityStatus,
     ConfidenceBand,
     ConfidenceResult,
-    ConfidenceSignals,
-    ConfidenceWeights,
 )
-from app.confidence.normalizer import ScoreNormalizer
 from app.confidence.signals import SignalExtractor, calculate_citation_support_signal
-from app.pipeline.models import RAGQueryRequest, RAGResponse
+from app.pipeline.models import RAGResponse
 from app.pipeline.rag_pipeline import RAGPipeline, create_rag_pipeline
 from app.verification.models import (
     ClaimVerificationResult,

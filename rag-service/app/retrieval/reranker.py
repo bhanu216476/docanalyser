@@ -16,8 +16,7 @@ class Reranker(Protocol):
         query: str,
         candidates: Sequence[RetrievalResult],
         top_k: int,
-    ) -> list[RetrievalResult]:
-        ...
+    ) -> list[RetrievalResult]: ...
 
 
 class IdentityReranker:

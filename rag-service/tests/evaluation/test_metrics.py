@@ -6,7 +6,11 @@ from app.evaluation.metrics import (
     compute_latency_stats,
     compute_retrieval_metrics,
 )
-from app.verification.models import ClaimVerificationResult, VerificationResult, VerificationStatus
+from app.verification.models import (
+    ClaimVerificationResult,
+    VerificationResult,
+    VerificationStatus,
+)
 
 
 def test_retrieval_hit_rate_recall_precision_and_mrr() -> None:

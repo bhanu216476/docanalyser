@@ -7,8 +7,6 @@ from real Dense/BM25 dependencies and Qdrant.
 
 from __future__ import annotations
 
-from typing import Optional
-
 import pytest
 
 from app.retrieval.exceptions import HybridRetrievalError, RetrievalQueryError
@@ -19,27 +17,26 @@ from app.retrieval.models import (
     RetrievalFilter,
     RetrievalResult,
 )
-from app.retrieval.retriever import Retriever
-
 
 # ---------------------------------------------------------------------------
 # Mock Retrievers
 # ---------------------------------------------------------------------------
+
 
 class SuccessRetriever:
     """Statically configured mock retriever returning preset results."""
 
     def __init__(self, results: list[RetrievalResult]) -> None:
         self._results = results
-        self.last_query: Optional[str] = None
-        self.last_top_k: Optional[int] = None
-        self.last_filters: Optional[RetrievalFilter] = None
+        self.last_query: str | None = None
+        self.last_top_k: int | None = None
+        self.last_filters: RetrievalFilter | None = None
 
     def retrieve(
         self,
         query: str,
         top_k: int = 10,
-        filters: Optional[RetrievalFilter] = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[RetrievalResult]:
         self.last_query = query
         self.last_top_k = top_k
@@ -54,7 +51,7 @@ class FailRetriever:
         self,
         query: str,
         top_k: int = 10,
-        filters: Optional[RetrievalFilter] = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[RetrievalResult]:
         raise RuntimeError("Simulated retrieval failure")
 
@@ -91,6 +88,7 @@ def _bm25_results() -> list[RetrievalResult]:
 # ---------------------------------------------------------------------------
 # Core retrieval tests
 # ---------------------------------------------------------------------------
+
 
 class TestHybridRetrieverCore:
     def test_returns_hybrid_results(self) -> None:
@@ -179,6 +177,7 @@ class TestHybridRetrieverCore:
 # Metadata filter propagation
 # ---------------------------------------------------------------------------
 
+
 class TestFilterPropagation:
     def test_filter_forwarded_to_both_retrievers(self) -> None:
         dense_mock = SuccessRetriever(_dense_results())
@@ -209,6 +208,7 @@ class TestFilterPropagation:
 # Error handling — allow_degraded=False (strict)
 # ---------------------------------------------------------------------------
 
+
 class TestErrorHandlingStrict:
     def test_dense_failure_raises_hybrid_error(self) -> None:
         retriever = HybridRetriever(
@@ -232,6 +232,7 @@ class TestErrorHandlingStrict:
 # ---------------------------------------------------------------------------
 # Error handling — allow_degraded=True
 # ---------------------------------------------------------------------------
+
 
 class TestDegradedMode:
     def test_dense_failure_allows_bm25_fallback(self) -> None:
@@ -277,6 +278,7 @@ class TestDegradedMode:
 # Query validation
 # ---------------------------------------------------------------------------
 
+
 class TestQueryValidation:
     def test_empty_query_raises(self) -> None:
         retriever = HybridRetriever(
@@ -316,6 +318,7 @@ class TestQueryValidation:
 # HybridRetrievalRequest
 # ---------------------------------------------------------------------------
 
+
 class TestHybridRetrievalRequest:
     def test_retrieve_from_request_uses_k_override(self) -> None:
         dense_mock = SuccessRetriever(_dense_results())
@@ -330,13 +333,14 @@ class TestHybridRetrievalRequest:
         assert len(results) <= 3
 
     def test_invalid_query_raises_validation_error(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017  # noqa: B017
             HybridRetrievalRequest(query="", top_k=5)
 
 
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
+
 
 class TestCreateHybridRetriever:
     def test_factory_creates_instance(self) -> None:

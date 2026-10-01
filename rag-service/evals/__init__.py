@@ -13,11 +13,11 @@ from evals.models import (
 )
 
 __all__ = [
-    "EvaluationCategory",
-    "RetrievalConfig",
-    "EvaluationCase",
-    "EvaluationDataset",
-    "RetrievalMetrics",
     "CaseEvaluationResult",
     "ConfigurationEvaluationSummary",
+    "EvaluationCase",
+    "EvaluationCategory",
+    "EvaluationDataset",
+    "RetrievalConfig",
+    "RetrievalMetrics",
 ]

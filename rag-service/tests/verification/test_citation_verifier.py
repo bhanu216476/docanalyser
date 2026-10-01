@@ -30,23 +30,24 @@ Coverage:
 from __future__ import annotations
 
 import pytest
-from typing import Mapping, Union
 
 from app.context.models import Citation, ContextChunk
+from app.verification.citation_verifier import CitationVerifier
+from app.verification.evidence_verifier import MockEvidenceVerifier
 from app.verification.models import (
     VerificationMode,
     VerificationPolicy,
     VerificationStatus,
 )
-from app.verification.citation_verifier import CitationVerifier
-from app.verification.evidence_verifier import MockEvidenceVerifier
-
 
 # ---------------------------------------------------------------------------
 # Helpers to build test Citation objects with content in metadata
 # ---------------------------------------------------------------------------
 
-def make_citation(citation_id: int, content: str, file_name: str = "policy.pdf") -> Citation:
+
+def make_citation(
+    citation_id: int, content: str, file_name: str = "policy.pdf"
+) -> Citation:
     """Create a minimal Citation object with content stored in metadata."""
     return Citation(
         citation_id=f"[{citation_id}]",
@@ -77,6 +78,7 @@ def make_context_chunk(citation_id: int, content: str) -> ContextChunk:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def hybrid_verifier() -> CitationVerifier:
@@ -111,6 +113,7 @@ def disabled_verifier() -> CitationVerifier:
 # ---------------------------------------------------------------------------
 # Test Case 1: Correct citation
 # ---------------------------------------------------------------------------
+
 
 class TestCase1CorrectCitation:
     def test_supported(self, hybrid_verifier: CitationVerifier) -> None:
@@ -155,6 +158,7 @@ class TestCase1CorrectCitation:
 # Test Case 2: Wrong number
 # ---------------------------------------------------------------------------
 
+
 class TestCase2WrongNumber:
     def test_unsupported_numeric_mismatch(
         self, rule_only_verifier: CitationVerifier
@@ -173,6 +177,7 @@ class TestCase2WrongNumber:
 # ---------------------------------------------------------------------------
 # Test Case 4: Missing citation (UNCITED)
 # ---------------------------------------------------------------------------
+
 
 class TestCase4MissingCitation:
     def test_uncited_claim(self, hybrid_verifier: CitationVerifier) -> None:
@@ -201,8 +206,11 @@ class TestCase4MissingCitation:
 # Test Case 5: Invalid citation ID
 # ---------------------------------------------------------------------------
 
+
 class TestCase5InvalidCitation:
-    def test_invalid_citation_status(self, rule_only_verifier: CitationVerifier) -> None:
+    def test_invalid_citation_status(
+        self, rule_only_verifier: CitationVerifier
+    ) -> None:
         """Case 5: Citation [99] not in registry → INVALID_CITATION."""
         cit = make_citation(1, "Employees receive 12 casual leave days.")
         registry = make_registry(cit)  # Only [1] in registry
@@ -230,6 +238,7 @@ class TestCase5InvalidCitation:
 # Test Case 6: Conflicting evidence (multi-citation)
 # ---------------------------------------------------------------------------
 
+
 class TestCase6ConflictingEvidence:
     def test_conflicting_sources_uncertain(
         self, rule_only_verifier: CitationVerifier
@@ -249,6 +258,7 @@ class TestCase6ConflictingEvidence:
 # ---------------------------------------------------------------------------
 # Test Case 7: Partial support
 # ---------------------------------------------------------------------------
+
 
 class TestCase7PartialSupport:
     def test_partial_support_uncertain(
@@ -274,10 +284,9 @@ class TestCase7PartialSupport:
 # Test Case 8: Negation mismatch
 # ---------------------------------------------------------------------------
 
+
 class TestCase8Negation:
-    def test_negation_unsupported(
-        self, rule_only_verifier: CitationVerifier
-    ) -> None:
+    def test_negation_unsupported(self, rule_only_verifier: CitationVerifier) -> None:
         """Case 8: Claim is positive, evidence has 'not' → UNSUPPORTED."""
         cit = make_citation(
             1, "Employees are not eligible for casual leave during probation."
@@ -289,13 +298,9 @@ class TestCase8Negation:
         )
         assert result.overall_status == VerificationStatus.UNSUPPORTED
 
-    def test_negation_reversed(
-        self, rule_only_verifier: CitationVerifier
-    ) -> None:
+    def test_negation_reversed(self, rule_only_verifier: CitationVerifier) -> None:
         """Claim negates, evidence is positive → UNSUPPORTED."""
-        cit = make_citation(
-            1, "Employees are eligible during probation."
-        )
+        cit = make_citation(1, "Employees are eligible during probation.")
         registry = make_registry(cit)
         result = rule_only_verifier.verify(
             "Employees are not eligible during probation [1].",
@@ -307,6 +312,7 @@ class TestCase8Negation:
 # ---------------------------------------------------------------------------
 # Test Case 9: Semantic paraphrase (mock heuristic)
 # ---------------------------------------------------------------------------
+
 
 class TestCase9Paraphrase:
     def test_exact_string_paraphrase_supported_by_mock(
@@ -324,8 +330,7 @@ class TestCase9Paraphrase:
         """
         # Evidence contains the clean claim text exactly
         cit = make_citation(
-            1,
-            "Employees receive 12 casual leave days. Annual entitlement confirmed."
+            1, "Employees receive 12 casual leave days. Annual entitlement confirmed."
         )
         registry = make_registry(cit)
         # After stripping [1], claim text = "Employees receive 12 casual leave days."
@@ -358,6 +363,7 @@ class TestCase9Paraphrase:
 # Test Case 10: Irrelevant evidence
 # ---------------------------------------------------------------------------
 
+
 class TestCase10IrrelevantEvidence:
     def test_irrelevant_evidence_not_supported(
         self, hybrid_verifier: CitationVerifier
@@ -376,6 +382,7 @@ class TestCase10IrrelevantEvidence:
 # ---------------------------------------------------------------------------
 # Multi-citation tests
 # ---------------------------------------------------------------------------
+
 
 class TestMultiCitation:
     def test_all_support(self, hybrid_verifier: CitationVerifier) -> None:
@@ -405,6 +412,7 @@ class TestMultiCitation:
 # Disabled verifier
 # ---------------------------------------------------------------------------
 
+
 class TestDisabledVerifier:
     def test_disabled_returns_supported_no_claims(
         self, disabled_verifier: CitationVerifier
@@ -417,6 +425,7 @@ class TestDisabledVerifier:
 # ---------------------------------------------------------------------------
 # No-answer / refusal responses
 # ---------------------------------------------------------------------------
+
 
 class TestNoAnswer:
     def test_empty_answer_no_claims(self, hybrid_verifier: CitationVerifier) -> None:
@@ -441,6 +450,7 @@ class TestNoAnswer:
 # Determinism
 # ---------------------------------------------------------------------------
 
+
 class TestDeterminism:
     def test_same_input_same_result(self, rule_only_verifier: CitationVerifier) -> None:
         """Repeated verification with identical mock inputs produces identical results."""
@@ -462,9 +472,11 @@ class TestDeterminism:
 # VerificationResult aggregation
 # ---------------------------------------------------------------------------
 
+
 class TestVerificationResultAggregation:
     def test_any_unsupported_dominates(self) -> None:
         from app.verification.models import ClaimVerificationResult, VerificationResult
+
         claims = [
             ClaimVerificationResult(
                 claim_id=1, claim="x", status=VerificationStatus.SUPPORTED, reason=""
@@ -478,6 +490,7 @@ class TestVerificationResultAggregation:
 
     def test_uncertain_beats_uncited(self) -> None:
         from app.verification.models import ClaimVerificationResult, VerificationResult
+
         claims = [
             ClaimVerificationResult(
                 claim_id=1, claim="x", status=VerificationStatus.UNCITED, reason=""
@@ -491,11 +504,13 @@ class TestVerificationResultAggregation:
 
     def test_empty_claims_is_supported(self) -> None:
         from app.verification.models import VerificationResult
+
         result = VerificationResult.aggregate("answer", [])
         assert result.overall_status == VerificationStatus.SUPPORTED
 
     def test_counts_are_correct(self) -> None:
         from app.verification.models import ClaimVerificationResult, VerificationResult
+
         claims = [
             ClaimVerificationResult(
                 claim_id=1, claim="a", status=VerificationStatus.SUPPORTED, reason=""

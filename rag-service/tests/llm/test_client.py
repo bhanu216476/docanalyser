@@ -9,7 +9,6 @@ from app.llm.exceptions import (
     LLMTokenLimitError,
     LLMValidationError,
 )
-from app.llm.models import LLMResponse
 from app.llm.providers import FakeLLMProvider, LLMProvider
 
 
@@ -23,7 +22,9 @@ class CountingCounter:
         return self.count_value
 
 
-def make_client(provider: LLMProvider, counter: CountingCounter, **kwargs: object) -> LLMClient:
+def make_client(
+    provider: LLMProvider, counter: CountingCounter, **kwargs: object
+) -> LLMClient:
     return LLMClient(
         provider=provider,
         model="test-model",
@@ -85,13 +86,17 @@ def test_transient_failure_retries_and_succeeds() -> None:
 
 def test_retries_exhausted_and_permanent_error_not_retried() -> None:
     exhausted_provider = FakeLLMProvider(fail_on_calls={1, 2, 3})
-    exhausted = make_client(exhausted_provider, CountingCounter(1), sleep_fn=lambda _: None)
+    exhausted = make_client(
+        exhausted_provider, CountingCounter(1), sleep_fn=lambda _: None
+    )
     with pytest.raises(LLMRetryExhaustedError) as error:
         exhausted.generate("prompt")
     assert error.value.attempts == 3
 
     permanent_provider = FakeLLMProvider(permanent_fail_on_calls={1})
-    permanent = make_client(permanent_provider, CountingCounter(1), sleep_fn=lambda _: None)
+    permanent = make_client(
+        permanent_provider, CountingCounter(1), sleep_fn=lambda _: None
+    )
     with pytest.raises(LLMProviderError):
         permanent.generate("prompt")
     assert permanent_provider.call_count == 1
@@ -106,7 +111,9 @@ def test_retry_logs_never_include_prompt(caplog: pytest.LogCaptureFixture) -> No
     assert prompt not in caplog.text
 
 
-def test_factory_uses_fake_provider_without_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_factory_uses_fake_provider_without_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from app.core import config
 
     monkeypatch.setattr(config.settings, "openai_api_key", "")

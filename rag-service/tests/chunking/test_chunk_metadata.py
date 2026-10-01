@@ -1,6 +1,7 @@
 """Tests for metadata preservation during chunking."""
 
 from langchain_core.documents import Document
+
 from app.chunking.fixed import fixed_chunk_documents
 from app.chunking.models import Chunk, build_chunk_document
 
@@ -14,8 +15,8 @@ def test_metadata_preservation_fields():
             "page": 0,
             "page_number": 1,
             "headings": ["Header line"],
-            "custom_attribute": "custom_value"
-        }
+            "custom_attribute": "custom_value",
+        },
     )
 
     chunks = fixed_chunk_documents([doc], chunk_size=30, chunk_overlap=5)
@@ -48,7 +49,7 @@ def test_chunk_pydantic_model_conversion():
         page_number=1,
         page_numbers=[1, 2],
         headings=["Introduction"],
-        metadata={"author": "Researcher"}
+        metadata={"author": "Researcher"},
     )
 
     doc = chunk_model.to_document()
@@ -69,7 +70,7 @@ def test_chunk_model_normalizes_page_numbers_and_representative_page():
         page=98,
         page_number=99,
         page_numbers=[5, 3, 3, 5, 7],
-        metadata={"custom": "value"}
+        metadata={"custom": "value"},
     )
 
     doc = chunk_model.to_document()
@@ -88,8 +89,8 @@ def test_build_chunk_document_page_spanning():
             "source_type": "pdf",
             "headings": ["Section 1"],
             "page": 98,
-            "page_number": 99
-        }
+            "page_number": 99,
+        },
     )
 
     chunk_doc = build_chunk_document(
@@ -97,7 +98,7 @@ def test_build_chunk_document_page_spanning():
         orig_doc=orig_doc,
         chunk_index=0,
         strategy="fixed",
-        spanned_page_numbers=[5, 3, 3, 5, 7]
+        spanned_page_numbers=[5, 3, 3, 5, 7],
     )
 
     assert chunk_doc.metadata["page_numbers"] == [5, 3, 7]
@@ -108,8 +109,7 @@ def test_build_chunk_document_page_spanning():
 
 def test_empty_page_numbers_are_preserved():
     orig_doc = Document(
-        page_content="Content",
-        metadata={"source": "empty-pages.pdf", "page_number": 1}
+        page_content="Content", metadata={"source": "empty-pages.pdf", "page_number": 1}
     )
 
     chunk_doc = build_chunk_document(
@@ -117,7 +117,7 @@ def test_empty_page_numbers_are_preserved():
         orig_doc=orig_doc,
         chunk_index=0,
         strategy="fixed",
-        spanned_page_numbers=[]
+        spanned_page_numbers=[],
     )
 
     assert chunk_doc.metadata["page_numbers"] == []
@@ -126,8 +126,12 @@ def test_empty_page_numbers_are_preserved():
 
 def test_parent_chunk_identity_is_unique_across_page_documents():
     documents = [
-        Document(page_content="A" * 120, metadata={"document_id": "doc1", "page_number": 1}),
-        Document(page_content="B" * 120, metadata={"document_id": "doc1", "page_number": 2}),
+        Document(
+            page_content="A" * 120, metadata={"document_id": "doc1", "page_number": 1}
+        ),
+        Document(
+            page_content="B" * 120, metadata={"document_id": "doc1", "page_number": 2}
+        ),
     ]
 
     chunks = fixed_chunk_documents(documents, chunk_size=100, chunk_overlap=0)

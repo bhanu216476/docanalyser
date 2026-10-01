@@ -65,31 +65,31 @@ from app.embeddings.token_counter import (
 )
 
 __all__ = [
-    # Service
-    "EmbeddingService",
-    "create_embedding_service",
+    # Constants
+    "DEFAULT_BATCH_SIZE",
+    "DEFAULT_MAX_RETRIES",
+    "DEFAULT_MAX_TOKENS",
+    "DEFAULT_RETRY_BASE_DELAY",
+    "CharApproxTokenCounter",
+    "EmbeddedChunk",
+    # Exceptions
+    "EmbeddingError",
     # Providers
     "EmbeddingProvider",
-    "FakeEmbeddingProvider",
-    "OpenAIEmbeddingProvider",
+    "EmbeddingProviderError",
     # Models
     "EmbeddingRequest",
     "EmbeddingResult",
-    "EmbeddedChunk",
+    "EmbeddingRetryExhaustedError",
+    # Service
+    "EmbeddingService",
+    "EmbeddingTokenLimitError",
+    "EmbeddingValidationError",
+    "FakeEmbeddingProvider",
+    "OpenAIEmbeddingProvider",
+    "TiktokenCounter",
     # Token Counting
     "TokenCounter",
-    "CharApproxTokenCounter",
-    "TiktokenCounter",
+    "create_embedding_service",
     "make_token_counter",
-    # Exceptions
-    "EmbeddingError",
-    "EmbeddingValidationError",
-    "EmbeddingTokenLimitError",
-    "EmbeddingProviderError",
-    "EmbeddingRetryExhaustedError",
-    # Constants
-    "DEFAULT_BATCH_SIZE",
-    "DEFAULT_MAX_TOKENS",
-    "DEFAULT_MAX_RETRIES",
-    "DEFAULT_RETRY_BASE_DELAY",
 ]

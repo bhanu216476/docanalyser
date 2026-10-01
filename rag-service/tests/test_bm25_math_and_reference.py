@@ -6,10 +6,10 @@ and a standalone independent reference implementation.
 from __future__ import annotations
 
 import math
+
 import pytest
 
 from app.retrieval.bm25_index import BM25Index
-from app.retrieval.bm25_retriever import BM25Retriever
 from app.retrieval.tokenizer import tokenize
 
 
@@ -75,9 +75,18 @@ class TestBM25MathAndReference:
             Query: "casual leave"
         """
         chunks = [
-            {"chunk_id": "chunk_a", "content": "Employees receive casual leave every year."},
-            {"chunk_id": "chunk_b", "content": "Employees receive annual leave and sick leave."},
-            {"chunk_id": "chunk_c", "content": "Office parking policy and vehicle regulations."},
+            {
+                "chunk_id": "chunk_a",
+                "content": "Employees receive casual leave every year.",
+            },
+            {
+                "chunk_id": "chunk_b",
+                "content": "Employees receive annual leave and sick leave.",
+            },
+            {
+                "chunk_id": "chunk_c",
+                "content": "Office parking policy and vehicle regulations.",
+            },
         ]
 
         index = BM25Index()
@@ -91,7 +100,7 @@ class TestBM25MathAndReference:
 
         # 2. Verify exact analytical IDFs
         expected_idf_casual = math.log(1.0 + (3.0 - 1.0 + 0.5) / (1.0 + 0.5))  # ln(8/3)
-        expected_idf_leave = math.log(1.0 + (3.0 - 2.0 + 0.5) / (2.0 + 0.5))   # ln(8/5)
+        expected_idf_leave = math.log(1.0 + (3.0 - 2.0 + 0.5) / (2.0 + 0.5))  # ln(8/5)
 
         assert pytest.approx(index.idf("casual"), rel=1e-6) == expected_idf_casual
         assert pytest.approx(index.idf("leave"), rel=1e-6) == expected_idf_leave
@@ -101,7 +110,9 @@ class TestBM25MathAndReference:
         len_norm_a = 1.0 - 0.75 + (0.75 * (6.0 / (19.0 / 3.0)))
         tf_comp_casual_a = (1.0 * 2.2) / (1.0 + 1.2 * len_norm_a)
         tf_comp_leave_a = (1.0 * 2.2) / (1.0 + 1.2 * len_norm_a)
-        expected_score_a = (expected_idf_casual * tf_comp_casual_a) + (expected_idf_leave * tf_comp_leave_a)
+        expected_score_a = (expected_idf_casual * tf_comp_casual_a) + (
+            expected_idf_leave * tf_comp_leave_a
+        )
 
         score_a = index.score_document(0, ["casual", "leave"], k1=1.2, b=0.75)
         assert pytest.approx(score_a, rel=1e-5) == expected_score_a
@@ -135,7 +146,9 @@ class TestBM25MathAndReference:
             "PostgreSQL relational document metadata storage and JSON payloads",
             "Retrieval-Augmented Generation RAG pipelines with LLM generation",
         ]
-        chunks = [{"chunk_id": f"c_{i}", "content": text} for i, text in enumerate(raw_corpus)]
+        chunks = [
+            {"chunk_id": f"c_{i}", "content": text} for i, text in enumerate(raw_corpus)
+        ]
 
         index = BM25Index()
         index.index_chunks(chunks)

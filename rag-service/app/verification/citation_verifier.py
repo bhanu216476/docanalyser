@@ -65,9 +65,14 @@ from __future__ import annotations
 import logging
 import re
 import time
-from typing import Mapping, Optional, Union
+from collections.abc import Mapping
 
 from app.context.models import Citation
+from app.verification.claim_extractor import ClaimExtractor
+from app.verification.evidence_verifier import (
+    EvidenceVerifier,
+    MockEvidenceVerifier,
+)
 from app.verification.models import (
     Claim,
     ClaimVerificationResult,
@@ -76,19 +81,13 @@ from app.verification.models import (
     VerificationResult,
     VerificationStatus,
 )
-from app.verification.claim_extractor import ClaimExtractor
 from app.verification.rules import RuleBasedVerifier
-from app.verification.evidence_verifier import (
-    EvidenceVerifier,
-    MockEvidenceVerifier,
-    SemanticVerificationOutcome,
-)
 
 logger = logging.getLogger(__name__)
 
 # Registry type alias — matches BuiltContext.citation_registry
-CitationRegistry = Mapping[Union[int, str], Citation]
-EvidenceByCitation = Mapping[Union[int, str], str]
+CitationRegistry = Mapping[int | str, Citation]
+EvidenceByCitation = Mapping[int | str, str]
 
 
 def _normalize_registry(registry: CitationRegistry) -> dict[int, Citation]:
@@ -103,6 +102,7 @@ def _normalize_registry(registry: CitationRegistry) -> dict[int, Citation]:
             result[k] = v
         elif isinstance(k, str):
             import re
+
             m = re.search(r"\d+", k)
             if m:
                 result[int(m.group(0))] = v
@@ -124,10 +124,10 @@ class CitationVerifier:
 
     def __init__(
         self,
-        policy: Optional[VerificationPolicy] = None,
-        claim_extractor: Optional[ClaimExtractor] = None,
-        rule_verifier: Optional[RuleBasedVerifier] = None,
-        semantic_verifier: Optional[EvidenceVerifier] = None,
+        policy: VerificationPolicy | None = None,
+        claim_extractor: ClaimExtractor | None = None,
+        rule_verifier: RuleBasedVerifier | None = None,
+        semantic_verifier: EvidenceVerifier | None = None,
     ) -> None:
         self._policy = policy or VerificationPolicy()
         self._extractor = claim_extractor or ClaimExtractor()

@@ -9,7 +9,6 @@ and in-memory test clients (:memory:).
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from qdrant_client import QdrantClient
 
@@ -19,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 def create_qdrant_client(
-    url: Optional[str] = None,
-    api_key: Optional[str] = None,
-    timeout: Optional[float] = None,
-    location: Optional[str] = None,
+    url: str | None = None,
+    api_key: str | None = None,
+    timeout: float | None = None,
+    location: str | None = None,
 ) -> QdrantClient:
     """
     Instantiate a configured QdrantClient.
@@ -44,7 +43,9 @@ def create_qdrant_client(
         return QdrantClient(":memory:")
 
     resolved_url = url or settings.qdrant_url
-    resolved_api_key = api_key if api_key is not None else (settings.qdrant_api_key or None)
+    resolved_api_key = (
+        api_key if api_key is not None else (settings.qdrant_api_key or None)
+    )
     resolved_timeout = timeout if timeout is not None else settings.qdrant_timeout
 
     logger.info(

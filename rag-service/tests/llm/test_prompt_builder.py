@@ -26,7 +26,9 @@ def _make_context(empty: bool = False) -> BuiltContext:
         source="fastapi_doc.md",
         file_name="fastapi_doc.md",
     )
-    formatted = "[1]\nsource: fastapi_doc.md\n\nFastAPI is a modern web framework for Python."
+    formatted = (
+        "[1]\nsource: fastapi_doc.md\n\nFastAPI is a modern web framework for Python."
+    )
     chunk = ContextChunk(
         citation_id="[1]",
         chunk_id="chunk-1",
@@ -59,7 +61,9 @@ class TestPromptBuilder:
     def test_build_v1_enum(self) -> None:
         builder = PromptBuilder()
         ctx = _make_context()
-        prompt = builder.build(query="What is FastAPI?", context=ctx, version=PromptVersion.V1)
+        prompt = builder.build(
+            query="What is FastAPI?", context=ctx, version=PromptVersion.V1
+        )
         assert prompt.version is PromptVersion.V1
         assert prompt.citation_ids == ["[1]"]
 
@@ -78,7 +82,9 @@ class TestPromptBuilder:
     def test_build_v3(self) -> None:
         builder = PromptBuilder()
         ctx = _make_context()
-        prompt = builder.build(query="What is FastAPI?", context=ctx, version=PromptVersion.V3)
+        prompt = builder.build(
+            query="What is FastAPI?", context=ctx, version=PromptVersion.V3
+        )
         assert prompt.version is PromptVersion.V3
 
     def test_unknown_version_raises(self) -> None:
@@ -90,14 +96,18 @@ class TestPromptBuilder:
     def test_context_text_preserved_verbatim(self) -> None:
         builder = PromptBuilder()
         ctx = _make_context()
-        prompt = builder.build(query="What is FastAPI?", context=ctx, version=PromptVersion.V2)
+        prompt = builder.build(
+            query="What is FastAPI?", context=ctx, version=PromptVersion.V2
+        )
         assert ctx.context_text in prompt.context_text
         assert ctx.context_text in prompt.messages[1].content
 
     def test_empty_context_handling(self) -> None:
         builder = PromptBuilder()
         ctx = _make_context(empty=True)
-        prompt = builder.build(query="What is FastAPI?", context=ctx, version=PromptVersion.V2)
+        prompt = builder.build(
+            query="What is FastAPI?", context=ctx, version=PromptVersion.V2
+        )
         assert prompt.has_context is False
         assert prompt.citation_ids == []
         assert len(prompt.messages) == 2

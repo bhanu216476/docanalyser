@@ -14,7 +14,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import Union
 
 from app.context.models import BuiltContext
 from app.llm.prompts.base import BasePromptTemplate
@@ -77,7 +76,7 @@ class PromptBuilder:
         self,
         query: str,
         context: BuiltContext,
-        version: Union[PromptVersion, str, None] = None,
+        version: PromptVersion | str | None = None,
     ) -> Prompt:
         """
         Assemble a Prompt for the given query and context.
@@ -128,7 +127,7 @@ class PromptBuilder:
 
     def _resolve_version(
         self,
-        version: Union[PromptVersion, str, None],
+        version: PromptVersion | str | None,
     ) -> PromptVersion:
         """Resolve a version argument to a PromptVersion enum member."""
         if version is None:

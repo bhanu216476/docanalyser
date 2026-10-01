@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
@@ -86,16 +86,20 @@ class DenseRetriever:
     def __init__(
         self,
         embedding_service: EmbeddingService,
-        qdrant_client: Optional[QdrantClient] = None,
-        collection_name: Optional[str] = None,
-        vector_size: Optional[int] = None,
-        max_top_k: Optional[int] = None,
+        qdrant_client: QdrantClient | None = None,
+        collection_name: str | None = None,
+        vector_size: int | None = None,
+        max_top_k: int | None = None,
     ) -> None:
         self._embedding_service = embedding_service
-        self._client = qdrant_client if qdrant_client is not None else create_qdrant_client()
+        self._client = (
+            qdrant_client if qdrant_client is not None else create_qdrant_client()
+        )
         self.collection_name = collection_name or settings.qdrant_collection_name
         self.vector_size = vector_size or settings.qdrant_vector_size
-        self.max_top_k = max_top_k if max_top_k is not None else settings.retrieval_max_top_k
+        self.max_top_k = (
+            max_top_k if max_top_k is not None else settings.retrieval_max_top_k
+        )
 
         logger.info(
             "DenseRetriever initialized: collection='%s', vector_size=%d, max_top_k=%d",
@@ -112,7 +116,7 @@ class DenseRetriever:
         self,
         query: str,
         top_k: int = 10,
-        filters: Optional[RetrievalFilter] = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[RetrievalResult]:
         """
         Execute a dense retrieval operation.
@@ -224,9 +228,7 @@ class DenseRetriever:
                 f"top_k must be an integer, got {type(top_k).__name__}"
             )
         if top_k <= 0:
-            raise RetrievalQueryError(
-                f"top_k must be greater than 0, got {top_k}"
-            )
+            raise RetrievalQueryError(f"top_k must be greater than 0, got {top_k}")
         if top_k > self.max_top_k:
             raise RetrievalQueryError(
                 f"top_k={top_k} exceeds the maximum allowed value of {self.max_top_k}. "
@@ -294,7 +296,7 @@ class DenseRetriever:
 
     def _build_qdrant_filter(
         self,
-        filters: Optional[RetrievalFilter],
+        filters: RetrievalFilter | None,
     ) -> Any:  # models.Filter | None
         """
         Convert a RetrievalFilter into a native Qdrant filter using FilterBuilder.
@@ -369,7 +371,13 @@ class DenseRetriever:
             err_str = str(exc).lower()
             is_transient = any(
                 marker in err_str
-                for marker in ("connection", "timeout", "unavailable", "reset", "refused")
+                for marker in (
+                    "connection",
+                    "timeout",
+                    "unavailable",
+                    "reset",
+                    "refused",
+                )
             )
             raise RetrievalQdrantError(
                 f"Unexpected error during Qdrant search: {exc}",
@@ -413,8 +421,8 @@ class DenseRetriever:
 
 
 def create_dense_retriever(
-    embedding_service: Optional[EmbeddingService] = None,
-    qdrant_client: Optional[QdrantClient] = None,
+    embedding_service: EmbeddingService | None = None,
+    qdrant_client: QdrantClient | None = None,
 ) -> DenseRetriever:
     """
     Convenience factory that creates a DenseRetriever from application settings.

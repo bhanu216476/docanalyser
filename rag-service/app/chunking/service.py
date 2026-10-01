@@ -1,6 +1,7 @@
 """Common chunking service entrypoint for strategy selection."""
 
-from typing import Any, Optional
+from typing import Any
+
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
@@ -12,8 +13,8 @@ from app.chunking.semantic import semantic_chunk_documents
 def chunk_documents(
     documents: list[Document],
     strategy: str = "fixed",
-    config: Optional[dict[str, Any]] = None,
-    embedding_model: Optional[Embeddings] = None
+    config: dict[str, Any] | None = None,
+    embedding_model: Embeddings | None = None,
 ) -> list[Document]:
     """Chunk a list of Document objects using the specified strategy.
 
@@ -33,9 +34,7 @@ def chunk_documents(
         ValueError: If strategy is invalid or required parameters/models are missing.
     """
     if not isinstance(strategy, str) or not strategy.strip():
-        raise ValueError(
-            "strategy must be one of: 'fixed', 'recursive', 'semantic'"
-        )
+        raise ValueError("strategy must be one of: 'fixed', 'recursive', 'semantic'")
 
     cfg = config or {}
     norm_strategy = strategy.lower().strip()
@@ -44,9 +43,7 @@ def chunk_documents(
         chunk_size = cfg.get("chunk_size", 1000)
         chunk_overlap = cfg.get("chunk_overlap", 100)
         return fixed_chunk_documents(
-            documents,
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap
+            documents, chunk_size=chunk_size, chunk_overlap=chunk_overlap
         )
 
     elif norm_strategy == "recursive":
@@ -57,13 +54,15 @@ def chunk_documents(
             documents,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            separators=separators
+            separators=separators,
         )
 
     elif norm_strategy == "semantic":
         emb_model = embedding_model or cfg.get("embedding_model")
         if emb_model is None:
-            raise ValueError("strategy 'semantic' requires an embedding_model to be provided")
+            raise ValueError(
+                "strategy 'semantic' requires an embedding_model to be provided"
+            )
 
         threshold_type = cfg.get("breakpoint_threshold_type", "percentile")
         threshold_amount = cfg.get("breakpoint_threshold_amount", 95.0)
@@ -74,7 +73,7 @@ def chunk_documents(
             embedding_model=emb_model,
             breakpoint_threshold_type=threshold_type,
             breakpoint_threshold_amount=threshold_amount,
-            buffer_size=buffer_size
+            buffer_size=buffer_size,
         )
 
     else:

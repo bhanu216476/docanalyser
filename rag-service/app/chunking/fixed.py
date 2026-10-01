@@ -6,9 +6,7 @@ from app.chunking.models import build_chunk_document
 
 
 def fixed_chunk_documents(
-    documents: list[Document],
-    chunk_size: int = 1000,
-    chunk_overlap: int = 100
+    documents: list[Document], chunk_size: int = 1000, chunk_overlap: int = 100
 ) -> list[Document]:
     """Split documents into fixed-size character chunks with overlap.
 
@@ -68,13 +66,15 @@ def fixed_chunk_documents(
     for doc, chunk_text, parent_id in pending_chunks:
         chunk_index = parent_indices.get(parent_id, 0)
         parent_indices[parent_id] = chunk_index + 1
-        all_chunks.append(build_chunk_document(
-            content=chunk_text,
-            orig_doc=doc,
-            chunk_index=chunk_index,
-            strategy="fixed",
-            total_chunks=parent_totals[parent_id],
-            doc_id=parent_id
-        ))
+        all_chunks.append(
+            build_chunk_document(
+                content=chunk_text,
+                orig_doc=doc,
+                chunk_index=chunk_index,
+                strategy="fixed",
+                total_chunks=parent_totals[parent_id],
+                doc_id=parent_id,
+            )
+        )
 
     return all_chunks

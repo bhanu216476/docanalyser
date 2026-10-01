@@ -7,25 +7,21 @@ without external infrastructure.
 
 from __future__ import annotations
 
-from typing import Optional
-
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.retrieval import set_hybrid_retriever
 from app.main import app
 from app.retrieval.exceptions import HybridRetrievalError, RetrievalQueryError
-from app.retrieval.hybrid_retriever import HybridRetriever
 from app.retrieval.models import (
     HybridRetrievalRequest,
     HybridRetrievalResult,
-    RetrievalFilter,
 )
-
 
 # ---------------------------------------------------------------------------
 # Mock HybridRetriever
 # ---------------------------------------------------------------------------
+
 
 class MockHybridRetriever:
     """Configurable mock HybridRetriever for API tests."""
@@ -38,18 +34,24 @@ class MockHybridRetriever:
         self._results = results or []
         self._raise_exc = raise_exc
 
-    def retrieve(self, query: str, top_k: int = 10, filters=None) -> list[HybridRetrievalResult]:
+    def retrieve(
+        self, query: str, top_k: int = 10, filters=None
+    ) -> list[HybridRetrievalResult]:
         if self._raise_exc:
             raise self._raise_exc
         return self._results[:top_k]
 
-    def retrieve_from_request(self, request: HybridRetrievalRequest) -> list[HybridRetrievalResult]:
+    def retrieve_from_request(
+        self, request: HybridRetrievalRequest
+    ) -> list[HybridRetrievalResult]:
         if self._raise_exc:
             raise self._raise_exc
         return self._results[: request.top_k]
 
 
-def _make_hybrid_result(chunk_id: str, rrf_score: float, rank: int) -> HybridRetrievalResult:
+def _make_hybrid_result(
+    chunk_id: str, rrf_score: float, rank: int
+) -> HybridRetrievalResult:
     return HybridRetrievalResult(
         chunk_id=chunk_id,
         content=f"Content of {chunk_id}",
@@ -73,6 +75,7 @@ def client() -> TestClient:
 # ---------------------------------------------------------------------------
 # Successful retrieval
 # ---------------------------------------------------------------------------
+
 
 class TestHybridEndpointSuccess:
     def test_returns_200_with_results(self, client: TestClient) -> None:
@@ -103,8 +106,7 @@ class TestHybridEndpointSuccess:
 
     def test_top_k_limits_results(self, client: TestClient) -> None:
         mock_results = [
-            _make_hybrid_result(f"chunk-{i}", 0.1 - i * 0.01, i + 1)
-            for i in range(5)
+            _make_hybrid_result(f"chunk-{i}", 0.1 - i * 0.01, i + 1) for i in range(5)
         ]
         set_hybrid_retriever(MockHybridRetriever(results=mock_results))
         response = client.post(
@@ -114,10 +116,12 @@ class TestHybridEndpointSuccess:
         assert response.status_code == 200
         assert len(response.json()) == 3
 
-    def test_response_includes_rrf_score_and_source_ranks(self, client: TestClient) -> None:
-        set_hybrid_retriever(MockHybridRetriever(results=[
-            _make_hybrid_result("chunk-A", 0.033, 1)
-        ]))
+    def test_response_includes_rrf_score_and_source_ranks(
+        self, client: TestClient
+    ) -> None:
+        set_hybrid_retriever(
+            MockHybridRetriever(results=[_make_hybrid_result("chunk-A", 0.033, 1)])
+        )
         response = client.post(
             "/api/retrieval/hybrid",
             json={"query": "test", "top_k": 1},
@@ -132,6 +136,7 @@ class TestHybridEndpointSuccess:
 # ---------------------------------------------------------------------------
 # Validation errors
 # ---------------------------------------------------------------------------
+
 
 class TestHybridEndpointValidation:
     def test_empty_query_returns_422(self, client: TestClient) -> None:
@@ -159,9 +164,9 @@ class TestHybridEndpointValidation:
         assert response.status_code == 422
 
     def test_retrieval_query_error_returns_422(self, client: TestClient) -> None:
-        set_hybrid_retriever(MockHybridRetriever(
-            raise_exc=RetrievalQueryError("invalid query")
-        ))
+        set_hybrid_retriever(
+            MockHybridRetriever(raise_exc=RetrievalQueryError("invalid query"))
+        )
         response = client.post(
             "/api/retrieval/hybrid",
             json={"query": "valid query", "top_k": 5},
@@ -173,11 +178,12 @@ class TestHybridEndpointValidation:
 # Service errors
 # ---------------------------------------------------------------------------
 
+
 class TestHybridEndpointErrors:
     def test_hybrid_retrieval_error_returns_503(self, client: TestClient) -> None:
-        set_hybrid_retriever(MockHybridRetriever(
-            raise_exc=HybridRetrievalError("retriever failure")
-        ))
+        set_hybrid_retriever(
+            MockHybridRetriever(raise_exc=HybridRetrievalError("retriever failure"))
+        )
         response = client.post(
             "/api/retrieval/hybrid",
             json={"query": "test query", "top_k": 5},
@@ -185,9 +191,9 @@ class TestHybridEndpointErrors:
         assert response.status_code == 503
 
     def test_unexpected_error_returns_500(self, client: TestClient) -> None:
-        set_hybrid_retriever(MockHybridRetriever(
-            raise_exc=RuntimeError("unexpected failure")
-        ))
+        set_hybrid_retriever(
+            MockHybridRetriever(raise_exc=RuntimeError("unexpected failure"))
+        )
         response = client.post(
             "/api/retrieval/hybrid",
             json={"query": "test query", "top_k": 5},
@@ -198,6 +204,7 @@ class TestHybridEndpointErrors:
 # ---------------------------------------------------------------------------
 # Optional fields (k, filters)
 # ---------------------------------------------------------------------------
+
 
 class TestHybridEndpointOptions:
     def test_with_k_parameter(self, client: TestClient) -> None:

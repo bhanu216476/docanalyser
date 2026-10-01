@@ -32,7 +32,9 @@ def reciprocal_rank_fusion(
             scores[chunk_id] = scores.get(chunk_id, 0.0) + 1.0 / (rrf_k + rank)
             source_results.setdefault(chunk_id, result)
 
-    ordered_chunk_ids = sorted(scores, key=lambda chunk_id: (-scores[chunk_id], chunk_id))
+    ordered_chunk_ids = sorted(
+        scores, key=lambda chunk_id: (-scores[chunk_id], chunk_id)
+    )
     if top_k is not None:
         ordered_chunk_ids = ordered_chunk_ids[:top_k]
 

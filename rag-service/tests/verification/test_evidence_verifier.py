@@ -15,17 +15,17 @@ Tests:
 from __future__ import annotations
 
 import json
+
 import pytest
 
 from app.verification.evidence_verifier import (
-    MockEvidenceVerifier,
     LLMEvidenceVerifier,
-    SemanticVerificationOutcome,
+    MockEvidenceVerifier,
 )
 from app.verification.models import (
-    VerificationStatus,
     VerificationMode,
     VerificationPolicy,
+    VerificationStatus,
 )
 
 
@@ -128,7 +128,13 @@ class TestLLMEvidenceVerifierParsing:
 
     def test_valid_supported_response(self) -> None:
         v = self._make_verifier(
-            json.dumps({"status": "SUPPORTED", "reason": "Evidence matches.", "confidence": 0.95})
+            json.dumps(
+                {
+                    "status": "SUPPORTED",
+                    "reason": "Evidence matches.",
+                    "confidence": 0.95,
+                }
+            )
         )
         outcome = v.verify("claim", "evidence")
         assert outcome.status == VerificationStatus.SUPPORTED
@@ -137,14 +143,22 @@ class TestLLMEvidenceVerifierParsing:
 
     def test_valid_unsupported_response(self) -> None:
         v = self._make_verifier(
-            json.dumps({"status": "UNSUPPORTED", "reason": "Contradiction.", "confidence": 0.88})
+            json.dumps(
+                {
+                    "status": "UNSUPPORTED",
+                    "reason": "Contradiction.",
+                    "confidence": 0.88,
+                }
+            )
         )
         outcome = v.verify("claim", "evidence")
         assert outcome.status == VerificationStatus.UNSUPPORTED
 
     def test_valid_uncertain_response(self) -> None:
         v = self._make_verifier(
-            json.dumps({"status": "UNCERTAIN", "reason": "Ambiguous.", "confidence": 0.5})
+            json.dumps(
+                {"status": "UNCERTAIN", "reason": "Ambiguous.", "confidence": 0.5}
+            )
         )
         outcome = v.verify("claim", "evidence")
         assert outcome.status == VerificationStatus.UNCERTAIN
@@ -157,13 +171,19 @@ class TestLLMEvidenceVerifierParsing:
 
     def test_invalid_status_returns_uncertain(self) -> None:
         v = self._make_verifier(
-            json.dumps({"status": "TOTALLY_MADE_UP", "reason": "Oops.", "confidence": 0.5})
+            json.dumps(
+                {"status": "TOTALLY_MADE_UP", "reason": "Oops.", "confidence": 0.5}
+            )
         )
         outcome = v.verify("claim", "evidence")
         assert outcome.status == VerificationStatus.UNCERTAIN
 
     def test_markdown_code_fences_stripped(self) -> None:
-        raw = "```json\n" + json.dumps({"status": "SUPPORTED", "reason": "OK", "confidence": 0.9}) + "\n```"
+        raw = (
+            "```json\n"
+            + json.dumps({"status": "SUPPORTED", "reason": "OK", "confidence": 0.9})
+            + "\n```"
+        )
         v = self._make_verifier(raw)
         outcome = v.verify("claim", "evidence")
         assert outcome.status == VerificationStatus.SUPPORTED
@@ -176,9 +196,7 @@ class TestLLMEvidenceVerifierParsing:
         assert outcome.confidence == 1.0
 
     def test_missing_confidence_is_none(self) -> None:
-        v = self._make_verifier(
-            json.dumps({"status": "SUPPORTED", "reason": "OK"})
-        )
+        v = self._make_verifier(json.dumps({"status": "SUPPORTED", "reason": "OK"}))
         outcome = v.verify("claim", "evidence")
         assert outcome.confidence is None
 
@@ -206,11 +224,12 @@ class TestVerificationModels:
 
     def test_policy_immutable(self) -> None:
         policy = VerificationPolicy()
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017  # noqa: B017
             policy.enabled = False  # type: ignore[misc]
 
     def test_claim_verification_result_total_latency(self) -> None:
         from app.verification.models import ClaimVerificationResult
+
         r = ClaimVerificationResult(
             claim_id=1,
             claim="test",

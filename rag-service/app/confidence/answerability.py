@@ -17,10 +17,9 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Optional, Sequence, Union
+from collections.abc import Sequence
 
 from app.confidence.models import AnswerabilityStatus
-from app.context.models import BuiltContext
 from app.reranking.models import RerankedResult
 from app.retrieval.models import RetrievalResult
 from app.verification.models import VerificationResult, VerificationStatus
@@ -45,7 +44,7 @@ class AnswerabilityEvaluator:
     Deterministic answerability evaluator.
     """
 
-    STATUS_SCORES: dict[AnswerabilityStatus, float] = {
+    STATUS_SCORES: dict[AnswerabilityStatus, float] = {  # noqa: RUF012
         AnswerabilityStatus.ANSWERABLE: 1.0,
         AnswerabilityStatus.PARTIALLY_ANSWERABLE: 0.5,
         AnswerabilityStatus.NOT_ANSWERABLE: 0.0,
@@ -64,8 +63,8 @@ class AnswerabilityEvaluator:
         cls,
         query: str,
         answer: str,
-        evidence_chunks: Sequence[Union[RetrievalResult, RerankedResult]],
-        verification_result: Optional[VerificationResult] = None,
+        evidence_chunks: Sequence[RetrievalResult | RerankedResult],
+        verification_result: VerificationResult | None = None,
     ) -> tuple[AnswerabilityStatus, float, str]:
         """
         Evaluate answerability status and score.
@@ -116,7 +115,8 @@ class AnswerabilityEvaluator:
 
             # Check for total unsupport
             all_unsupported_or_invalid = all(
-                c.status in (VerificationStatus.UNSUPPORTED, VerificationStatus.INVALID_CITATION)
+                c.status
+                in (VerificationStatus.UNSUPPORTED, VerificationStatus.INVALID_CITATION)
                 for c in verification_result.claims
             )
             if all_unsupported_or_invalid:

@@ -7,12 +7,11 @@ to compute dataset-level and query-level faithfulness metrics.
 
 from __future__ import annotations
 
-from typing import Any, Optional
 from app.verification.models import VerificationResult, VerificationStatus
 
 
 def evaluate_faithfulness(
-    verification_result: Optional[VerificationResult],
+    verification_result: VerificationResult | None,
     answerable: bool = True,
 ) -> float:
     """
@@ -36,7 +35,12 @@ def evaluate_faithfulness(
 
     if verification_result.total_claims == 0:
         # No factual claims extracted (e.g. clean refusal)
-        return 1.0 if not answerable or verification_result.overall_status == VerificationStatus.SUPPORTED else 0.5
+        return (
+            1.0
+            if not answerable
+            or verification_result.overall_status == VerificationStatus.SUPPORTED
+            else 0.5
+        )
 
     # Proportion of verified supported claims
     supported = float(verification_result.supported_count)

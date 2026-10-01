@@ -24,7 +24,7 @@ Coverage:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
@@ -59,7 +59,7 @@ FAKE_VECTOR = [0.1] * TEST_DIM
 
 
 def make_embedding_service(
-    vector: list[float] = None,
+    vector: list[float] | None = None,
     *,
     fail_with: Exception | None = None,
 ) -> MagicMock:
@@ -109,8 +109,8 @@ def make_scored_point(
 
 
 def make_retriever(
-    embedding_vector: list[float] = None,
-    qdrant_results: list[Any] = None,
+    embedding_vector: list[float] | None = None,
+    qdrant_results: list[Any] | None = None,
     embed_fail: Exception | None = None,
     qdrant_fail: Exception | None = None,
     vector_size: int = TEST_DIM,
@@ -396,7 +396,7 @@ class TestMetadataFilters:
         # Return two scored points with different document IDs
         sp1 = make_scored_point(chunk_id="doc-1:0", document_id="doc-1")
         sp2 = make_scored_point(chunk_id="doc-2:0", document_id="doc-2")
-        retriever, _, client = make_retriever(qdrant_results=[sp1, sp2])
+        retriever, _, _client = make_retriever(qdrant_results=[sp1, sp2])
         # Apply filter for doc-1 only; Qdrant mock still returns both (simulating
         # no real filter applied by the mock). Python must NOT further filter.
         f = RetrievalFilter(document_id="doc-1")
@@ -508,9 +508,7 @@ class TestQdrantFailures:
         assert exc_info.value.is_transient is False
 
     def test_qdrant_timeout_error(self) -> None:
-        retriever, _, _ = make_retriever(
-            qdrant_fail=Exception("connection timeout")
-        )
+        retriever, _, _ = make_retriever(qdrant_fail=Exception("connection timeout"))
         with pytest.raises(RetrievalQdrantError) as exc_info:
             retriever.retrieve("test")
         assert exc_info.value.is_transient is True

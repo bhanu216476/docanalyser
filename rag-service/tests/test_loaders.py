@@ -3,10 +3,10 @@ Unit tests for document loaders (TxtLoader, MarkdownLoader) and common loader in
 """
 
 from pathlib import Path
+
 import pytest
 
 from app.ingestion import BaseLoader, Document, MarkdownLoader, TxtLoader
-
 
 # ---------------------------------------------------------------------------
 # TXT Loader Tests
@@ -34,7 +34,9 @@ def test_txt_loader_valid(tmp_path: Path):
 def test_txt_loader_utf8(tmp_path: Path):
     """Test 2 — UTF-8 TXT: verify non-ASCII Unicode characters load accurately."""
     file_path = tmp_path / "unicode.txt"
-    content = "DocAnalyser supports multilingual text: café, résumé, München, 日本語, 🚀."
+    content = (
+        "DocAnalyser supports multilingual text: café, résumé, München, 日本語, 🚀."
+    )
     file_path.write_text(content, encoding="utf-8")
 
     loader = TxtLoader()
@@ -241,4 +243,3 @@ def test_fixture_files_load():
     md_doc = MarkdownLoader().load(sample_md)
     assert md_doc.file_name == "sample.md"
     assert "# Sample Markdown Document" in md_doc.content
-

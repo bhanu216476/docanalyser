@@ -5,7 +5,6 @@ import math
 import pytest
 from langchain_core.documents import Document
 
-from app.chunking.service import chunk_documents
 from app.embeddings import (
     EmbeddedChunk,
     EmbeddingProvider,
@@ -79,7 +78,9 @@ def test_embedded_chunk_keeps_one_to_one_order_and_metadata():
     assert [item.chunk_id for item in embedded] == [
         chunk.metadata["chunk_id"] for chunk in chunks
     ]
-    assert [item.content for item in embedded] == [chunk.page_content for chunk in chunks]
+    assert [item.content for item in embedded] == [
+        chunk.page_content for chunk in chunks
+    ]
     assert [item.index for item in embedded] == [0, 1]
     assert all(item.vector is item.embedding for item in embedded)
     assert embedded[0].metadata["page_number"] == 1
@@ -161,8 +162,7 @@ def test_invalid_vectors_are_rejected(vectors, message):
 def test_all_chunking_strategies_feed_the_same_embedding_mapping(strategy):
     document = Document(
         page_content=(
-            "Introduction topic. Introduction detail.\n\n"
-            "Results topic. Results detail."
+            "Introduction topic. Introduction detail.\n\nResults topic. Results detail."
         ),
         metadata={
             "document_id": "doc-strategy",
@@ -206,7 +206,10 @@ def test_semantic_chunking_embedding_stage_does_not_make_network_calls():
         [document],
         _service(),
         strategy="semantic",
-        chunk_config={"breakpoint_threshold_type": "absolute", "breakpoint_threshold_amount": 0.5},
+        chunk_config={
+            "breakpoint_threshold_type": "absolute",
+            "breakpoint_threshold_amount": 0.5,
+        },
         semantic_embedding_model=FakeEmbeddings(),
     )
 

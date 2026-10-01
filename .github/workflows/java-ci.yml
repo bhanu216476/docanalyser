@@ -1,0 +1,94 @@
+# ==============================================================================
+# Java CI — Spring Boot Service Build & Test
+# ==============================================================================
+#
+# Responsibilities:
+#   - Compile the Spring Boot application with Java 21.
+#   - Cache Maven dependencies for fast subsequent runs.
+#   - Run the full unit and slice test suite.
+#   - Publish JUnit XML reports as workflow artifacts.
+#   - Fail the pipeline on any compilation or test failure.
+#
+# Suggested workflow: .github/workflows/java-ci.yml
+# ==============================================================================
+
+name: Java CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: java-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  build-and-test:
+    name: Java 21 - Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend/spring-boot-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Display Java and Maven versions
+        run: |
+          java --version
+          mvn --version
+
+      - name: Compile Spring Boot service
+        run: mvn compile --no-transfer-progress -B
+
+      - name: Run full test suite
+        run: |
+          mvn verify --no-transfer-progress -B \
+            -Dspring.profiles.active=test
+        env:
+          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-test-results
+          path: backend/spring-boot-service/target/surefire-reports/
+          retention-days: 14
+
+      - name: Publish JUnit test summary
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Java Unit Tests
+          path: backend/spring-boot-service/target/surefire-reports/TEST-*.xml
+          reporter: java-junit
+          fail-on-error: true

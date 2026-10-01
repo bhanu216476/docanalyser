@@ -16,9 +16,8 @@ Flow:
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping, Optional, Union
+from collections.abc import Mapping
 
-from app.context.models import Citation
 from app.citations.models import (
     CitationValidationPolicy,
     CitationValidationResult,
@@ -26,6 +25,7 @@ from app.citations.models import (
 )
 from app.citations.parser import CitationParser
 from app.citations.validator import CitationValidator
+from app.context.models import Citation
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +61,8 @@ class CitationMapper:
 
     def __init__(
         self,
-        parser: Optional[CitationParser] = None,
-        validator: Optional[CitationValidator] = None,
+        parser: CitationParser | None = None,
+        validator: CitationValidator | None = None,
         default_policy: CitationValidationPolicy = CitationValidationPolicy.WARN,
     ) -> None:
         self.parser = parser or CitationParser()
@@ -81,8 +81,8 @@ class CitationMapper:
     def map_citations(
         self,
         answer: str,
-        registry: Mapping[Union[int, str], Citation],
-        policy: Optional[CitationValidationPolicy] = None,
+        registry: Mapping[int | str, Citation],
+        policy: CitationValidationPolicy | None = None,
     ) -> tuple[list[GroundedCitation], CitationValidationResult]:
         """
         Parse, validate, and map citation IDs in answer text to GroundedCitation models.
@@ -144,8 +144,8 @@ class CitationMapper:
     def map_to_context_citations(
         self,
         answer: str,
-        registry: Mapping[Union[int, str], Citation],
-        policy: Optional[CitationValidationPolicy] = None,
+        registry: Mapping[int | str, Citation],
+        policy: CitationValidationPolicy | None = None,
     ) -> tuple[list[Citation], CitationValidationResult]:
         """
         Convenience method that returns existing Context Citation objects

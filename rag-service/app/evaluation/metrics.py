@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence
+from collections.abc import Sequence
 
 from app.verification.models import VerificationResult, VerificationStatus
 
@@ -78,15 +78,12 @@ def compute_grounding_metrics(
         verification.unsupported_count / total_claims if total_claims > 0 else None
     )
     cited_claims = total_claims - verification.uncited_count
-    citation_coverage = (
-        cited_claims / total_claims if total_claims > 0 else None
-    )
+    citation_coverage = cited_claims / total_claims if total_claims > 0 else None
 
     supported_cited_claims = 0
     for claim in verification.claims:
-        if claim.citation_ids:
-            if claim.status == VerificationStatus.SUPPORTED:
-                supported_cited_claims += 1
+        if claim.citation_ids and claim.status == VerificationStatus.SUPPORTED:
+            supported_cited_claims += 1
     citation_correctness = (
         supported_cited_claims / max(1, cited_claims) if cited_claims > 0 else None
     )
@@ -110,9 +107,7 @@ def compute_decision_metrics(
     incorrect_answer: int | None = None,
 ) -> dict[str, float | int | None]:
     """Compute answered/refused statistics and optional correctness breakdown."""
-    refusal_rate = (
-        refused_questions / total_questions if total_questions > 0 else None
-    )
+    refusal_rate = refused_questions / total_questions if total_questions > 0 else None
     metrics = {
         "total_questions": total_questions,
         "answered_count": answered_questions,

@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import logging
 import os
-import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator, Optional
+from typing import Any
+
+from typing_extensions import Self
 
 # ---------------------------------------------------------------------------
 # OpenTelemetry setup — graceful no-op when collector is unavailable
@@ -21,10 +23,15 @@ from typing import Any, Generator, Optional
 try:
     from opentelemetry import trace
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    from opentelemetry.sdk.trace.export import (  # noqa: F401
+        BatchSpanProcessor,
+        ConsoleSpanExporter,
+    )
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,  # noqa: F401
+    )
 
     _OTEL_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -35,12 +42,14 @@ except ImportError:  # pragma: no cover
 # ---------------------------------------------------------------------------
 try:
     from prometheus_client import (
+        REGISTRY as DEFAULT_REGISTRY,
+    )
+    from prometheus_client import (
         Counter,
         Gauge,
         Histogram,
-        CollectorRegistry,
-        REGISTRY as DEFAULT_REGISTRY,
     )
+
     _PROMETHEUS_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _PROMETHEUS_AVAILABLE = False
@@ -53,7 +62,20 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Buckets in seconds for latency histograms
-_LATENCY_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, float("inf"))
+_LATENCY_BUCKETS = (
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    1.0,
+    2.5,
+    5.0,
+    10.0,
+    30.0,
+    float("inf"),
+)
 
 
 class RagMetrics:
@@ -64,9 +86,9 @@ class RagMetrics:
     populated once at application startup.
     """
 
-    _instance: Optional["RagMetrics"] = None
+    _instance: RagMetrics | None = None
 
-    def __new__(cls, registry: Optional[Any] = None) -> "RagMetrics":  # noqa: D102
+    def __new__(cls, registry: Any | None = None) -> Self:
         if registry is not None:
             inst = super().__new__(cls)
             inst._initialized = False
@@ -76,14 +98,18 @@ class RagMetrics:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, registry: Optional[Any] = None) -> None:
+    def __init__(self, registry: Any | None = None) -> None:
         if self._initialized:
             return
         self._initialized = True
-        self.registry = registry if registry is not None else (DEFAULT_REGISTRY if _PROMETHEUS_AVAILABLE else None)
+        self.registry = (
+            registry
+            if registry is not None
+            else (DEFAULT_REGISTRY if _PROMETHEUS_AVAILABLE else None)
+        )
         self._setup_metrics(self.registry)
 
-    def _setup_metrics(self, reg: Optional[Any] = None) -> None:
+    def _setup_metrics(self, reg: Any | None = None) -> None:
         if not _PROMETHEUS_AVAILABLE:
             logger.warning("prometheus_client not available — metrics disabled")
             return
@@ -143,7 +169,20 @@ class RagMetrics:
             "rag_retrieval_scores",
             "Distribution of retrieval relevance scores",
             ["retrieval_method", "score_type"],
-            buckets=(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, float("inf")),
+            buckets=(
+                0.0,
+                0.1,
+                0.2,
+                0.3,
+                0.4,
+                0.5,
+                0.6,
+                0.7,
+                0.8,
+                0.9,
+                1.0,
+                float("inf"),
+            ),
             registry=reg,
         )
 
@@ -260,8 +299,12 @@ class RagMetrics:
         """Record retrieval stage latency and outcome counter."""
         if not _PROMETHEUS_AVAILABLE:
             return
-        self.retrieval_latency_seconds.labels(retrieval_method=method).observe(duration_s)
-        self.retrieval_operations_total.labels(retrieval_method=method, outcome=outcome).inc()
+        self.retrieval_latency_seconds.labels(retrieval_method=method).observe(
+            duration_s
+        )
+        self.retrieval_operations_total.labels(
+            retrieval_method=method, outcome=outcome
+        ).inc()
 
     def record_retrieval_scores(
         self,
@@ -286,7 +329,9 @@ class RagMetrics:
         """Record reranking latency and candidate count."""
         if not _PROMETHEUS_AVAILABLE:
             return
-        self.reranking_latency_seconds.labels(reranker_type=reranker_type).observe(duration_s)
+        self.reranking_latency_seconds.labels(reranker_type=reranker_type).observe(
+            duration_s
+        )
         self.reranking_candidates_processed.labels(reranker_type=reranker_type).observe(
             candidate_count
         )
@@ -298,9 +343,9 @@ class RagMetrics:
         model: str,
         is_mock: bool,
         outcome: str,
-        input_tokens: Optional[int] = None,
-        output_tokens: Optional[int] = None,
-        error_type: Optional[str] = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        error_type: str | None = None,
     ) -> None:
         """Record LLM generation request metrics including token usage."""
         if not _PROMETHEUS_AVAILABLE:
@@ -313,7 +358,9 @@ class RagMetrics:
             provider=provider, model=model, outcome=outcome
         ).inc()
         if outcome == "failure" and error_type:
-            self.llm_failures_total.labels(provider=provider, error_type=error_type).inc()
+            self.llm_failures_total.labels(
+                provider=provider, error_type=error_type
+            ).inc()
         if input_tokens is not None:
             self.llm_tokens_total.labels(
                 token_type="input", provider=provider, model=model
@@ -329,13 +376,19 @@ class RagMetrics:
             return
         self.ingestion_success_total.labels(file_type=file_type).inc()
 
-    def record_ingestion_failure(self, file_type: str, error_type: str = "UnknownError") -> None:
+    def record_ingestion_failure(
+        self, file_type: str, error_type: str = "UnknownError"
+    ) -> None:
         """Record failed document ingestion."""
         if not _PROMETHEUS_AVAILABLE:
             return
-        self.ingestion_failure_total.labels(file_type=file_type, error_type=error_type).inc()
+        self.ingestion_failure_total.labels(
+            file_type=file_type, error_type=error_type
+        ).inc()
 
-    def record_pipeline_duration(self, duration_s: float, outcome: str = "success") -> None:
+    def record_pipeline_duration(
+        self, duration_s: float, outcome: str = "success"
+    ) -> None:
         """Record end-to-end RAG pipeline duration."""
         if not _PROMETHEUS_AVAILABLE:
             return
@@ -350,8 +403,8 @@ class RagMetrics:
     def record_no_answer(
         self,
         is_no_answer: bool,
-        completed_count: Optional[int] = None,
-        no_answer_count: Optional[int] = None,
+        completed_count: int | None = None,
+        no_answer_count: int | None = None,
     ) -> None:
         """Record a completed query and update no-answer metrics and gauge."""
         if not _PROMETHEUS_AVAILABLE:
@@ -368,14 +421,14 @@ class RagMetrics:
                 no_ans = self.rag_no_answer_total._value.get()
                 rate = no_ans / tot if tot > 0 else 0.0
                 self.rag_no_answer_rate.set(rate)
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
 
     def record_citation_verification(
         self,
         overall_status: str,
-        failed_count: Optional[int] = None,
-        total_verifications: Optional[int] = None,
+        failed_count: int | None = None,
+        total_verifications: int | None = None,
     ) -> None:
         """Record citation verification outcome and update failure rate gauge."""
         if not _PROMETHEUS_AVAILABLE:
@@ -394,13 +447,19 @@ class RagMetrics:
         if outcome in ("failed", "unsupported", "missing"):
             self.citation_failures_total.labels(failure_type=outcome).inc()
         if total_verifications is not None and failed_count is not None:
-            rate = failed_count / total_verifications if total_verifications > 0 else 0.0
+            rate = (
+                failed_count / total_verifications if total_verifications > 0 else 0.0
+            )
             self.citation_failure_rate.set(rate)
         else:
             self._total_citations = getattr(self, "_total_citations", 0) + 1
             if outcome in ("failed", "unsupported", "missing"):
                 self._failed_citations = getattr(self, "_failed_citations", 0) + 1
-            rate = getattr(self, "_failed_citations", 0) / self._total_citations if self._total_citations > 0 else 0.0
+            rate = (
+                getattr(self, "_failed_citations", 0) / self._total_citations
+                if self._total_citations > 0
+                else 0.0
+            )
             self.citation_failure_rate.set(rate)
 
 
@@ -412,9 +471,10 @@ rag_metrics = RagMetrics()
 # OpenTelemetry tracer
 # ---------------------------------------------------------------------------
 
+
 def setup_tracing(
     service_name: str = "rag-service",
-    otlp_endpoint: Optional[str] = None,
+    otlp_endpoint: str | None = None,
     sample_rate: float = 1.0,
 ) -> None:
     """
@@ -437,7 +497,8 @@ def setup_tracing(
         resource = Resource(attributes={SERVICE_NAME: service_name})
 
         # Sampling: head-based with configurable probability
-        from opentelemetry.sdk.trace.sampling import TraceIdRatioBased, ParentBased
+        from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
+
         sampler = ParentBased(root=TraceIdRatioBased(sample_rate))
 
         provider = TracerProvider(resource=resource, sampler=sampler)
@@ -453,7 +514,7 @@ def setup_tracing(
             traces_endpoint,
             sample_rate,
         )
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover  # noqa: BLE001
         logger.warning(
             "OpenTelemetry tracing setup failed (%s) — continuing without tracing", exc
         )

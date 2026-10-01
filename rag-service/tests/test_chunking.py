@@ -13,21 +13,21 @@ import pytest
 from pydantic import ValidationError
 
 from app.ingestion.chunking import (
-    BaseChunker,
     Chunk,
     FixedSizeChunker,
     RecursiveChunker,
 )
 from app.ingestion.models import Document
 
-
 # ======================================================================
 # Fixtures
 # ======================================================================
 
+
 @pytest.fixture
 def make_document():
     """Helper factory fixture to construct test Document instances."""
+
     def _factory(
         content: str,
         file_name: str = "test.md",
@@ -42,12 +42,14 @@ def make_document():
             source=source,
             metadata=metadata or {},
         )
+
     return _factory
 
 
 # ======================================================================
 # Section 13: Fixed-Size Chunker Tests
 # ======================================================================
+
 
 class TestFixedSizeChunker:
     """Test suite for FixedSizeChunker."""
@@ -171,6 +173,7 @@ class TestFixedSizeChunker:
 # Section 14: Recursive Chunker Tests
 # ======================================================================
 
+
 class TestRecursiveChunker:
     """Test suite for RecursiveChunker."""
 
@@ -262,7 +265,10 @@ class TestRecursiveChunker:
 
         assert len(chunks) == 2
         # First chunk: Company Policies -> Leave Policy
-        assert chunks[0].metadata.get("headings") == ["Company Policies", "Leave Policy"]
+        assert chunks[0].metadata.get("headings") == [
+            "Company Policies",
+            "Leave Policy",
+        ]
         assert chunks[0].metadata.get("section") == "Company Policies > Leave Policy"
         assert "20 days annual paid leave" in chunks[0].content
 
@@ -286,11 +292,7 @@ class TestRecursiveChunker:
 
     def test_empty_sections_avoid_empty_chunks(self, make_document):
         """Test 6: Empty sections do not produce empty chunks."""
-        content = (
-            "# Category One\n\n"
-            "# Category Two\n\n"
-            "Content under Category Two."
-        )
+        content = "# Category One\n\n# Category Two\n\nContent under Category Two."
         doc = make_document(content, file_type="md")
 
         chunker = RecursiveChunker(chunk_size=200, overlap=0)
@@ -308,7 +310,9 @@ class TestRecursiveChunker:
             "# Middle\n\nMiddle content.\n\n"
             "# Outro\n\nOutro content."
         )
-        doc = make_document(content, file_type="md", metadata={"document_id": "doc-456"})
+        doc = make_document(
+            content, file_type="md", metadata={"document_id": "doc-456"}
+        )
 
         chunker = RecursiveChunker(chunk_size=100, overlap=10)
         chunks = chunker.chunk(doc)
@@ -322,6 +326,7 @@ class TestRecursiveChunker:
 # ======================================================================
 # Section 15: Property / Invariant Tests
 # ======================================================================
+
 
 class TestChunkingInvariants:
     """Invariant and property tests across both chunkers."""
@@ -378,7 +383,9 @@ class TestChunkingInvariants:
             )
 
         # Invalid start/end char rejected
-        with pytest.raises(ValidationError, match="start_char .* cannot be greater than end_char"):
+        with pytest.raises(
+            ValidationError, match="start_char .* cannot be greater than end_char"
+        ):
             Chunk(
                 chunk_id="doc:0",
                 document_id="doc",
@@ -392,6 +399,7 @@ class TestChunkingInvariants:
 # ======================================================================
 # Section 16: Strategy Comparison Demonstration
 # ======================================================================
+
 
 class TestStrategyComparison:
     """
@@ -430,10 +438,18 @@ class TestStrategyComparison:
         assert fixed_has_section is False
 
         # 2. In RecursiveChunker, the vacation policy chunk has breadcrumb context
-        vacation_chunks = [c for c in recursive_chunks if "Vacation Policy" in c.content]
+        vacation_chunks = [
+            c for c in recursive_chunks if "Vacation Policy" in c.content
+        ]
         assert len(vacation_chunks) >= 1
-        assert vacation_chunks[0].metadata.get("section") == "Employee Handbook > Vacation Policy"
-        assert vacation_chunks[0].metadata.get("headings") == ["Employee Handbook", "Vacation Policy"]
+        assert (
+            vacation_chunks[0].metadata.get("section")
+            == "Employee Handbook > Vacation Policy"
+        )
+        assert vacation_chunks[0].metadata.get("headings") == [
+            "Employee Handbook",
+            "Vacation Policy",
+        ]
 
         # 3. Both strategies respect the configured chunk size limit
         for c in fixed_chunks:

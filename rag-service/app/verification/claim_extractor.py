@@ -32,7 +32,6 @@ Design notes
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from app.citations.parser import CitationParser
 from app.verification.models import Claim
@@ -63,7 +62,7 @@ class ClaimExtractor:
 
     def __init__(
         self,
-        parser: Optional[CitationParser] = None,
+        parser: CitationParser | None = None,
         min_claim_length: int = _MIN_CLAIM_LENGTH,
     ) -> None:
         self._parser = parser or CitationParser()
@@ -101,6 +100,7 @@ class ClaimExtractor:
             clean_text = _CITATION_STRIP.sub("", sentence)
             # Collapse multiple spaces introduced by marker removal
             import re as _re
+
             clean_text = _re.sub(r" +", " ", clean_text).strip()
             # Remove space before terminal punctuation (e.g. "days ." → "days.")
             clean_text = _re.sub(r" +([.!?,;:])", r"\1", clean_text)

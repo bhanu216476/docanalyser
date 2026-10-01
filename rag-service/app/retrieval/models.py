@@ -22,7 +22,7 @@ Design:
 from __future__ import annotations
 
 import math
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -45,35 +45,33 @@ class RetrievalFilter(BaseModel):
         section:      Filter by Markdown section heading.
     """
 
-    document_id: Optional[str | list[str]] = Field(
+    document_id: str | list[str] | None = Field(
         default=None,
         description="Filter by single document ID or list of document IDs.",
     )
-    file_type: Optional[str | list[str]] = Field(
+    file_type: str | list[str] | None = Field(
         default=None,
-        description=(
-            "Filter by single file type or list of file types (e.g. 'md')."
-        ),
+        description=("Filter by single file type or list of file types (e.g. 'md')."),
     )
-    source: Optional[str] = Field(
+    source: str | None = Field(
         default=None,
         description="Filter by exact normalized source path.",
     )
-    page_number: Optional[int] = Field(
+    page_number: int | None = Field(
         default=None,
         ge=1,
         description="Filter by 1-based source page number.",
     )
-    chunk_index: Optional[int] = Field(
+    chunk_index: int | None = Field(
         default=None,
         ge=0,
         description="Filter by exact 0-based chunk index.",
     )
-    file_name: Optional[str] = Field(
+    file_name: str | None = Field(
         default=None,
         description="Filter by source file name.",
     )
-    section: Optional[str] = Field(
+    section: str | None = Field(
         default=None,
         description="Filter by Markdown section heading.",
     )
@@ -131,16 +129,14 @@ class RetrievalRequest(BaseModel):
 
     query: str = Field(
         ...,
-        description=(
-            "User search query. Stripped of whitespace; must not be empty."
-        ),
+        description=("User search query. Stripped of whitespace; must not be empty."),
     )
     top_k: int = Field(
         default=10,
         ge=1,
         description="Number of top similar chunks to retrieve.",
     )
-    filters: Optional[RetrievalFilter] = Field(
+    filters: RetrievalFilter | None = Field(
         default=None,
         description="Optional metadata filters applied during retrieval.",
     )
@@ -153,7 +149,7 @@ class RetrievalRequest(BaseModel):
         """Strip surrounding whitespace and reject empty queries."""
 
         if not isinstance(value, str):
-            raise ValueError("query must be a string")
+            raise TypeError("query must be a string")
 
         stripped = value.strip()
 
@@ -183,7 +179,6 @@ class RetrievalRequest(BaseModel):
 
 
 class RetrievalProvenance(BaseModel):
-
     """Typed provenance extracted from a candidate's metadata."""
 
     document_id: str | None = None
@@ -226,7 +221,7 @@ class RetrievalResult(BaseModel):
         ...,
         description="Similarity score. Higher is more similar.",
     )
-    rank: Optional[int] = Field(
+    rank: int | None = Field(
         default=None,
         ge=1,
         description="1-based rank position in retrieval results.",
@@ -241,7 +236,7 @@ class RetrievalResult(BaseModel):
         default="",
         description="Source document identifier.",
     )
-    chunk_index: Optional[int] = Field(
+    chunk_index: int | None = Field(
         default=None,
         ge=0,
         description="0-based sequential index of chunk within document.",
@@ -258,16 +253,16 @@ class RetrievalResult(BaseModel):
         default="",
         description="Normalized source location or path.",
     )
-    section: Optional[str] = Field(
+    section: str | None = Field(
         default=None,
         description="Markdown section heading or title.",
     )
-    start_char: Optional[int] = Field(
+    start_char: int | None = Field(
         default=None,
         ge=0,
         description="Starting character offset in source document.",
     )
-    end_char: Optional[int] = Field(
+    end_char: int | None = Field(
         default=None,
         ge=0,
         description="Ending character offset in source document.",
@@ -302,12 +297,12 @@ class HybridRetrievalResult(RetrievalResult):
         ...,
         description="Fused Reciprocal Rank Fusion score.",
     )
-    dense_rank: Optional[int] = Field(
+    dense_rank: int | None = Field(
         default=None,
         ge=1,
         description="1-based rank position in dense retrieval results, if present.",
     )
-    bm25_rank: Optional[int] = Field(
+    bm25_rank: int | None = Field(
         default=None,
         ge=1,
         description="1-based rank position in BM25 lexical retrieval results, if present.",
@@ -350,21 +345,21 @@ class HybridRetrievalRequest(BaseModel):
         ge=1,
         description="Number of top hybrid chunks to return.",
     )
-    filters: Optional[RetrievalFilter] = Field(
+    filters: RetrievalFilter | None = Field(
         default=None,
         description="Optional metadata filters applied to both retrievers before fusion.",
     )
-    k: Optional[int] = Field(
+    k: int | None = Field(
         default=None,
         ge=1,
         description="RRF ranking constant (defaults to settings.rrf_k).",
     )
-    dense_top_k: Optional[int] = Field(
+    dense_top_k: int | None = Field(
         default=None,
         ge=1,
         description="Number of candidate chunks from dense retrieval before fusion.",
     )
-    bm25_top_k: Optional[int] = Field(
+    bm25_top_k: int | None = Field(
         default=None,
         ge=1,
         description="Number of candidate chunks from BM25 retrieval before fusion.",
@@ -381,7 +376,7 @@ class HybridRetrievalRequest(BaseModel):
     def strip_and_validate_query(cls, value: str) -> str:
         """Strip surrounding whitespace and reject empty queries."""
         if not isinstance(value, str):
-            raise ValueError("query must be a string")
+            raise TypeError("query must be a string")
         stripped = value.strip()
         if not stripped:
             raise ValueError(
@@ -403,7 +398,7 @@ class HybridRetrievalRequest(BaseModel):
 
     @field_validator("dense_top_k", mode="before")
     @classmethod
-    def validate_dense_top_k(cls, value: Optional[int]) -> Optional[int]:
+    def validate_dense_top_k(cls, value: int | None) -> int | None:
         if value is not None:
             max_val = settings.retrieval_max_top_k
             if isinstance(value, int) and value > max_val:
@@ -414,7 +409,7 @@ class HybridRetrievalRequest(BaseModel):
 
     @field_validator("bm25_top_k", mode="before")
     @classmethod
-    def validate_bm25_top_k(cls, value: Optional[int]) -> Optional[int]:
+    def validate_bm25_top_k(cls, value: int | None) -> int | None:
         if value is not None:
             max_val = settings.bm25_max_top_k
             if isinstance(value, int) and value > max_val:
@@ -422,4 +417,3 @@ class HybridRetrievalRequest(BaseModel):
                     f"bm25_top_k={value} exceeds maximum allowed value of {max_val}."
                 )
         return value
-

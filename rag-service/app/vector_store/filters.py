@@ -18,7 +18,8 @@ un-indexed or arbitrary injection into vector store queries.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 from qdrant_client import models
@@ -54,32 +55,32 @@ class VectorStoreFilter(BaseModel):
         custom_filters: Additional key-value filters. Keys must be in ``ALLOWED_FILTER_FIELDS``.
     """
 
-    document_id: Optional[str | list[str]] = Field(
+    document_id: str | list[str] | None = Field(
         default=None,
         description="Filter by single document ID or list of document IDs.",
     )
-    file_type: Optional[str | list[str]] = Field(
+    file_type: str | list[str] | None = Field(
         default=None,
         description="Filter by single file type or list of file types.",
     )
-    source: Optional[str] = Field(
+    source: str | None = Field(
         default=None,
         description="Filter by exact source path.",
     )
-    chunk_index: Optional[int] = Field(
+    chunk_index: int | None = Field(
         default=None,
         ge=0,
         description="Filter by chunk index.",
     )
-    file_name: Optional[str] = Field(
+    file_name: str | None = Field(
         default=None,
         description="Filter by source file name.",
     )
-    section: Optional[str] = Field(
+    section: str | None = Field(
         default=None,
         description="Filter by section title.",
     )
-    custom_filters: Optional[dict[str, Any]] = Field(
+    custom_filters: dict[str, Any] | None = Field(
         default=None,
         description="Additional key-value conditions. Keys must be in ALLOWED_FILTER_FIELDS.",
     )
@@ -101,7 +102,7 @@ class FilterBuilder:
             FilterValidationError: If field_name is not allowed.
         """
         if field_name not in ALLOWED_FILTER_FIELDS:
-            allowed_list = sorted(list(ALLOWED_FILTER_FIELDS))
+            allowed_list = sorted(ALLOWED_FILTER_FIELDS)
             raise FilterValidationError(
                 f"Invalid filter field '{field_name}'. "
                 f"Allowed filter fields are: {allowed_list}"
@@ -141,7 +142,8 @@ class FilterBuilder:
                 custom_filters={
                     k: v
                     for k, v in filter_spec.items()
-                    if k not in {
+                    if k
+                    not in {
                         "document_id",
                         "file_type",
                         "source",
@@ -149,7 +151,8 @@ class FilterBuilder:
                         "file_name",
                         "section",
                     }
-                } or None,
+                }
+                or None,
             )
         else:
             filter_obj = filter_spec
@@ -163,27 +166,39 @@ class FilterBuilder:
 
         # Document ID filter
         if filter_obj.document_id is not None:
-            must_conditions.append(cls._build_match_condition("document_id", filter_obj.document_id))
+            must_conditions.append(
+                cls._build_match_condition("document_id", filter_obj.document_id)
+            )
 
         # File type filter
         if filter_obj.file_type is not None:
-            must_conditions.append(cls._build_match_condition("file_type", filter_obj.file_type))
+            must_conditions.append(
+                cls._build_match_condition("file_type", filter_obj.file_type)
+            )
 
         # Source filter
         if filter_obj.source is not None:
-            must_conditions.append(cls._build_match_condition("source", filter_obj.source))
+            must_conditions.append(
+                cls._build_match_condition("source", filter_obj.source)
+            )
 
         # Chunk index filter
         if filter_obj.chunk_index is not None:
-            must_conditions.append(cls._build_match_condition("chunk_index", filter_obj.chunk_index))
+            must_conditions.append(
+                cls._build_match_condition("chunk_index", filter_obj.chunk_index)
+            )
 
         # File name filter
         if filter_obj.file_name is not None:
-            must_conditions.append(cls._build_match_condition("file_name", filter_obj.file_name))
+            must_conditions.append(
+                cls._build_match_condition("file_name", filter_obj.file_name)
+            )
 
         # Section filter
         if filter_obj.section is not None:
-            must_conditions.append(cls._build_match_condition("section", filter_obj.section))
+            must_conditions.append(
+                cls._build_match_condition("section", filter_obj.section)
+            )
 
         # Custom filters
         if filter_obj.custom_filters:

@@ -9,14 +9,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import Optional
 
-from app.retrieval.models import RetrievalFilter
 from app.reranking.models import (
     RerankExperimentBatchReport,
     RerankExperimentResult,
 )
 from app.reranking.pipeline import RerankedPipeline
+from app.retrieval.models import RetrievalFilter
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +36,9 @@ class RerankingExperimentFramework:
     def run_single(
         self,
         query: str,
-        filters: Optional[RetrievalFilter] = None,
-        top_k: Optional[int] = None,
-        candidate_k: Optional[int] = None,
+        filters: RetrievalFilter | None = None,
+        top_k: int | None = None,
+        candidate_k: int | None = None,
     ) -> RerankExperimentResult:
         """
         Run a single query through the pipeline and return a detailed result.
@@ -62,9 +61,9 @@ class RerankingExperimentFramework:
     def run_batch(
         self,
         queries: Sequence[str],
-        filters: Optional[RetrievalFilter] = None,
-        top_k: Optional[int] = None,
-        candidate_k: Optional[int] = None,
+        filters: RetrievalFilter | None = None,
+        top_k: int | None = None,
+        candidate_k: int | None = None,
     ) -> RerankExperimentBatchReport:
         """
         Run multiple queries and aggregate results into a batch report.
@@ -147,7 +146,7 @@ class RerankingExperimentFramework:
     def format_single_report(self, result: RerankExperimentResult) -> str:
         """Render a human-readable summary of a single experiment result."""
         lines = [
-            f"## Reranking Experiment Result",
+            "## Reranking Experiment Result",
             f"**Query**: {result.query!r}",
             f"**Candidates before reranking**: {result.candidate_count}",
             f"**Results after reranking**: {len(result.reranked_results)}",
@@ -169,9 +168,7 @@ class RerankingExperimentFramework:
             "### Reranked Results",
         ]
         for r in result.reranked_results:
-            direction = (
-                "▲" if r.rank_delta > 0 else ("▼" if r.rank_delta < 0 else "═")
-            )
+            direction = "▲" if r.rank_delta > 0 else ("▼" if r.rank_delta < 0 else "═")
             lines.append(
                 f"  [{r.reranked_rank}] {r.chunk_id} "
                 f"(ret_score={r.retrieval_score:.4f}, rerank_score={r.reranker_score:.4f}, "
@@ -182,7 +179,7 @@ class RerankingExperimentFramework:
     def format_batch_report(self, report: RerankExperimentBatchReport) -> str:
         """Render a human-readable summary of a batch experiment report."""
         lines = [
-            f"## Batch Reranking Experiment Report",
+            "## Batch Reranking Experiment Report",
             f"**Total Queries**: {report.total_queries}",
             "",
             "### Average Latency",

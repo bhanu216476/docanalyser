@@ -14,13 +14,13 @@ from evals.metrics.retrieval import (
 )
 
 __all__ = [
-    "compute_recall_at_k",
-    "compute_mrr",
     "compute_context_relevance",
-    "evaluate_answer_correctness",
-    "evaluate_faithfulness",
-    "evaluate_citation_metrics",
-    "is_abstention",
-    "evaluate_no_answer",
     "compute_latency_stats",
+    "compute_mrr",
+    "compute_recall_at_k",
+    "evaluate_answer_correctness",
+    "evaluate_citation_metrics",
+    "evaluate_faithfulness",
+    "evaluate_no_answer",
+    "is_abstention",
 ]

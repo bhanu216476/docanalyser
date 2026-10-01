@@ -8,14 +8,13 @@ and high-resolution latency tracking.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-import logging
-import time
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-from app.retrieval.models import HybridRetrievalResult, RetrievalResult
 from app.reranking.models import RerankedResult
+from app.retrieval.models import RetrievalResult
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class Reranker(Protocol):
         self,
         query: str,
         documents: Sequence[RetrievalResult],
-        top_k: Optional[int] = None,
+        top_k: int | None = None,
     ) -> list[RerankedResult]:
         """
         Score and reorder candidate retrieval results.
@@ -56,14 +55,14 @@ class BaseReranker(ABC):
     Subclasses need only implement ``_score_candidates``.
     """
 
-    def __init__(self, default_top_k: Optional[int] = None) -> None:
+    def __init__(self, default_top_k: int | None = None) -> None:
         self.default_top_k = default_top_k
 
     def rerank(
         self,
         query: str,
         documents: Sequence[RetrievalResult],
-        top_k: Optional[int] = None,
+        top_k: int | None = None,
     ) -> list[RerankedResult]:
         """
         Execute candidate reranking with validation, deterministic ordering,
@@ -107,7 +106,9 @@ class BaseReranker(ABC):
             scored_pairs = scored_pairs[:effective_top_k]
 
         reranked_results: list[RerankedResult] = []
-        for new_rank, (initial_rank, doc, rerank_score) in enumerate(scored_pairs, start=1):
+        for new_rank, (initial_rank, doc, rerank_score) in enumerate(
+            scored_pairs, start=1
+        ):
             rank_delta = initial_rank - new_rank
 
             # Extract hybrid-specific fields if available

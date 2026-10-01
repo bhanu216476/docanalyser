@@ -37,14 +37,26 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 from app.verification.models import VerificationStatus
 
 # Words that negate a statement
 _NEGATION_WORDS = frozenset(
-    ["not", "no", "never", "cannot", "can't", "won't", "isn't",
-     "aren't", "doesn't", "don't", "didn't", "unable", "ineligible"]
+    [
+        "not",
+        "no",
+        "never",
+        "cannot",
+        "can't",
+        "won't",
+        "isn't",
+        "aren't",
+        "doesn't",
+        "don't",
+        "didn't",
+        "unable",
+        "ineligible",
+    ]
 )
 
 # Pattern to extract all integers from text
@@ -62,7 +74,7 @@ class RuleCheckOutcome:
         latency_ms: Monotonic time for the rule evaluation in milliseconds.
     """
 
-    status: Optional[VerificationStatus]
+    status: VerificationStatus | None
     reason: str
     latency_ms: float
 
@@ -78,7 +90,7 @@ class RuleBasedVerifier:
         self,
         claim: str,
         evidence: str,
-        citation_id: Optional[int] = None,
+        citation_id: int | None = None,
         registry_has_id: bool = True,
     ) -> RuleCheckOutcome:
         """
@@ -202,9 +214,7 @@ class RuleBasedVerifier:
     # Internal rule implementations
     # ------------------------------------------------------------------
 
-    def _check_numeric_mismatch(
-        self, claim: str, evidence: str
-    ) -> Optional[str]:
+    def _check_numeric_mismatch(self, claim: str, evidence: str) -> str | None:
         """
         Detect obvious numeric mismatches.
 
@@ -255,9 +265,7 @@ class RuleBasedVerifier:
 
         return None
 
-    def _check_negation_mismatch(
-        self, claim: str, evidence: str
-    ) -> Optional[str]:
+    def _check_negation_mismatch(self, claim: str, evidence: str) -> str | None:
         """
         Detect obvious negation contradictions.
 
@@ -298,7 +306,7 @@ class RuleBasedVerifier:
         self,
         claim: str,
         evidence_items: list[tuple[int, str]],
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Detect conflicting numeric values across multiple evidence sources.
 
@@ -307,7 +315,7 @@ class RuleBasedVerifier:
         """
         all_evidence_numbers: list[set[int]] = []
         for _, ev_text in evidence_items:
-            nums = set(n for n in self._extract_numbers(ev_text) if 10 <= n <= 9999)
+            nums = {n for n in self._extract_numbers(ev_text) if 10 <= n <= 9999}
             all_evidence_numbers.append(nums)
 
         if len(all_evidence_numbers) < 2:
@@ -343,10 +351,29 @@ class RuleBasedVerifier:
         Extract significant key terms (non-stopword words >= 4 chars).
         Used for shared-context detection in negation checks.
         """
-        _STOPWORDS = frozenset([
-            "that", "this", "with", "from", "they", "have", "will",
-            "been", "their", "which", "when", "also", "more", "must",
-            "through", "during", "after", "before", "employees", "employee",
-        ])
+        _STOPWORDS = frozenset(
+            [
+                "that",
+                "this",
+                "with",
+                "from",
+                "they",
+                "have",
+                "will",
+                "been",
+                "their",
+                "which",
+                "when",
+                "also",
+                "more",
+                "must",
+                "through",
+                "during",
+                "after",
+                "before",
+                "employees",
+                "employee",
+            ]
+        )
         words = re.findall(r"\b[a-z]{4,}\b", text.lower())
         return {w for w in words if w not in _STOPWORDS}

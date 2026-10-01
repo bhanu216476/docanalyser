@@ -21,7 +21,6 @@ from app.embeddings.service import EmbeddingService
 from app.ingestion.chunking.models import Chunk
 from app.retrieval.dense_retriever import DenseRetriever
 from app.retrieval.models import RetrievalFilter, RetrievalResult
-from app.vector_store.models import build_payload_from_chunk, generate_point_id
 from app.vector_store.qdrant_store import QdrantVectorStore
 
 # ---------------------------------------------------------------------------
@@ -82,7 +81,7 @@ def populated_store(
 
     chunks = [
         Chunk(
-            chunk_id=f"doc-hr:0",
+            chunk_id="doc-hr:0",
             document_id="doc-hr",
             chunk_index=0,
             content="Annual leave entitlement is 20 days per year.",

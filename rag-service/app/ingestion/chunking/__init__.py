@@ -22,12 +22,12 @@ from app.ingestion.chunking.recursive import (
 )
 
 __all__ = [
-    "Chunk",
-    "BaseChunker",
-    "FixedSizeChunker",
-    "RecursiveChunker",
     "DEFAULT_FIXED_CHUNK_SIZE",
     "DEFAULT_FIXED_OVERLAP",
     "DEFAULT_RECURSIVE_CHUNK_SIZE",
     "DEFAULT_RECURSIVE_OVERLAP",
+    "BaseChunker",
+    "Chunk",
+    "FixedSizeChunker",
+    "RecursiveChunker",
 ]

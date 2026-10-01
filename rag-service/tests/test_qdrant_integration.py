@@ -9,8 +9,8 @@ and filter operations. If unreachable, gracefully skips to maintain hermetic tes
 from __future__ import annotations
 
 import socket
+
 import pytest
-from qdrant_client import QdrantClient
 
 from app.core.config import settings
 from app.ingestion.chunking.models import Chunk
@@ -24,7 +24,9 @@ INTEGRATION_COLLECTION = "docanalyser_integration_test_collection"
 INTEGRATION_DIM = 8
 
 
-def is_qdrant_live(host: str = "localhost", port: int = 6333, timeout: float = 0.5) -> bool:
+def is_qdrant_live(
+    host: str = "localhost", port: int = 6333, timeout: float = 0.5
+) -> bool:
     """Check if Qdrant TCP port is open."""
     try:
         with socket.create_connection((host, port), timeout=timeout):
@@ -62,7 +64,7 @@ class TestQdrantDockerIntegration:
         # Cleanup test collection after test to avoid littering
         try:
             client.delete_collection(INTEGRATION_COLLECTION)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     def test_live_qdrant_round_trip(self, live_store: QdrantVectorStore) -> None:
@@ -86,7 +88,9 @@ class TestQdrantDockerIntegration:
         assert live_store.count() == 1
 
         # Query with filter
-        doc_count = live_store.count(filter_spec=VectorStoreFilter(document_id="live-doc"))
+        doc_count = live_store.count(
+            filter_spec=VectorStoreFilter(document_id="live-doc")
+        )
         assert doc_count == 1
 
         # Delete

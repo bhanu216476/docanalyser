@@ -11,7 +11,6 @@ from pydantic import ValidationError
 
 from app.retrieval.models import RetrievalFilter, RetrievalRequest, RetrievalResult
 
-
 # ===========================================================================
 # RetrievalFilter
 # ===========================================================================
@@ -60,7 +59,7 @@ class TestRetrievalFilter:
 
     def test_filter_is_frozen(self) -> None:
         f = RetrievalFilter(document_id="doc-1")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017  # noqa: B017
             f.document_id = "doc-2"  # type: ignore[misc]
 
     def test_combined_filters_not_empty(self) -> None:
@@ -87,12 +86,18 @@ class TestRetrievalRequest:
     def test_empty_query_raises(self) -> None:
         with pytest.raises(ValidationError) as exc_info:
             RetrievalRequest(query="")
-        assert "empty" in str(exc_info.value).lower() or "query" in str(exc_info.value).lower()
+        assert (
+            "empty" in str(exc_info.value).lower()
+            or "query" in str(exc_info.value).lower()
+        )
 
     def test_whitespace_only_query_raises(self) -> None:
         with pytest.raises(ValidationError) as exc_info:
             RetrievalRequest(query="   ")
-        assert "empty" in str(exc_info.value).lower() or "query" in str(exc_info.value).lower()
+        assert (
+            "empty" in str(exc_info.value).lower()
+            or "query" in str(exc_info.value).lower()
+        )
 
     def test_custom_top_k(self) -> None:
         req = RetrievalRequest(query="test", top_k=5)
@@ -109,10 +114,14 @@ class TestRetrievalRequest:
     def test_top_k_above_maximum_raises(self) -> None:
         with pytest.raises(ValidationError) as exc_info:
             RetrievalRequest(query="test", top_k=9999)
-        assert "maximum" in str(exc_info.value).lower() or "top_k" in str(exc_info.value).lower()
+        assert (
+            "maximum" in str(exc_info.value).lower()
+            or "top_k" in str(exc_info.value).lower()
+        )
 
     def test_top_k_exactly_at_max(self) -> None:
         from app.core.config import settings
+
         req = RetrievalRequest(query="test", top_k=settings.retrieval_max_top_k)
         assert req.top_k == settings.retrieval_max_top_k
 
@@ -127,7 +136,7 @@ class TestRetrievalRequest:
 
     def test_request_is_frozen(self) -> None:
         req = RetrievalRequest(query="test")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017  # noqa: B017
             req.query = "modified"  # type: ignore[misc]
 
 
@@ -138,16 +147,16 @@ class TestRetrievalRequest:
 
 class TestRetrievalResult:
     def _make_result(self, **overrides) -> RetrievalResult:
-        defaults = dict(
-            chunk_id="doc-1:0",
-            score=0.91,
-            document_id="doc-1",
-            chunk_index=0,
-            content="Annual leave entitlement is 20 days.",
-            file_name="hr_policy.md",
-            file_type="md",
-            source="docs/hr_policy.md",
-        )
+        defaults = {
+            "chunk_id": "doc-1:0",
+            "score": 0.91,
+            "document_id": "doc-1",
+            "chunk_index": 0,
+            "content": "Annual leave entitlement is 20 days.",
+            "file_name": "hr_policy.md",
+            "file_type": "md",
+            "source": "docs/hr_policy.md",
+        }
         defaults.update(overrides)
         return RetrievalResult(**defaults)
 
@@ -188,7 +197,7 @@ class TestRetrievalResult:
 
     def test_result_is_frozen(self) -> None:
         result = self._make_result()
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017  # noqa: B017
             result.score = 0.5  # type: ignore[misc]
 
     def test_score_ranking_order_preserved(self) -> None:

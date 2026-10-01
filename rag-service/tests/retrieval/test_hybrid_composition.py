@@ -8,7 +8,9 @@ from app.retrieval.models import RetrievalFilter, RetrievalRequest, RetrievalRes
 
 
 def result(chunk_id: str, score: float = 0.5) -> RetrievalResult:
-    return RetrievalResult(chunk_id=chunk_id, content=f"content {chunk_id}", score=score)
+    return RetrievalResult(
+        chunk_id=chunk_id, content=f"content {chunk_id}", score=score
+    )
 
 
 class RecordingRetriever:
@@ -16,7 +18,9 @@ class RecordingRetriever:
         self.results = results
         self.calls: list[tuple[str, int, RetrievalFilter | None]] = []
 
-    def retrieve(self, query: str, top_k: int, filters: RetrievalFilter | None = None) -> list[RetrievalResult]:
+    def retrieve(
+        self, query: str, top_k: int, filters: RetrievalFilter | None = None
+    ) -> list[RetrievalResult]:
         self.calls.append((query, top_k, filters))
         return self.results
 
@@ -55,7 +59,11 @@ def test_candidate_limit_and_request_are_supported() -> None:
 
 @pytest.mark.parametrize(
     "dense_results,bm25_results,expected",
-    [([], [result("bm25")], ["bm25"]), ([result("dense")], [], ["dense"]), ([], [], [])],
+    [
+        ([], [result("bm25")], ["bm25"]),
+        ([result("dense")], [], ["dense"]),
+        ([], [], []),
+    ],
 )
 def test_empty_source_results_are_handled(
     dense_results: list[RetrievalResult],
