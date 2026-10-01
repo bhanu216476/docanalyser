@@ -4,17 +4,23 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
-from app.pipeline.rag_pipeline import IngestionError, RAGPipeline
+from app.pipeline.rag_pipeline import IngestionError
 
 
 class DocumentLifecycleError(Exception):
     """Raised when a document lifecycle operation cannot be completed."""
 
 
+class LifecyclePipeline(Protocol):
+    vector_store: Any
+    bm25_index: Any
+    ingest: Any
+
+
 class DocumentLifecycleService:
-    def __init__(self, pipeline: RAGPipeline) -> None:
+    def __init__(self, pipeline: LifecyclePipeline) -> None:
         self.pipeline = pipeline
 
     def process(self, request: Any) -> dict[str, Any]:

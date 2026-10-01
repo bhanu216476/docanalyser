@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -14,7 +14,13 @@ from app.pipeline.document_lifecycle import (
 )
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
-_lifecycle_service: DocumentLifecycleService | None = None
+
+
+class DocumentLifecycleHandler(Protocol):
+    def process(self, request: Any) -> dict[str, Any]: ...
+
+
+_lifecycle_service: DocumentLifecycleHandler | None = None
 
 
 class DocumentEvent(StrEnum):
@@ -60,7 +66,7 @@ class DocumentLifecycleResponse(BaseModel):
     chunk_count: int = 0
 
 
-def get_document_lifecycle_service() -> DocumentLifecycleService:
+def get_document_lifecycle_service() -> DocumentLifecycleHandler:
     global _lifecycle_service
     if _lifecycle_service is None:
         from app.api.rag import get_pipeline
@@ -69,7 +75,9 @@ def get_document_lifecycle_service() -> DocumentLifecycleService:
     return _lifecycle_service
 
 
-def set_document_lifecycle_service(service: DocumentLifecycleService | None) -> None:
+def set_document_lifecycle_service(
+    service: DocumentLifecycleHandler | None,
+) -> None:
     global _lifecycle_service
     _lifecycle_service = service
 
