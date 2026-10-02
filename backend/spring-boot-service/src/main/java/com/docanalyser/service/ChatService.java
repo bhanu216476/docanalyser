@@ -8,8 +8,11 @@ import com.docanalyser.redis.SessionStateService;
 import com.docanalyser.repository.ChatMessageRepository;
 import com.docanalyser.repository.ChatSessionRepository;
 import com.docanalyser.security.services.UserDetailsImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -18,6 +21,8 @@ import java.util.UUID;
 
 @Service
 public class ChatService {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatService.class);
 
     private final ChatSessionRepository sessionRepository;
     private final ChatMessageRepository messageRepository;
@@ -90,8 +95,16 @@ public class ChatService {
         try {
             Map<String, Object> ragResponse = ragServiceClient.queryRagService(content);
             assistantReply = (String) ragResponse.getOrDefault("answer", "No answer provided");
+        } catch (ResponseStatusException e) {
+            log.warn("RAG service request failed for session {}: {}", sessionId, e.getReason());
+            throw e;
         } catch (Exception e) {
-            assistantReply = "Sorry, I am currently unable to process your request. " + e.getMessage();
+            log.error("Unexpected chat processing failure for session {}", sessionId, e);
+            throw new ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "Unable to process chat request right now",
+                    e
+            );
         }
 
         // Save assistant message

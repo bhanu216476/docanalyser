@@ -46,6 +46,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public RateLimitingFilter rateLimitingFilter() {
+        return new RateLimitingFilter();
+    }
+
+    @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
@@ -92,6 +97,7 @@ public class SecurityConfig {
 
         http.authenticationProvider(authenticationProvider());
         
+        http.addFilterBefore(rateLimitingFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(internalApiKeyFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
         

@@ -15,6 +15,8 @@ public class IngestionRequest {
     @NotBlank
     private String fileUrl;
 
+    private String contentHash;
+
     public String getDocumentId() { return documentId; }
     public void setDocumentId(String documentId) { this.documentId = documentId; }
     public String getFileName() { return fileName; }
@@ -23,4 +25,7 @@ public class IngestionRequest {
     public void setSource(String source) { this.source = source; }
     public String getFileUrl() { return fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+
+    public String getContentHash() { return contentHash; }
+    public void setContentHash(String contentHash) { this.contentHash = contentHash; }
 }

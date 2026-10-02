@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -120,15 +121,15 @@ class ChatServiceTest {
     }
 
     @Test
-    void sendMessage_ragServiceUnavailable_returnsErrorMessage() {
+    void sendMessage_ragServiceUnavailable_throwsResponseStatusException() {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
         when(messageRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(ragServiceClient.queryRagService("Hello?"))
                 .thenThrow(new RuntimeException("Service unavailable"));
 
-        ChatMessage result = chatService.sendMessage(sessionId, "Hello?", userDetails);
-
-        assertThat(result.getRole()).isEqualTo(ChatRole.ASSISTANT);
-        assertThat(result.getContent()).contains("unable to process");
+        assertThatThrownBy(() -> chatService.sendMessage(sessionId, "Hello?", userDetails))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
+                .isEqualTo(org.springframework.http.HttpStatus.BAD_GATEWAY);
     }
 }
