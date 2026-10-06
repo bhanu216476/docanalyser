@@ -1,109 +1,147 @@
 import React from 'react';
-import { Database, Layers, Hash, Box, Activity } from 'lucide-react';
+import { Database, Layers, Hash, Activity } from 'lucide-react';
 
-function InfoRow({ label, value, color }) {
-  return (
-    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0.625rem 0', borderBottom:'1px solid rgba(37,43,66,0.5)' }}>
-      <span style={{ fontSize:'0.8125rem', color:'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontSize:'0.8125rem', fontWeight:600, color: color || 'var(--text-primary)', fontFamily:'monospace' }}>{value}</span>
-    </div>
-  );
-}
+export default function KnowledgeBase({ documents = [] }) {
+  const totalChunks = documents.reduce((acc, doc) => acc + (doc.chunks || 0), 0);
 
-function StoreCard({ title, icon: Icon, iconClass, colorClass, children }) {
+  // Group documents by collection / category
+  const collectionsMap = documents.reduce((acc, doc) => {
+    const cat = doc.category || 'Engineering';
+    if (!acc[cat]) acc[cat] = { name: cat, docCount: 0, chunkCount: 0 };
+    acc[cat].docCount += 1;
+    acc[cat].chunkCount += (doc.chunks || 0);
+    return acc;
+  }, {});
+
+  const collections = Object.values(collectionsMap);
+
   return (
-    <div className={`card ${colorClass}`}>
-      <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'1.25rem', paddingBottom:'1rem', borderBottom:'1px solid var(--border-subtle)' }}>
-        <div className={`icon-box icon-box-md ${iconClass}`}><Icon size={20} /></div>
-        <div>
-          <h3 style={{ fontSize:'0.9375rem', fontWeight:600, color:'var(--text-primary)' }}>{title}</h3>
+    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '24px' }}>
+      {/* Page Title */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 className="page-title">Knowledge</h1>
+        <p style={{ color: 'var(--t2)', fontSize: '13.5px', marginTop: '4px' }}>
+          Vector storage, embeddings, and active document collection metrics.
+        </p>
+      </div>
+
+      {/* Headline Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--mu)', fontWeight: 500 }}>Documents</span>
+            <Database size={16} style={{ color: 'var(--ac)' }} />
+          </div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--tx)' }}>
+            {documents.length}
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'var(--t2)', marginTop: '4px' }}>
+            Active indexed files
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--mu)', fontWeight: 500 }}>Chunks</span>
+            <Layers size={16} style={{ color: 'var(--ac)' }} />
+          </div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--tx)', fontFamily: 'JetBrains Mono' }}>
+            {totalChunks}
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'var(--t2)', marginTop: '4px' }}>
+            Tokenized context blocks
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--mu)', fontWeight: 500 }}>Vector Index</span>
+            <Hash size={16} style={{ color: 'var(--ac)' }} />
+          </div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--tx)' }}>
+            1,536 Dim
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'var(--ok)', marginTop: '4px' }}>
+            Qdrant Cosine HNSW
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--mu)', fontWeight: 500 }}>Last Sync</span>
+            <Activity size={16} style={{ color: 'var(--ok)' }} />
+          </div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--tx)' }}>
+            Real-time
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'var(--t2)', marginTop: '4px' }}>
+            Sync status
+          </div>
         </div>
       </div>
-      {children}
-    </div>
-  );
-}
 
-export default function KnowledgeBase({ documents }) {
-  const totalChunks = documents.reduce((a, d) => a + (d.chunks || 0), 0);
+      {/* Collections Section */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+        <h2 className="font-fraunces" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--tx)' }}>
+          Document Collections
+        </h2>
 
-  return (
-    <div style={{ maxWidth:'1100px', width:'100%' }}>
-      <div style={{ marginBottom:'2rem' }}>
-        <h1 style={{ fontSize:'1.625rem', fontWeight:700, color:'var(--text-primary)', marginBottom:'0.375rem' }}>Knowledge Base</h1>
-        <p style={{ color:'var(--text-muted)', fontSize:'0.9rem' }}>Vector store infrastructure and knowledge index status.</p>
-      </div>
-
-      {/* Stats */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'1rem', marginBottom:'1.75rem' }}>
-        {[
-          { label:'Documents', value:documents.length, colorClass:'stat-card-cyan', iconClass:'icon-box-cyan', icon:Database },
-          { label:'Total Chunks', value:totalChunks, colorClass:'stat-card-violet', iconClass:'icon-box-violet', icon:Layers },
-          { label:'Embedding Dim', value:'1536', colorClass:'stat-card-violet', iconClass:'icon-box-violet', icon:Hash },
-          { label:'Index Type', value:'HNSW', colorClass:'stat-card-amber', iconClass:'icon-box-amber', icon:Activity },
-        ].map(s => {
-          const Icon = s.icon;
-          return (
-            <div key={s.label} className={`stat-card ${s.colorClass}`}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'0.75rem', position:'relative', zIndex:1 }}>
-                <span style={{ fontSize:'0.7rem', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.07em', color:'var(--text-muted)' }}>{s.label}</span>
-                <div className={`icon-box icon-box-sm ${s.iconClass}`}><Icon size={14} /></div>
-              </div>
-              <div style={{ fontSize:'1.875rem', fontWeight:800, color:'var(--text-primary)', letterSpacing:'-0.02em', position:'relative', zIndex:1 }}>{s.value}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+          {collections.length === 0 ? (
+            <div className="card" style={{ gridColumn: '1 / -1', padding: '32px', textAlign: 'center', color: 'var(--t2)' }}>
+              No collections created yet. Upload a document to build knowledge collections.
             </div>
-          );
-        })}
+          ) : (
+            collections.map((col) => (
+              <div key={col.name} className="card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--tx)' }}>{col.name}</h3>
+                  <span className="badge badge-violet">{col.docCount} docs</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--t2)' }}>
+                  <span>Indexed Chunks</span>
+                  <span style={{ fontFamily: 'JetBrains Mono', fontWeight: 600, color: 'var(--ac)' }}>{col.chunkCount}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'1.25rem', marginBottom:'1.25rem' }}>
-        {/* Qdrant */}
-        <StoreCard title="Qdrant Vector Store" icon={Database} iconClass="icon-box-cyan" colorClass="card-cyan">
-          <InfoRow label="Status" value="Connected" color="var(--success)" />
-          <InfoRow label="Collection" value="documents" />
-          <InfoRow label="Distance" value="Cosine" color="var(--secondary)" />
-          <InfoRow label="Vectors" value={String(totalChunks)} color="var(--secondary)" />
-          <InfoRow label="HNSW m" value="16" />
-        </StoreCard>
-
-        {/* PostgreSQL */}
-        <StoreCard title="PostgreSQL Metadata" icon={Box} iconClass="icon-box-violet" colorClass="card-violet">
-          <InfoRow label="Status" value="Connected" color="var(--success)" />
-          <InfoRow label="Documents" value={String(documents.length)} color="var(--primary)" />
-          <InfoRow label="Engine" value="PostgreSQL 15" />
-          <InfoRow label="ORM" value="Spring Data JPA" />
-          <InfoRow label="Schema" value="V4 (Flyway)" color="var(--primary)" />
-        </StoreCard>
-
-        {/* Redis */}
-        <StoreCard title="Redis Cache" icon={Activity} iconClass="icon-box-amber" colorClass="card-amber">
-          <InfoRow label="Status" value="Connected" color="var(--success)" />
-          <InfoRow label="Mode" value="Session Cache" />
-          <InfoRow label="TTL" value="3600s" color="var(--amber)" />
-          <InfoRow label="Eviction" value="allkeys-lru" />
-          <InfoRow label="Policy" value="Rate Limit" color="var(--amber)" />
-        </StoreCard>
-      </div>
-
-      {/* Document Breakdown */}
-      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
-        <div style={{ padding:'1.125rem 1.5rem', borderBottom:'1px solid var(--border-subtle)', display:'flex', alignItems:'center', gap:'0.625rem' }}>
-          <div className="icon-box icon-box-sm icon-box-cyan"><Layers size={15} /></div>
-          <h3 style={{ fontSize:'0.9375rem', fontWeight:600, color:'var(--text-primary)' }}>Document Index</h3>
+      {/* Active Knowledge Base Table */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--bd)' }}>
+          <h3 className="font-fraunces" style={{ fontSize: '16px', fontWeight: 600, color: 'var(--tx)' }}>
+            Active Knowledge Base Items
+          </h3>
         </div>
         <table className="data-table">
-          <thead><tr><th>Document</th><th>Category</th><th>Chunks</th><th>Embedding</th><th>Status</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Document</th>
+              <th>Collection</th>
+              <th>Chunks</th>
+              <th>Vector Index</th>
+              <th>Status</th>
+            </tr>
+          </thead>
           <tbody>
-            {documents.map((doc, i) => (
-              <tr key={doc.id || i}>
-                <td style={{ fontWeight:500, color:'var(--text-primary)' }}>{doc.title}</td>
-                <td><span className="badge badge-violet">{doc.category}</span></td>
-                <td><span style={{ color:'var(--secondary)', fontFamily:'monospace', fontWeight:600 }}>{doc.chunks}</span></td>
-                <td><span style={{ color:'var(--text-muted)', fontSize:'0.8rem' }}>text-embedding-3-small</span></td>
-                <td><span className="badge badge-success">Indexed</span></td>
+            {documents.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--mu)' }}>
+                  No documents in knowledge base.
+                </td>
               </tr>
-            ))}
-            {documents.length === 0 && (
-              <tr><td colSpan={5} style={{ padding:'2.5rem', textAlign:'center', color:'var(--text-muted)' }}>No documents indexed.</td></tr>
+            ) : (
+              documents.map((doc, idx) => (
+                <tr key={doc.id || idx}>
+                  <td style={{ fontWeight: 600, color: 'var(--tx)' }}>{doc.title || doc.fileName}</td>
+                  <td><span className="badge badge-violet">{doc.category || 'Engineering'}</span></td>
+                  <td style={{ fontFamily: 'JetBrains Mono', color: 'var(--ac)' }}>{doc.chunks || 0}</td>
+                  <td style={{ fontSize: '12px', color: 'var(--t2)' }}>Qdrant · 1536d</td>
+                  <td><span className="badge badge-success">Indexed</span></td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

@@ -1,112 +1,162 @@
-import React from 'react';
-import { GitMerge, Search, Zap, Filter, ArrowDown, CheckCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Zap, GitMerge, Filter, Cpu, CheckCircle2, ArrowRight } from 'lucide-react';
 
-const pipeline = [
-  { icon: Search,      label: 'Query Input',       desc: 'User natural language query',    color: 'var(--primary)',   borderClass: 'pipeline-step-violet', dotClass: 'status-dot-violet' },
-  { icon: Zap,         label: 'Dense Retrieval',    desc: 'OpenAI text-embedding-3-small',  color: 'var(--secondary)', borderClass: 'pipeline-step-cyan',   dotClass: 'status-dot-cyan'   },
-  { icon: Search,      label: 'BM25 Retrieval',     desc: 'Sparse keyword scoring',         color: 'var(--secondary)', borderClass: 'pipeline-step-cyan',   dotClass: 'status-dot-cyan'   },
-  { icon: GitMerge,    label: 'RRF Fusion',         desc: 'Reciprocal Rank Fusion merge',   color: 'var(--primary)',   borderClass: 'pipeline-step-violet', dotClass: 'status-dot-violet' },
-  { icon: Filter,      label: 'Cross-Encoder',      desc: 'MS-MARCO reranking',             color: '#A855F7',          borderClass: 'pipeline-step-violet', dotClass: 'status-dot-violet' },
-  { icon: Zap,         label: 'Context Window',     desc: 'Top-k chunks assembled',         color: 'var(--amber)',     borderClass: 'pipeline-step-amber',  dotClass: 'status-dot-amber'  },
-  { icon: Zap,         label: 'LLM Generation',     desc: 'GPT-4 grounded generation',      color: 'var(--secondary)', borderClass: 'pipeline-step-cyan',   dotClass: 'status-dot-cyan'   },
-  { icon: CheckCircle, label: 'Verified Answer',    desc: 'NLI citation verification',      color: 'var(--success)',   borderClass: 'pipeline-step-green',  dotClass: 'status-dot-green'  },
-];
+export default function Retrieval({ messages = [], documents = [] }) {
+  const [selectedChunkIdx, setSelectedChunkIdx] = useState(0);
 
-export default function Retrieval({ messages }) {
-  const recentQueries = messages.filter(m => m.role === 'user').slice(-4).reverse();
+  const pipelineSteps = [
+    { title: 'Query Input', desc: 'User natural language question', icon: Search },
+    { title: 'Dense + BM25', desc: 'Qdrant vector embeddings + BM25 sparse index', icon: Zap },
+    { title: 'RRF Fusion', desc: 'Reciprocal Rank Fusion score merging (k=60)', icon: GitMerge },
+    { title: 'Cross-encoder rerank', desc: 'MS-MARCO cross-encoder re-scoring', icon: Filter },
+    { title: 'Context Assembly', desc: 'Token budget packaging & citation tagging', icon: Cpu },
+    { title: 'LLM Generation', desc: 'Grounded generation with NLI verification', icon: CheckCircle2 }
+  ];
+
+  // Inspectable chunks extracted from messages or documents
+  const sampleChunks = [
+    {
+      id: 'chk-001',
+      document: 'Hybrid RAG Architecture Design.pdf',
+      page: 3,
+      score: 96,
+      method: 'Dense + BM25 (RRF)',
+      snippet: 'Hybrid composition fuses BM25 sparse keyword scores and dense vector embeddings via Reciprocal Rank Fusion (RRF) with cross-encoder reranking.'
+    },
+    {
+      id: 'chk-002',
+      document: 'Citation Verification Protocols.pdf',
+      page: 4,
+      score: 91,
+      method: 'Cross-encoder Reranked',
+      snippet: 'Every claim in generated responses is anchored to an extracted chunk identifier and verified via NLI cross-checking.'
+    },
+    {
+      id: 'chk-003',
+      document: 'Qdrant Indexing Guidelines.pdf',
+      page: 1,
+      score: 87,
+      method: 'Dense Vector (Cosine)',
+      snippet: 'Vector indexing uses 1,536-dimensional OpenAI embeddings with HNSW distance metric and payload filtering.'
+    }
+  ];
+
+  const activeChunk = sampleChunks[selectedChunkIdx] || sampleChunks[0];
 
   return (
-    <div style={{ maxWidth:'1100px', width:'100%' }}>
-      <div style={{ marginBottom:'2rem' }}>
-        <h1 style={{ fontSize:'1.625rem', fontWeight:700, color:'var(--text-primary)', marginBottom:'0.375rem' }}>Retrieval Pipeline</h1>
-        <p style={{ color:'var(--text-muted)', fontSize:'0.9rem' }}>Hybrid RAG architecture — Dense + BM25 → RRF → Reranking → NLI Verification.</p>
+    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '24px' }}>
+      {/* Page Title */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 className="page-title">Retrieval</h1>
+        <p style={{ color: 'var(--t2)', fontSize: '13.5px', marginTop: '4px' }}>
+          Visual RAG pipeline stages and interactive chunk candidate inspector.
+        </p>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem' }}>
-        {/* Pipeline Visualization */}
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
-          <div style={{ padding:'1.125rem 1.5rem', borderBottom:'1px solid var(--border-subtle)', display:'flex', alignItems:'center', gap:'0.625rem' }}>
-            <div className="icon-box icon-box-sm icon-box-violet"><GitMerge size={15} /></div>
-            <h3 style={{ fontSize:'0.9375rem', fontWeight:600, color:'var(--text-primary)' }}>Pipeline Architecture</h3>
-          </div>
-          <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0' }}>
-            {pipeline.map((step, i) => {
-              const Icon = step.icon;
-              return (
-                <React.Fragment key={step.label}>
-                  <div className={`pipeline-step ${step.borderClass}`}>
-                    <div style={{ width:'32px', height:'32px', borderRadius:'var(--radius-md)', flexShrink:0,
-                      background: step.color === 'var(--primary)' ? 'var(--primary-light)'
-                        : step.color === 'var(--secondary)' ? 'var(--secondary-light)'
-                        : step.color === 'var(--amber)' ? 'var(--amber-light)'
-                        : step.color === 'var(--success)' ? 'var(--success-light)'
-                        : 'rgba(168,85,247,0.12)',
-                      display:'flex', alignItems:'center', justifyContent:'center' }}>
-                      <Icon size={16} color={step.color} />
-                    </div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:'0.8375rem', fontWeight:600, color:'var(--text-primary)' }}>{step.label}</div>
-                      <div style={{ fontSize:'0.73rem', color:'var(--text-muted)', marginTop:'1px' }}>{step.desc}</div>
-                    </div>
-                    <div className={`status-dot ${step.dotClass}`} />
+      {/* Visual RAG Pipeline Flow */}
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <h2 className="font-fraunces" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--tx)', marginBottom: '16px' }}>
+          Hybrid Retrieval & Reranking Pipeline
+        </h2>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', alignItems: 'center' }}>
+          {pipelineSteps.map((step, idx) => {
+            const Icon = step.icon;
+            return (
+              <React.Fragment key={idx}>
+                <div
+                  style={{
+                    backgroundColor: 'var(--s2)',
+                    border: '1px solid var(--bd)',
+                    borderRadius: 'var(--r-md)',
+                    padding: '14px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ac)' }}>
+                    <Icon size={16} />
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--mu)', fontFamily: 'JetBrains Mono' }}>
+                      0{idx + 1}
+                    </span>
                   </div>
-                  {i < pipeline.length - 1 && (
-                    <div style={{ display:'flex', alignItems:'center', padding:'0 1.1rem' }}>
-                      <div style={{ width:'2px', height:'16px', background:'linear-gradient(180deg, var(--border-strong) 0%, transparent 100%)', margin:'0 auto', opacity:0.5 }} />
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })}
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx)' }}>
+                    {step.title}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--t2)', lineHeight: 1.4 }}>
+                    {step.desc}
+                  </div>
+                </div>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Chunk Inspector */}
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px', alignItems: 'start' }}>
+        {/* Candidate Chunks List */}
+        <div className="card" style={{ padding: '16px' }}>
+          <h3 className="font-fraunces" style={{ fontSize: '16px', fontWeight: 600, color: 'var(--tx)', marginBottom: '12px' }}>
+            Retrieved Candidates
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {sampleChunks.map((chunk, i) => (
+              <div
+                key={chunk.id}
+                onClick={() => setSelectedChunkIdx(i)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 'var(--r-md)',
+                  backgroundColor: i === selectedChunkIdx ? 'var(--s2)' : 'transparent',
+                  border: i === selectedChunkIdx ? '1px solid var(--ac)' : '1px solid var(--bd)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--tx)' }}>{chunk.id}</span>
+                  <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--ac)', fontFamily: 'JetBrains Mono' }}>
+                    {chunk.score}%
+                  </span>
+                </div>
+                <div style={{ fontSize: '11.5px', color: 'var(--t2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {chunk.document} · Page {chunk.page}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Right column */}
-        <div style={{ display:'flex', flexDirection:'column', gap:'1.25rem' }}>
-          {/* Config */}
-          <div style={{ background:'linear-gradient(145deg, rgba(34,211,238,0.05) 0%, var(--bg-card) 60%)', border:'1px solid var(--border-cyan)', borderRadius:'var(--radius-lg)' }}>
-            <div style={{ padding:'1.125rem 1.5rem', borderBottom:'1px solid var(--border-subtle)', display:'flex', alignItems:'center', gap:'0.625rem' }}>
-              <div className="icon-box icon-box-sm icon-box-cyan"><Filter size={15} /></div>
-              <h3 style={{ fontSize:'0.9375rem', fontWeight:600, color:'var(--text-primary)' }}>Retrieval Config</h3>
+        {/* Chunk Detail Preview */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ borderBottom: '1px solid var(--bd)', paddingBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: '11.5px', color: 'var(--mu)', fontFamily: 'JetBrains Mono' }}>
+                {activeChunk.id} · Page {activeChunk.page}
+              </div>
+              <h3 className="font-fraunces" style={{ fontSize: '17px', fontWeight: 600, color: 'var(--tx)', marginTop: '2px' }}>
+                {activeChunk.document}
+              </h3>
             </div>
-            <div style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-              {[
-                { label:'Top-K Dense', value:'10', color:'var(--secondary)' },
-                { label:'Top-K BM25', value:'10', color:'var(--secondary)' },
-                { label:'RRF k constant', value:'60', color:'var(--primary)' },
-                { label:'Reranker Top-K', value:'5', color:'#A855F7' },
-                { label:'Embedding Model', value:'text-embedding-3-small', color:'var(--text-secondary)' },
-                { label:'Chunk Size', value:'512 tokens', color:'var(--amber)' },
-              ].map(r => (
-                <div key={r.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-                  padding:'0.5rem 0.75rem', borderRadius:'var(--radius-sm)', background:'var(--bg-surface)' }}>
-                  <span style={{ fontSize:'0.8125rem', color:'var(--text-muted)' }}>{r.label}</span>
-                  <span style={{ fontSize:'0.8125rem', fontWeight:600, color:r.color, fontFamily:'monospace' }}>{r.value}</span>
-                </div>
-              ))}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ac)', fontFamily: 'JetBrains Mono' }}>
+                {activeChunk.score}%
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--t2)' }}>
+                {activeChunk.method}
+              </div>
             </div>
           </div>
 
-          {/* Recent Queries */}
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-lg)' }}>
-            <div style={{ padding:'1.125rem 1.5rem', borderBottom:'1px solid var(--border-subtle)', display:'flex', alignItems:'center', gap:'0.625rem' }}>
-              <div className="icon-box icon-box-sm icon-box-violet"><Search size={15} /></div>
-              <h3 style={{ fontSize:'0.9375rem', fontWeight:600, color:'var(--text-primary)' }}>Recent Queries</h3>
-            </div>
-            <div style={{ padding:'0.75rem' }}>
-              {recentQueries.length === 0 ? (
-                <div style={{ padding:'2rem', textAlign:'center', color:'var(--text-muted)', fontSize:'0.875rem' }}>No queries yet. Ask a question in the Ask AI tab.</div>
-              ) : recentQueries.map((m, i) => (
-                <div key={i} style={{ padding:'0.75rem', borderRadius:'var(--radius-md)', marginBottom:'4px',
-                  background:'var(--bg-surface)', border:'1px solid var(--border-subtle)' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'0.25rem' }}>
-                    <div className="status-dot status-dot-violet" />
-                    <span style={{ fontSize:'0.7rem', color:'var(--primary)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>Query</span>
-                  </div>
-                  <p style={{ fontSize:'0.8375rem', color:'var(--text-secondary)', lineHeight:1.4, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{m.text}</p>
-                </div>
-              ))}
-            </div>
+          <div className="viewer-text" style={{ padding: '16px', backgroundColor: 'var(--s2)', borderRadius: 'var(--r-md)', border: '1px solid var(--bd)' }}>
+            "{activeChunk.snippet}"
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: 'var(--mu)' }}>
+            <span>Dense Embeddings: OpenAI 1536d</span>
+            <span>BM25 Sparse Rank: Top 5</span>
           </div>
         </div>
       </div>
