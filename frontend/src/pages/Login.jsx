@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { Zap, ShieldCheck, Database, FileText, Eye, EyeOff } from 'lucide-react';
+import { FileText, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -15,18 +15,21 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginStep, setLoginStep] = useState('idle');
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/ask-ai" replace />;
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !password) { setError("Please enter both email and password."); return; }
+    if (!email || !password) {
+      setError("Please enter both email and password.");
+      return;
+    }
     setError('');
     setIsSubmitting(true);
     setLoginStep('verifying');
     try {
       await login(email, password);
       setLoginStep('success');
-      setTimeout(() => navigate('/'), 1000);
+      setTimeout(() => navigate('/ask-ai'), 1000);
     } catch {
       setLoginStep('idle');
       setIsSubmitting(false);
@@ -34,202 +37,171 @@ export default function Login() {
     }
   };
 
-  const steps = [
-    { icon: FileText, label: 'Documents', color: 'var(--secondary)' },
-    { icon: Database, label: 'Knowledge', color: 'var(--primary)' },
-    { icon: Zap, label: 'AI Core', color: 'var(--amber)' },
-    { icon: ShieldCheck, label: 'Verified', color: 'var(--success)' },
-  ];
-
   return (
     <div className="auth-layout">
-      {/* ─── LEFT: BRANDING ─── */}
+      {/* LEFT BRANDING */}
       <div className="auth-branding">
-        {/* Ambient glows */}
-        <div style={{ position:'absolute', top:'-10%', left:'-10%', width:'60%', height:'60%',
-          background:'radial-gradient(ellipse, rgba(124,92,255,0.1) 0%, transparent 65%)',
-          pointerEvents:'none', borderRadius:'50%' }} />
-        <div style={{ position:'absolute', bottom:'5%', right:'-5%', width:'40%', height:'40%',
-          background:'radial-gradient(ellipse, rgba(34,211,238,0.07) 0%, transparent 65%)',
-          pointerEvents:'none', borderRadius:'50%' }} />
-
-        <div style={{ position:'relative', zIndex:1, maxWidth:'480px' }}>
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '460px' }}>
           {/* Logo */}
-          <div style={{ display:'flex', alignItems:'center', gap:'0.875rem', marginBottom:'3rem' }}>
-            <div style={{ width:'44px', height:'44px', borderRadius:'12px',
-              background:'var(--gradient-primary)',
-              display:'flex', alignItems:'center', justifyContent:'center',
-              boxShadow:'0 0 24px rgba(124,92,255,0.4)' }}>
-              <Database size={22} color="#fff" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '40px' }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--ac)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <FileText size={20} />
             </div>
-            <span style={{ fontSize:'1.25rem', fontWeight:700, letterSpacing:'-0.02em', color:'var(--text-primary)' }}>DocAnalyser</span>
+            <span className="font-fraunces" style={{ fontSize: '20px', fontWeight: 600, color: 'var(--tx)' }}>
+              DocAnalyser
+            </span>
           </div>
 
-          {/* Headline */}
-          <h2 style={{ fontSize:'3rem', fontWeight:800, lineHeight:1.1, color:'var(--text-primary)', marginBottom:'1.5rem' }}>
+          <h2 className="font-fraunces" style={{ fontSize: '38px', fontWeight: 600, lineHeight: 1.2, color: 'var(--tx)', marginBottom: '16px' }}>
             Your knowledge.<br />
-            Made{' '}
-            <span style={{
-              background:'var(--gradient-primary)',
-              WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text'
-            }}>intelligent.</span>
+            Made <span style={{ color: 'var(--ac)' }}>intelligent.</span>
           </h2>
-          <p style={{ fontSize:'1.0625rem', color:'var(--text-muted)', lineHeight:1.65, marginBottom:'3.5rem' }}>
+          <p style={{ fontSize: '14px', color: 'var(--t2)', lineHeight: 1.6 }}>
             Ask questions, discover insights, and get grounded, citation-verified answers from your enterprise knowledge base.
           </p>
-
-          {/* RAG Pipeline Visualization */}
-          <div style={{ display:'flex', alignItems:'center', gap:'0', flexWrap:'nowrap' }}>
-            {steps.map((step, i) => {
-              const Icon = step.icon;
-              return (
-                <React.Fragment key={step.label}>
-                  <motion.div
-                    initial={{ opacity:0, y:8 }}
-                    animate={{ opacity:1, y:0 }}
-                    transition={{ delay: 0.3 + i * 0.12 }}
-                    style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.5rem' }}
-                  >
-                    <div style={{ width:'44px', height:'44px', borderRadius:'10px',
-                      background:'var(--bg-card)', border:'1px solid var(--border-subtle)',
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      boxShadow:`0 0 12px ${step.color}25` }}>
-                      <Icon size={20} color={step.color} />
-                    </div>
-                    <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', fontWeight:500, whiteSpace:'nowrap' }}>{step.label}</span>
-                  </motion.div>
-                  {i < steps.length - 1 && (
-                    <motion.div
-                      initial={{ scaleX:0 }} animate={{ scaleX:1 }}
-                      transition={{ delay: 0.45 + i * 0.12 }}
-                      style={{ flex:1, height:'1px', background:'linear-gradient(90deg, var(--border-strong), var(--border-subtle))', margin:'0 0.5rem', marginBottom:'1.5rem', minWidth:'20px' }}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
         </div>
       </div>
 
-      {/* ─── RIGHT: AUTH FORM ─── */}
-      <div className="auth-form-side" style={{ background:'rgba(7,8,18,0.6)' }}>
+      {/* RIGHT FORM */}
+      <div className="auth-form-side">
         <AnimatePresence mode="wait">
           {loginStep === 'success' ? (
-            <motion.div key="success"
-              initial={{ scale:0.85, opacity:0 }}
-              animate={{ scale:1, opacity:1 }}
-              transition={{ type:'spring', stiffness:200 }}
-              style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'1.5rem' }}
+            <motion.div
+              key="success"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}
             >
-              <div style={{ position:'relative' }}>
-                <motion.div
-                  animate={{ scale:[1, 1.3, 1], opacity:[0.6, 0, 0.6] }}
-                  transition={{ duration:1.2, repeat:Infinity }}
-                  style={{ position:'absolute', inset:'-16px', borderRadius:'50%',
-                    background:'radial-gradient(circle, rgba(124,92,255,0.3) 0%, transparent 70%)' }}
-                />
-                <div style={{ width:'72px', height:'72px', borderRadius:'50%',
-                  background:'linear-gradient(135deg, rgba(124,92,255,0.2) 0%, rgba(34,211,238,0.15) 100%)',
-                  border:'1px solid rgba(124,92,255,0.4)',
-                  display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <ShieldCheck size={36} color="var(--primary)" />
-                </div>
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(15, 123, 87, 0.1)',
+                  color: 'var(--ok)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <CheckCircle2 size={36} />
               </div>
-              <div style={{ textAlign:'center' }}>
-                <h3 style={{ fontSize:'1.5rem', fontWeight:700, color:'var(--text-primary)', marginBottom:'0.5rem' }}>Identity Verified</h3>
-                <p style={{ color:'var(--text-muted)' }}>Preparing your knowledge workspace...</p>
+              <div>
+                <h3 className="font-fraunces" style={{ fontSize: '22px', fontWeight: 600, color: 'var(--tx)', marginBottom: '6px' }}>
+                  Identity Verified
+                </h3>
+                <p style={{ color: 'var(--t2)', fontSize: '13.5px' }}>
+                  Preparing your workspace...
+                </p>
               </div>
             </motion.div>
           ) : (
-            <motion.div key="form"
-              initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, scale:0.97 }}
-              style={{ width:'100%', maxWidth:'400px' }}
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ width: '100%', maxWidth: '400px' }}
             >
-              {/* Form Header */}
-              <div style={{ marginBottom:'2rem', textAlign:'center' }}>
-                <div style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
-                  width:'44px', height:'44px', borderRadius:'12px', background:'var(--gradient-primary)',
-                  marginBottom:'1.25rem', boxShadow:'0 0 20px rgba(124,92,255,0.3)' }}>
-                  <Database size={22} color="#fff" />
-                </div>
-                <h2 style={{ fontSize:'1.75rem', fontWeight:700, color:'var(--text-primary)', marginBottom:'0.375rem' }}>Welcome back</h2>
-                <p style={{ color:'var(--text-muted)', fontSize:'0.9rem' }}>Sign in to your knowledge workspace.</p>
+              <div style={{ marginBottom: '24px' }}>
+                <h2 className="font-fraunces" style={{ fontSize: '24px', fontWeight: 600, color: 'var(--tx)', marginBottom: '6px' }}>
+                  Welcome back
+                </h2>
+                <p style={{ color: 'var(--t2)', fontSize: '13px' }}>
+                  Sign in to your knowledge workspace.
+                </p>
               </div>
 
-              {/* Error */}
-              <AnimatePresence>
-                {error && (
-                  <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
-                    style={{ padding:'0.75rem 1rem', background:'rgba(244,63,94,0.08)',
-                      borderLeft:'3px solid var(--error)', borderRadius:'0 var(--radius-md) var(--radius-md) 0',
-                      color:'var(--error)', marginBottom:'1.25rem', fontSize:'0.875rem' }}>
-                    {error}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {error && (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    backgroundColor: 'rgba(229,72,77,0.1)',
+                    border: '1px solid rgba(229,72,77,0.2)',
+                    borderRadius: 'var(--r-md)',
+                    color: 'var(--err)',
+                    marginBottom: '18px',
+                    fontSize: '13px'
+                  }}
+                >
+                  {error}
+                </div>
+              )}
 
-              <form onSubmit={handleLogin} style={{ display:'flex', flexDirection:'column', gap:'1.125rem' }}>
-                {/* Email */}
+              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div className="input-group">
                   <label>Email address</label>
                   <input
-                    type="email" placeholder="name@company.com"
-                    value={email} onChange={e => setEmail(e.target.value)}
-                    required className="auth-input"
-                    style={{ width:'100%' }}
+                    type="email"
+                    placeholder="name@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="auth-input"
+                    required
                   />
                 </div>
 
-                {/* Password */}
                 <div className="input-group">
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label>Password</label>
-                    <a href="#" style={{ fontSize:'0.75rem', color:'var(--primary)' }}>Forgot password?</a>
                   </div>
-                  <div style={{ position:'relative' }}>
+                  <div style={{ position: 'relative' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="••••••••"
-                      value={password} onChange={e => setPassword(e.target.value)}
-                      required className="auth-input"
-                      style={{ width:'100%', paddingRight:'2.75rem' }}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="auth-input"
+                      style={{ paddingRight: '36px' }}
+                      required
                     />
-                    <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1}
-                      style={{ position:'absolute', right:'0.75rem', top:'50%', transform:'translateY(-50%)',
-                        background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)',
-                        display:'flex', alignItems:'center', padding:'0.25rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--mu)',
+                        cursor: 'pointer'
+                      }}
+                    >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Remember me */}
-                <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                  <input type="checkbox" id="remember" style={{ accentColor:'var(--primary)', width:'14px', height:'14px' }} />
-                  <label htmlFor="remember" style={{ fontSize:'0.8125rem', color:'var(--text-muted)', cursor:'pointer' }}>
-                    Remember me for 30 days
-                  </label>
-                </div>
-
-                {/* Submit */}
-                <button type="submit" disabled={isSubmitting} className="btn-auth" style={{ marginTop:'0.5rem' }}>
-                  {loginStep === 'verifying' ? (
-                    <>
-                      <motion.div animate={{ rotate:360 }} transition={{ repeat:Infinity, duration:0.9, ease:'linear' }}>
-                        <Zap size={16} />
-                      </motion.div>
-                      Signing in...
-                    </>
-                  ) : 'Sign In'}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-auth"
+                  style={{ marginTop: '8px' }}
+                >
+                  {loginStep === 'verifying' ? 'Verifying...' : 'Sign In'}
                 </button>
               </form>
 
-              <div style={{ height:'1px', background:'var(--border-subtle)', margin:'1.75rem 0' }} />
+              <div style={{ height: '1px', backgroundColor: 'var(--bd)', margin: '24px 0' }} />
 
-              <p style={{ textAlign:'center', fontSize:'0.875rem', color:'var(--text-muted)' }}>
+              <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--t2)' }}>
                 Don't have an account?{' '}
-                <Link to="/register" style={{ color:'var(--primary)', fontWeight:600 }}>Create account</Link>
+                <Link to="/register" style={{ color: 'var(--ac)', fontWeight: 600, textDecoration: 'none' }}>
+                  Create account
+                </Link>
               </p>
             </motion.div>
           )}

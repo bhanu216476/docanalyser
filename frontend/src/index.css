@@ -622,3 +622,96 @@ mark.cited-highlight {
   }
 }
 
+/* ============================================================
+   AUTH PAGES
+   ============================================================ */
+.auth-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  background-color: var(--bg);
+}
+
+.auth-branding {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--s2);
+  border-right: 1px solid var(--bd);
+}
+
+.auth-form-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  background-color: var(--s1);
+  overflow-y: auto;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--s2);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-md);
+  color: var(--tx);
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+  outline: none;
+}
+
+.auth-input:focus {
+  border-color: var(--ac);
+  box-shadow: 0 0 0 3px rgba(47, 91, 255, 0.12);
+}
+
+.auth-input::placeholder { color: var(--mu); }
+
+.btn-auth {
+  width: 100%;
+  padding: 0.875rem;
+  background-color: var(--ac);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.btn-auth:hover {
+  opacity: 0.92;
+}
+
+.btn-auth:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--t2);
+}
+
+
