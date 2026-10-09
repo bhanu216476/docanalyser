@@ -97,6 +97,10 @@ class Citation(BaseModel):
         ge=0,
         description="0-based sequential chunk index within document.",
     )
+    passage: str = Field(
+        default="",
+        description="The actual chunk text/passage.",
+    )
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional custom source metadata.",

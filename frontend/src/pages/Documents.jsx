@@ -48,7 +48,7 @@ export default function Documents({
       reader.onload = (evt) => {
         setUploadContent(evt.target.result || `File content from ${file.name}`);
       };
-      reader.readAsText(file);
+      reader.readAsDataURL(file);
     }
   };
 
@@ -129,7 +129,7 @@ export default function Documents({
             >
               <Upload size={20} />
             </div>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx)', marginBottom: '4px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--tx)', marginBottom: '4px' }}>
               Drop files here to add them
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--t2)', marginBottom: '16px' }}>
@@ -147,7 +147,7 @@ export default function Documents({
                     setUploadTitle(f.name);
                     const reader = new FileReader();
                     reader.onload = (evt) => setUploadContent(evt.target.result || '');
-                    reader.readAsText(f);
+                    reader.readAsDataURL(f);
                   }
                 }}
                 style={{ display: 'none' }}
@@ -157,7 +157,7 @@ export default function Documents({
 
           {/* Quick Ingestion Form */}
           <div className="card">
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx)', marginBottom: '14px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--tx)', marginBottom: '14px' }}>
               Ingest Document Details
             </h3>
 

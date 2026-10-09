@@ -12,7 +12,9 @@ export default function AskAI({
   setQueryInput,
   isQuerying,
   handleSendQuery,
-  documents = []
+  documents = [],
+  selectedDocId,
+  setSelectedDocId
 }) {
   const [activeCitationId, setActiveCitationId] = useState(null);
   const [currentCitations, setCurrentCitations] = useState([]);
@@ -96,25 +98,12 @@ export default function AskAI({
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: 'var(--s1)',
+          backgroundColor: 'transparent',
           borderRight: '1px solid var(--bd)',
           flexShrink: 0
         }}
         className="ask-chat-column"
       >
-        {/* Chat Header */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--bd)',
-            backgroundColor: 'var(--s1)'
-          }}
-        >
-          <h1 className="chat-heading">Ask your knowledge base</h1>
-          <p style={{ fontSize: '12.5px', color: 'var(--t2)', marginTop: '4px' }}>
-            Answers come with proof from your own documents.
-          </p>
-        </div>
 
         {/* Messages Body Scroll Area */}
         <div
@@ -164,9 +153,9 @@ export default function AskAI({
             {messages.map((msg) => (
               <motion.div
                 key={msg.id || Math.random()}
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.15 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
               >
                 {msg.role === 'user' ? (
                   /* User Message: Right aligned bubble */
@@ -175,7 +164,7 @@ export default function AskAI({
                       style={{
                         maxWidth: '88%',
                         padding: '10px 14px',
-                        backgroundColor: 'var(--s2)',
+                        backgroundColor: 'var(--s1)',
                         border: '1px solid var(--bd)',
                         borderRadius: '12px 12px 2px 12px',
                         color: 'var(--tx)',
@@ -271,6 +260,8 @@ export default function AskAI({
           isQuerying={isQuerying}
           handleSendQuery={handleSendQuery}
           documents={documents}
+          selectedDocId={selectedDocId}
+          setSelectedDocId={setSelectedDocId}
         />
       </div>
 

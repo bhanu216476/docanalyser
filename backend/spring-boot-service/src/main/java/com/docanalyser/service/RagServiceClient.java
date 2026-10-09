@@ -100,29 +100,44 @@ public class RagServiceClient {
         String fileUrl = ingestionRequest.getFileUrl();
         String fileName = ingestionRequest.getFileName() != null ? ingestionRequest.getFileName() : "document.bin";
 
-        // Step 1: Download the file bytes from the remote URL
+        // Step 1: Download the file bytes from the remote URL or treat as raw text
         byte[] fileBytes;
-        try {
-            log.info("Downloading document for ingestion from: {}", fileUrl);
-            HttpClient httpClient = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofMillis(connectTimeoutMs))
-                    .build();
-            HttpRequest downloadRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(fileUrl))
-                    .timeout(Duration.ofMillis(readTimeoutMs))
-                    .GET()
-                    .build();
-            HttpResponse<byte[]> downloadResponse = httpClient.send(downloadRequest, HttpResponse.BodyHandlers.ofByteArray());
-            if (downloadResponse.statusCode() < 200 || downloadResponse.statusCode() >= 300) {
+        if (fileUrl != null && (fileUrl.startsWith("http://") || fileUrl.startsWith("https://"))) {
+            try {
+                log.info("Downloading document for ingestion from: {}", fileUrl);
+                HttpClient httpClient = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofMillis(connectTimeoutMs))
+                        .build();
+                HttpRequest downloadRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(fileUrl))
+                        .timeout(Duration.ofMillis(readTimeoutMs))
+                        .GET()
+                        .build();
+                HttpResponse<byte[]> downloadResponse = httpClient.send(downloadRequest, HttpResponse.BodyHandlers.ofByteArray());
+                if (downloadResponse.statusCode() < 200 || downloadResponse.statusCode() >= 300) {
+                    throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                            "Failed to download document from URL: HTTP " + downloadResponse.statusCode());
+                }
+                fileBytes = downloadResponse.body();
+                log.info("Downloaded {} bytes for document: {}", fileBytes.length, fileName);
+            } catch (IOException | InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                        "Failed to download document from URL: HTTP " + downloadResponse.statusCode());
+                        "Failed to download document from URL: " + e.getMessage(), e);
             }
-            fileBytes = downloadResponse.body();
-            log.info("Downloaded {} bytes for document: {}", fileBytes.length, fileName);
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "Failed to download document from URL: " + e.getMessage(), e);
+        } else if (fileUrl != null && fileUrl.startsWith("data:")) {
+            log.info("Processing document as base64 data URI");
+            int commaIndex = fileUrl.indexOf(',');
+            if (commaIndex != -1) {
+                String base64Data = fileUrl.substring(commaIndex + 1);
+                fileBytes = java.util.Base64.getDecoder().decode(base64Data);
+            } else {
+                fileBytes = new byte[0];
+            }
+        } else {
+            // Treat fileUrl as raw text content directly
+            log.info("Processing document as raw text string");
+            fileBytes = fileUrl != null ? fileUrl.getBytes(java.nio.charset.StandardCharsets.UTF_8) : new byte[0];
         }
 
         // Step 2: Send as multipart/form-data to the Python RAG service

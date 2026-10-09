@@ -6,9 +6,10 @@ export default function Composer({
   setQueryInput,
   isQuerying,
   handleSendQuery,
-  documents = []
+  documents = [],
+  selectedDocId,
+  setSelectedDocId
 }) {
-  const [selectedDocId, setSelectedDocId] = useState('all');
   const [showDocSelect, setShowDocSelect] = useState(false);
 
   const selectedDocLabel = selectedDocId === 'all'
@@ -26,7 +27,7 @@ export default function Composer({
     <div
       style={{
         borderTop: '1px solid var(--bd)',
-        backgroundColor: 'var(--s1)',
+        backgroundColor: 'transparent',
         padding: '14px 18px',
         width: '100%'
       }}

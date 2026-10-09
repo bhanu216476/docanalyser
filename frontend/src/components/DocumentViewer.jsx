@@ -25,7 +25,7 @@ export default function DocumentViewer({ citations = [], activeCitationId, onSel
           alignItems: 'center',
           justifyContent: 'center',
           padding: '32px',
-          backgroundColor: 'var(--s2)',
+          backgroundColor: 'var(--bg)',
           borderLeft: '1px solid var(--bd)',
           color: 'var(--t2)',
           textAlign: 'center'
@@ -208,19 +208,11 @@ export default function DocumentViewer({ citations = [], activeCitationId, onSel
           </div>
 
           {/* Sheet Content Body */}
-          <div className="viewer-text">
-            <p style={{ marginBottom: '16px', color: 'var(--t2)', fontSize: '13.5px' }}>
-              ... extracted context block from document index ...
-            </p>
-
+          <div className="viewer-text" key={activeTabIndex} style={{ animation: 'crossfade 0.15s ease-in-out' }}>
             <p style={{ marginBottom: '16px' }}>
               <mark className="cited-highlight">
                 {passageText || 'No passage text returned for this citation.'}
               </mark>
-            </p>
-
-            <p style={{ marginTop: '16px', color: 'var(--t2)', fontSize: '13.5px' }}>
-              ... verified context evidence for query synthesis.
             </p>
           </div>
 

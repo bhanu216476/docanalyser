@@ -66,6 +66,7 @@ function AppShell() {
   ]);
   const [queryInput, setQueryInput] = useState('');
   const [isQuerying, setIsQuerying] = useState(false);
+  const [selectedDocId, setSelectedDocId] = useState('all');
 
   // Periodic real backend health polling
   useEffect(() => {
@@ -132,11 +133,13 @@ function AppShell() {
 
       // Try Spring API ingestion endpoint first
       let apiSuccess = false;
+      let apiData = null;
       try {
         const res = await fetch(`${API_BASE}/api/internal/documents/ingest`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-Internal-Token': 'docanalyser-n8n-internal-token-secret',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({
@@ -146,19 +149,31 @@ function AppShell() {
             fileUrl: uploadContent
           })
         });
-        if (res.ok) {
+        if (res.ok || res.status === 202) {
           apiSuccess = true;
+          apiData = await res.json();
+        } else {
+          let errorData = {};
+          try {
+            errorData = await res.json();
+          } catch (jsonErr) {}
+          throw new Error(errorData.error || errorData.message || `Ingestion failed (Status: ${res.status})`);
         }
-      } catch (e) {}
+      } catch (e) {
+        throw e;
+      }
 
-      // Add to document state
+      // Add to document state using real API response
+      const finalStatus = apiData?.status === 'INDEXED' ? 'PROCESSED' : (apiData?.status || 'PROCESSING');
+      const realDocId = apiData?.documentId || newDocId;
+      
       const newDoc = {
-        id: newDocId,
+        id: realDocId,
         title: uploadTitle || fileName,
         fileName: fileName,
         category: uploadCategory,
-        status: 'PROCESSED',
-        chunks: Math.max(1, Math.ceil((uploadContent.length || 500) / 250)),
+        status: finalStatus,
+        chunks: apiData?.details?.chunk_count || Math.max(1, Math.ceil((uploadContent.length || 500) / 250)),
         uploadedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
       };
 
@@ -188,13 +203,21 @@ function AppShell() {
 
       // Try RAG endpoint
       try {
+        const payload = { 
+          query: userText, 
+          top_k: 5 
+        };
+        if (selectedDocId !== 'all') {
+          payload.filters = { document_id: selectedDocId };
+        }
+
         const res = await fetch(`${RAG_BASE}/api/v1/rag/query`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
-          body: JSON.stringify({ query: userText, top_k: 5 })
+          body: JSON.stringify(payload)
         });
         if (res.ok) {
           ragResponse = await res.json();
@@ -218,52 +241,20 @@ function AppShell() {
           role: 'assistant',
           text: ragResponse.answer,
           meta: {
-            confidence: ragResponse.confidence?.score || ragResponse.confidence || 0.94,
+            confidence: ragResponse.confidence?.score || ragResponse.confidence || 0,
             citations: ragResponse.citations || [],
-            verification: ragResponse.verification || { verified: true, status: 'VERIFIED', verified_sources: 2, total_sources: 2 },
+            verification: ragResponse.verification || null,
             latency: ragResponse.latency_breakdown_ms || {},
             metadata: ragResponse.metadata || {}
           }
         }]);
       } else {
-        // Honest fallback with structured RAG citations mapping to existing documents
+        // Safe fallback if no context or answer is returned
         setMessages(prev => [...prev, {
           id: `ai-${Date.now()}`,
           role: 'assistant',
-          text: `Based on your indexed documents, DocAnalyser combines dense vector search with sparse BM25 keyword retrieval using Reciprocal Rank Fusion (RRF) [1]. Every generated claim undergoes automated NLI citation verification to guarantee zero hallucinations [2].`,
-          meta: {
-            confidence: 0.94,
-            searchedDocuments: documents.length || 2,
-            passagesFound: 14,
-            citedCount: 2,
-            verification: { verified: true, status: 'VERIFIED', verified_sources: 2, total_sources: 2 },
-            citations: [
-              {
-                id: 1,
-                citation_id: '[1]',
-                document: 'Hybrid RAG Architecture Design',
-                file_name: 'hybrid_rag_architecture.pdf',
-                file_type: 'pdf',
-                page_number: 3,
-                page: 2,
-                chunk_id: 'chk-001',
-                source: 'Section 3 — Dense + Sparse Retrieval Fusion',
-                passage: 'Hybrid composition fuses BM25 sparse keyword scores and dense vector embeddings via Reciprocal Rank Fusion (RRF) with cross-encoder reranking.'
-              },
-              {
-                id: 2,
-                citation_id: '[2]',
-                document: 'Citation Verification & Faithfulness Protocols',
-                file_name: 'citation_verification_protocols.pdf',
-                file_type: 'pdf',
-                page_number: 4,
-                page: 3,
-                chunk_id: 'chk-002',
-                source: 'Section 2 — Entailment Checking',
-                passage: 'Every claim in generated responses is anchored to an extracted chunk identifier and verified via NLI cross-checking.'
-              }
-            ]
-          }
+          text: `I couldn't find enough information in the uploaded documents to answer this question.`,
+          meta: null
         }]);
       }
     } catch (err) {
@@ -302,6 +293,8 @@ function AppShell() {
                   isQuerying={isQuerying}
                   handleSendQuery={handleSendQuery}
                   documents={documents}
+                  selectedDocId={selectedDocId}
+                  setSelectedDocId={setSelectedDocId}
                 />
               }
             />
