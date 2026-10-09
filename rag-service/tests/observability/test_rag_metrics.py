@@ -13,7 +13,6 @@ import json
 import logging
 
 import pytest
-
 from app.observability.logging_config import JsonFormatter
 from app.observability.metrics import RagMetrics
 

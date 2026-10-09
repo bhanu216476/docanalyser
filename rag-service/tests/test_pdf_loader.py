@@ -15,7 +15,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from app.ingestion.models import Document
 from app.ingestion.pdf_loader import PDFLoader
 

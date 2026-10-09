@@ -1,7 +1,6 @@
 import pytest
-from pydantic import ValidationError
-
 from app.llm.models import LLMRequest, LLMResponse
+from pydantic import ValidationError
 
 
 def test_valid_request_and_response_are_frozen() -> None:

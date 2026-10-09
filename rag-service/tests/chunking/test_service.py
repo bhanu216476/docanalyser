@@ -1,9 +1,8 @@
 """Tests for chunking service strategy dispatcher."""
 
 import pytest
-from langchain_core.documents import Document
-
 from app.chunking.service import chunk_documents
+from langchain_core.documents import Document
 from tests.chunking.fake_embeddings import FakeEmbeddings
 
 

@@ -28,17 +28,14 @@ from app.jobs.queue import IngestionJobQueue
 from app.jobs.service import IngestionJobService
 
 __all__ = [
-    # Models
     "IngestionJob",
-    "IngestionJobRequest",
-    "IngestionJobResponse",
-    "IngestionJobStatus",
-    "IngestionOperation",
-    # Queue / service
-    "IngestionJobQueue",
-    "IngestionJobService",
-    # Exceptions
     "IngestionJobError",
     "IngestionJobNotFoundError",
+    "IngestionJobQueue",
+    "IngestionJobRequest",
+    "IngestionJobResponse",
+    "IngestionJobService",
+    "IngestionJobStatus",
+    "IngestionOperation",
     "IngestionQueueFullError",
 ]

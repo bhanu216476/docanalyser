@@ -5,7 +5,6 @@ Unit tests for document loaders (TxtLoader, MarkdownLoader) and common loader in
 from pathlib import Path
 
 import pytest
-
 from app.ingestion import BaseLoader, Document, MarkdownLoader, TxtLoader
 
 # ---------------------------------------------------------------------------
