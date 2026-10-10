@@ -58,31 +58,40 @@ class FakeLLMProvider(LLMProvider):
             raise LLMProviderError("Fake LLM permanent failure", is_transient=False)
         if self._call_count in self._fail_on_calls:
             raise LLMProviderError("Fake LLM transient failure", is_transient=True)
+
         legacy_version = getattr(prompt, "version", None)
+        prompt_text = str(prompt)
+
         if legacy_version in self._custom_responses:
             text = self._custom_responses[legacy_version]
         else:
-            # Build a more realistic mock response from the prompt string
+              # Keep mock output deterministic while using available evidence context.
             prompt_str = str(prompt)
             if "Evidence Context:\n" in prompt_str:
                 context_part = (
-                    prompt_str.split("Evidence Context:\n")[1]
-                    .split("User Question:")[0]
+                    prompt_str.split("Evidence Context:\n", 1)[1]
+                    .split("User Question:", 1)[0]
                     .strip()
                 )
                 if context_part and len(context_part) > 10:
-                    text = f"Based on the provided documents, here is the answer: The document states '{context_part[:150]}...' [1]"
+                    text = (
+                        "Based on the provided documents, here is the answer: "
+                        f"The document states '{context_part[:150]}...' [1]"
+                    )
                 else:
-                    text = "I couldn't find enough information in the uploaded documents to answer this question."
+                    text = (
+                        "I couldn't find enough information in the uploaded "
+                        "documents to answer this question."
+                    )
             else:
-                text = f"FAKE_RESPONSE[{prompt_str[:50]}]"
+                text = f"FAKE_RESPONSE[1] {prompt_str}"
 
         response = LLMResponse(
             text=text,
             model=model,
-            input_tokens=len(str(prompt).split()),
+            input_tokens=len(prompt_text.split()),
             output_tokens=len(text.split()),
-            total_tokens=len(str(prompt).split()) + len(text.split()),
+            total_tokens=len(prompt_text.split()) + len(text.split()),
         )
         if legacy_version is not None:
             object.__setattr__(response, "_legacy_version", legacy_version)
