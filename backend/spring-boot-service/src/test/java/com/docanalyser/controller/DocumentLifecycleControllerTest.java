@@ -4,12 +4,16 @@ import com.docanalyser.auth.RagServiceException;
 import com.docanalyser.client.RagServiceClient;
 import com.docanalyser.dto.request.DocumentLifecycleRequest.DocumentEvent;
 import com.docanalyser.dto.response.DocumentLifecycleResponse;
+import com.docanalyser.security.jwt.AuthEntryPointJwt;
+import com.docanalyser.security.jwt.JwtUtils;
+import com.docanalyser.security.services.UserDetailsServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -21,13 +25,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(DocumentLifecycleController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class DocumentLifecycleControllerTest {
+
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
     private RagServiceClient ragServiceClient;
 
+    // Required by SecurityConfig
+    @MockBean
+    private UserDetailsServiceImpl userDetailsService;
+
+    @MockBean
+    private AuthEntryPointJwt authEntryPointJwt;
+
+    @MockBean
+    private JwtUtils jwtUtils;
+
     @Test
+    @WithMockUser(username = "test@example.com")
     void forwardsValidLifecycleRequest() throws Exception {
         when(ragServiceClient.processDocument(any())).thenReturn(
                 new DocumentLifecycleResponse(true, "doc-123", DocumentEvent.DOCUMENT_ADDED, "PROCESSED", 2)
@@ -45,6 +61,7 @@ class DocumentLifecycleControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "test@example.com")
     void rejectsMissingDocumentId() throws Exception {
         mockMvc.perform(post("/api/v1/documents")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -55,6 +72,7 @@ class DocumentLifecycleControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "test@example.com")
     void propagatesPythonServiceFailure() throws Exception {
         when(ragServiceClient.processDocument(any())).thenThrow(
                 new RagServiceException("RAG service returned HTTP 503", 503, null)

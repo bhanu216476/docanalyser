@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -61,6 +65,8 @@ public class IngestionController {
             docId = UUID.randomUUID();
         }
 
+        String contentHash = resolveContentHash(request);
+
         Document document = null;
         if (documentRepository != null) {
             Optional<Document> existing = documentRepository.findById(docId);
@@ -74,6 +80,16 @@ public class IngestionController {
                     ));
                 }
             } else {
+                Optional<Document> duplicate = documentRepository.findByContentHash(contentHash);
+                if (duplicate.isPresent()) {
+                    Document duplicateDocument = duplicate.get();
+                    return ResponseEntity.ok(Map.of(
+                            "documentId", duplicateDocument.getId().toString(),
+                            "status", duplicateDocument.getStatus().name(),
+                            "message", "Duplicate document ignored"
+                    ));
+                }
+
                 String fileName = request.getFileName() != null ? request.getFileName() : "unknown";
                 String fileType = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf('.') + 1) : "unknown";
                 document = new Document(
@@ -82,7 +98,7 @@ public class IngestionController {
                         "application/octet-stream",
                         request.getSource() != null ? request.getSource() : "internal",
                         0L,
-                        "hash:" + docId,
+                        contentHash,
                         DocumentStatus.UPLOADED
                 );
                 document.setId(docId);
@@ -151,6 +167,26 @@ public class IngestionController {
                     "status", DocumentStatus.FAILED.name(),
                     "error", errorMsg
             ));
+        }
+    }
+
+    private String resolveContentHash(IngestionRequest request) {
+        if (request.getContentHash() != null && !request.getContentHash().isBlank()) {
+            return request.getContentHash().trim();
+        }
+
+        String fingerprint = String.join("|",
+                request.getSource() != null ? request.getSource().trim() : "",
+                request.getFileUrl() != null ? request.getFileUrl().trim() : "",
+                request.getFileName() != null ? request.getFileName().trim() : ""
+        );
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(fingerprint.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 digest not available", e);
         }
     }
 }

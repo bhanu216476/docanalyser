@@ -65,9 +65,26 @@ class FakeLLMProvider(LLMProvider):
         if legacy_version in self._custom_responses:
             text = self._custom_responses[legacy_version]
         else:
-            # Keep the fake output deterministic and include the required
-            # citation-like marker while retaining the prompt payload.
-            text = f"FAKE_RESPONSE[1] {prompt_text}"
+              # Keep mock output deterministic while using available evidence context.
+            prompt_str = str(prompt)
+            if "Evidence Context:\n" in prompt_str:
+                context_part = (
+                    prompt_str.split("Evidence Context:\n", 1)[1]
+                    .split("User Question:", 1)[0]
+                    .strip()
+                )
+                if context_part and len(context_part) > 10:
+                    text = (
+                        "Based on the provided documents, here is the answer: "
+                        f"The document states '{context_part[:150]}...' [1]"
+                    )
+                else:
+                    text = (
+                        "I couldn't find enough information in the uploaded "
+                        "documents to answer this question."
+                    )
+            else:
+                text = f"FAKE_RESPONSE[1] {prompt_str}"
 
         response = LLMResponse(
             text=text,

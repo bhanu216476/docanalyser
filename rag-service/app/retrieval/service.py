@@ -89,7 +89,7 @@ class DenseRetrievalService:
         if score_threshold is None:
             return None
         if isinstance(score_threshold, bool) or not isinstance(score_threshold, Real):
-            raise ValueError("score_threshold must be numeric")
+            raise TypeError("score_threshold must be numeric")
         threshold = float(score_threshold)
         if not math.isfinite(threshold):
             raise ValueError("score_threshold must be finite")

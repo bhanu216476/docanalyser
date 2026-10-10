@@ -46,6 +46,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public RateLimitingFilter rateLimitingFilter() {
+        return new RateLimitingFilter();
+    }
+
+    @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
@@ -92,8 +97,13 @@ public class SecurityConfig {
 
         http.authenticationProvider(authenticationProvider());
         
-        http.addFilterBefore(internalApiKeyFilter(), UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        // Filter execution order (first to last):
+        // 1. RateLimitingFilter  — applied to all requests before auth
+        // 2. InternalApiKeyFilter — sets ROLE_SYSTEM for /api/internal/** with valid X-Internal-Token
+        // 3. JwtAuthenticationFilter — sets user auth for regular authenticated endpoints
+        http.addFilterBefore(rateLimitingFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(internalApiKeyFilter(), RateLimitingFilter.class);
+        http.addFilterAfter(authenticationJwtTokenFilter(), InternalApiKeyFilter.class);
         
         return http.build();
     }

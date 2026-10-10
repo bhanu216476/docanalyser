@@ -71,6 +71,24 @@ token guard and owns transient retry with exponential backoff and jitter.
 When no OpenAI API key is configured, development uses a deterministic fake
 provider and emits a warning; it never makes a network request.
 
+### API key usage
+
+The [Public APIs catalog](https://github.com/public-apis/public-apis) is a
+directory of third-party APIs; it does not provide a shared API key or a
+single endpoint for DocAnalyser. If an API discovered there is added to the
+application, obtain credentials from that API's own provider and document its
+configuration separately.
+
+For the current OpenAI-backed RAG pipeline:
+
+1. Copy `rag-service/.env.example` to `rag-service/.env`.
+2. Set `OPENAI_API_KEY` to a key obtained from OpenAI.
+3. Keep the key server-side; do not put it in frontend `VITE_*` variables or
+   send it in browser requests.
+
+Never commit `.env` files or real API keys. The placeholder in
+`rag-service/.env.example` is intentionally not a usable credential.
+
 ## Dense vs BM25 Evaluation
 
 The comparison helper in `app/retrieval/benchmark.py` evaluates both strategies on the same `EmbeddedChunk` corpus and deterministic query cases. `run_synthetic_benchmark()` provides a small academic-style dataset, while `format_comparison()` renders aggregate Hit Rate@K, Recall@K, MRR@K, and average latency. Results are experimental: they depend on the corpus, query set, embedding model, hardware, and configuration; neither strategy is universally better.
@@ -87,4 +105,3 @@ The comparison utility can be called from a test or evaluation script with `comp
 ```bash
 python -c "from app.retrieval.benchmark import format_comparison, run_synthetic_benchmark; print(format_comparison(run_synthetic_benchmark()))"
 ```
-

@@ -99,4 +99,26 @@ class IngestionControllerTest {
 
         verify(documentJobStatusService).setStatus(eq(docId), eq(DocumentStatus.FAILED), any());
     }
+
+    @Test
+    @DisplayName("ingestDocument ignores duplicate documents by content hash")
+    void ingestDocument_duplicateByContentHash_returnsExistingDocument() {
+        request.setDocumentId(UUID.randomUUID().toString());
+        request.setContentHash("sha256:duplicate-hash");
+
+        Document duplicate = new Document("manual.pdf", "pdf", "application/pdf", "google-drive", 100L, "sha256:duplicate-hash");
+        duplicate.setId(UUID.randomUUID());
+
+        when(documentRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+        when(documentRepository.findByContentHash("sha256:duplicate-hash")).thenReturn(Optional.of(duplicate));
+
+        ResponseEntity<?> response = ingestionController.ingestDocument(request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.get("status")).isEqualTo(duplicate.getStatus().name());
+        assertThat(body.get("message")).isEqualTo("Duplicate document ignored");
+        org.mockito.Mockito.verify(ragServiceClient, org.mockito.Mockito.never()).ingestDocument(any());
+    }
 }

@@ -19,9 +19,9 @@ Coverage:
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 from types import SimpleNamespace
-import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -40,7 +40,6 @@ from app.jobs.service import IngestionJobService
 from app.main import app
 from app.pipeline.document_lifecycle import DocumentLifecycleService
 from app.pipeline.rag_pipeline import IngestionError, create_rag_pipeline
-
 
 # ---------------------------------------------------------------------------
 # Test doubles
@@ -165,9 +164,7 @@ class TestIngestionJobRequestValidation:
 
     def test_add_requires_source_url_and_file_name(self) -> None:
         with pytest.raises(ValueError, match="source_url is required"):
-            IngestionJobRequest(
-                operation=IngestionOperation.ADD, document_id="doc-1"
-            )
+            IngestionJobRequest(operation=IngestionOperation.ADD, document_id="doc-1")
 
         with pytest.raises(ValueError, match="file_name is required"):
             IngestionJobRequest(
@@ -386,7 +383,7 @@ class TestIngestionJobServiceProcessing:
             assert service.worker_running is False
             return submitted, await service.process_next_job()
 
-        submitted, processed = asyncio.run(scenario())
+        _submitted, processed = asyncio.run(scenario())
         assert processed is not None
         assert processed.status is IngestionJobStatus.COMPLETED  # type: ignore[attr-defined]
         assert processed.chunk_count == 3  # type: ignore[attr-defined]
@@ -509,8 +506,12 @@ class TestIngestionJobServiceProcessing:
         jobs = run_jobs(
             service,
             [
-                add_request(document_id="doc-bad", source=failing, file_name="missing.txt"),
-                add_request(document_id="doc-good", source=healthy, file_name="report.txt"),
+                add_request(
+                    document_id="doc-bad", source=failing, file_name="missing.txt"
+                ),
+                add_request(
+                    document_id="doc-good", source=healthy, file_name="report.txt"
+                ),
             ],
         )
 
@@ -530,8 +531,12 @@ class TestIngestionJobServiceProcessing:
         run_jobs(
             service,
             [
-                add_request(document_id="doc-1", source=first_source, file_name="first.txt"),
-                add_request(document_id="doc-2", source=second_source, file_name="second.txt"),
+                add_request(
+                    document_id="doc-1", source=first_source, file_name="first.txt"
+                ),
+                add_request(
+                    document_id="doc-2", source=second_source, file_name="second.txt"
+                ),
             ],
         )
 
@@ -559,7 +564,6 @@ class TestIngestionJobServiceProcessing:
         assert processed is not None
         assert empty is None
         assert len(pipeline.ingested) == 1
-
 
 
 # ---------------------------------------------------------------------------
@@ -618,9 +622,7 @@ class TestIngestionJobServiceHelpers:
 # ---------------------------------------------------------------------------
 
 
-def poll_until_terminal(
-    client: TestClient, job_id: str, timeout: float = 20.0
-) -> dict:
+def poll_until_terminal(client: TestClient, job_id: str, timeout: float = 20.0) -> dict:
     """Poll a job's status endpoint until it reaches COMPLETED or FAILED."""
     deadline = time.monotonic() + timeout
     while True:
@@ -807,16 +809,13 @@ class TestIngestionJobApi:
         )
         assert [job["job_id"] for job in filtered.json()] == [job_id]
 
-        completed = client.get(
-            "/api/v1/ingestion/jobs", params={"status": "COMPLETED"}
-        )
+        completed = client.get("/api/v1/ingestion/jobs", params={"status": "COMPLETED"})
         assert completed.json() == []
 
         invalid = client.get(
             "/api/v1/ingestion/jobs", params={"status": "NOT-A-STATUS"}
         )
         assert invalid.status_code == 422
-
 
 
 # ---------------------------------------------------------------------------
@@ -876,7 +875,6 @@ class TestQueuedIngestionEndToEnd:
         assert delete_completed["chunk_count"] == 0
         assert pipeline.bm25_index.num_documents == 0
         assert pipeline.vector_store.count() == 0
-
 
     def test_update_job_replaces_existing_chunks(
         self, pipeline_client, tmp_path: Path
@@ -958,4 +956,3 @@ class TestQueuedIngestionEndToEnd:
         assert response.status_code == 200
         assert response.json()["status"] == "PROCESSED"
         assert pipeline.bm25_index.num_documents > 0
-
