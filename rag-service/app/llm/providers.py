@@ -58,17 +58,23 @@ class FakeLLMProvider(LLMProvider):
             raise LLMProviderError("Fake LLM permanent failure", is_transient=False)
         if self._call_count in self._fail_on_calls:
             raise LLMProviderError("Fake LLM transient failure", is_transient=True)
+
         legacy_version = getattr(prompt, "version", None)
+        prompt_text = str(prompt)
+
         if legacy_version in self._custom_responses:
             text = self._custom_responses[legacy_version]
         else:
-            text = f"FAKE_RESPONSE[{prompt}]"
+            # Keep the fake output deterministic and include the required
+            # citation-like marker while retaining the prompt payload.
+            text = f"FAKE_RESPONSE[1] {prompt_text}"
+
         response = LLMResponse(
             text=text,
             model=model,
-            input_tokens=len(str(prompt).split()),
+            input_tokens=len(prompt_text.split()),
             output_tokens=len(text.split()),
-            total_tokens=len(str(prompt).split()) + len(text.split()),
+            total_tokens=len(prompt_text.split()) + len(text.split()),
         )
         if legacy_version is not None:
             object.__setattr__(response, "_legacy_version", legacy_version)
