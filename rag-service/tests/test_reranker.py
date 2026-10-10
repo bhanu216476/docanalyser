@@ -5,6 +5,7 @@ Unit tests for BaseReranker, MockReranker, and ranking metrics.
 from __future__ import annotations
 
 import pytest
+
 from app.reranking.base import Reranker
 from app.reranking.mock_reranker import MockReranker
 from app.retrieval.models import RetrievalResult

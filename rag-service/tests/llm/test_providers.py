@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+
 from app.llm.exceptions import LLMProviderError
 from app.llm.providers import FakeLLMProvider, OpenAILLMProvider
 

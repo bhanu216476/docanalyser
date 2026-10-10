@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from app.context.models import BuiltContext, Citation, ContextChunk
 from app.llm.prompt_builder import PromptBuilder, UnknownPromptVersionError
 from app.llm.prompts.models import MessageRole, PromptVersion

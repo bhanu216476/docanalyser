@@ -7,8 +7,9 @@ Tests Pydantic validation rules without any external dependencies.
 from __future__ import annotations
 
 import pytest
-from app.retrieval.models import RetrievalFilter, RetrievalRequest, RetrievalResult
 from pydantic import ValidationError
+
+from app.retrieval.models import RetrievalFilter, RetrievalRequest, RetrievalResult
 
 # ===========================================================================
 # RetrievalFilter

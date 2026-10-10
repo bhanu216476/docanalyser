@@ -23,6 +23,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from qdrant_client import QdrantClient, models
+
 from app.embeddings.models import EmbeddingResult
 from app.ingestion.chunking.models import Chunk
 from app.vector_store import (
@@ -35,7 +37,6 @@ from app.vector_store import (
     VectorValidationError,
     generate_point_id,
 )
-from qdrant_client import QdrantClient, models
 
 # Test dimension for fake vectors
 TEST_DIMENSION = 8

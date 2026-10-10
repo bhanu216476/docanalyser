@@ -16,6 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from app.context.models import BuiltContext
 from app.decision.models import DecisionResult
 from app.llm.prompts.models import Prompt

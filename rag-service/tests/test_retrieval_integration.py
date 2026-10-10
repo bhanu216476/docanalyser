@@ -14,13 +14,14 @@ from fast unit test runs, but they require NO external network access.
 from __future__ import annotations
 
 import pytest
+from qdrant_client import QdrantClient
+
 from app.embeddings.providers import FakeEmbeddingProvider
 from app.embeddings.service import EmbeddingService
 from app.ingestion.chunking.models import Chunk
 from app.retrieval.dense_retriever import DenseRetriever
 from app.retrieval.models import RetrievalFilter, RetrievalResult
 from app.vector_store.qdrant_store import QdrantVectorStore
-from qdrant_client import QdrantClient
 
 # ---------------------------------------------------------------------------
 # Constants

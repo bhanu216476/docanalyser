@@ -1,8 +1,9 @@
 """Tests for metadata preservation during chunking."""
 
+from langchain_core.documents import Document
+
 from app.chunking.fixed import fixed_chunk_documents
 from app.chunking.models import Chunk, build_chunk_document
-from langchain_core.documents import Document
 
 
 def test_metadata_preservation_fields():
