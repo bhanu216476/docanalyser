@@ -10,7 +10,7 @@ Defines:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -112,7 +112,7 @@ class Prompt(BaseModel):
         description="Citation IDs present in the context, e.g. ['[1]', '[2]'].",
     )
     built_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="UTC timestamp of prompt assembly.",
     )
 

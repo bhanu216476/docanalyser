@@ -5,8 +5,6 @@ Unit and integration tests for BM25Retriever and API endpoint.
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.api.retrieval import set_bm25_retriever
 from app.ingestion.chunking.models import Chunk as IngestionChunk
 from app.main import app
@@ -17,6 +15,7 @@ from app.retrieval import (
     Retriever,
     create_bm25_retriever,
 )
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

@@ -23,7 +23,6 @@ Also tests:
 from __future__ import annotations
 
 import pytest
-
 from app.verification.models import VerificationStatus
 from app.verification.rules import RuleBasedVerifier
 

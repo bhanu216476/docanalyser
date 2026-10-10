@@ -1,7 +1,6 @@
 import logging
 
 import pytest
-
 from app.llm.client import LLMClient, create_llm_client
 from app.llm.exceptions import (
     LLMProviderError,

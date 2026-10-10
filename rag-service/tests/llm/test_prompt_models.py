@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from app.llm.prompts.models import MessageRole, Prompt, PromptMessage, PromptVersion
+from pydantic import ValidationError
 
 
 class TestPromptVersion:

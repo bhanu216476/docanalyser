@@ -25,7 +25,7 @@ Design decisions:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -34,7 +34,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 def utc_now() -> datetime:
     """Return the current timezone-aware UTC timestamp."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class IngestionOperation(StrEnum):

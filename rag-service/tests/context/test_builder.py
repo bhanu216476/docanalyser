@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from app.context import ContextBuilder
 from app.reranking.models import RerankedResult
 from app.retrieval.models import RetrievalProvenance
