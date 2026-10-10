@@ -3,6 +3,8 @@
 import math
 
 import pytest
+from pydantic import ValidationError
+
 from app.embeddings import EmbeddingService, FakeEmbeddingProvider
 from app.embeddings.models import EmbeddedChunk
 from app.retrieval import (
@@ -11,7 +13,6 @@ from app.retrieval import (
     RetrievalResult,
     cosine_similarity,
 )
-from pydantic import ValidationError
 
 
 @pytest.fixture

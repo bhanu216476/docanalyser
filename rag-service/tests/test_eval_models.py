@@ -8,12 +8,13 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
+
 from evals.models import (
     EvaluationCase,
     EvaluationCategory,
     EvaluationDataset,
 )
-from pydantic import ValidationError
 
 
 def test_valid_evaluation_case_creation() -> None:

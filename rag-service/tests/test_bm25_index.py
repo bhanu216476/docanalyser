@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from app.retrieval.bm25_index import BM25Index
 from app.retrieval.exceptions import RetrievalIndexError
 

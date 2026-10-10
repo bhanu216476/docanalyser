@@ -7,6 +7,7 @@ Includes hand-calculated expected values and exhaustive edge-case coverage.
 from __future__ import annotations
 
 import pytest
+
 from app.retrieval.models import RetrievalResult
 
 # ---------------------------------------------------------------------------

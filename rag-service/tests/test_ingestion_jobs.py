@@ -24,6 +24,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
+
 from app.api.documents import set_document_lifecycle_service
 from app.api.jobs import set_job_service
 from app.api.rag import set_pipeline
@@ -38,7 +40,6 @@ from app.jobs.service import IngestionJobService
 from app.main import app
 from app.pipeline.document_lifecycle import DocumentLifecycleService
 from app.pipeline.rag_pipeline import IngestionError, create_rag_pipeline
-from fastapi.testclient import TestClient
 
 # ---------------------------------------------------------------------------
 # Test doubles

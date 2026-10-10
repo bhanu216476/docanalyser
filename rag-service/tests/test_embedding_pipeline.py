@@ -3,6 +3,8 @@
 import math
 
 import pytest
+from langchain_core.documents import Document
+
 from app.embeddings import (
     EmbeddedChunk,
     EmbeddingProvider,
@@ -12,7 +14,6 @@ from app.embeddings import (
     FakeEmbeddingProvider,
 )
 from app.embeddings.pipeline import chunk_and_embed_documents
-from langchain_core.documents import Document
 from tests.chunking.fake_embeddings import FakeEmbeddings
 
 

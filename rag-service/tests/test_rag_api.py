@@ -17,10 +17,11 @@ import io
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+
 from app.api.rag import set_pipeline
 from app.main import app
 from app.pipeline.rag_pipeline import create_rag_pipeline
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture
