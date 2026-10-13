@@ -15,8 +15,6 @@ for fast, zero-delay, deterministic execution without network calls.
 """
 
 import pytest
-from pydantic import ValidationError
-
 from app.embeddings import (
     CharApproxTokenCounter,
     EmbeddingProvider,
@@ -32,6 +30,7 @@ from app.embeddings import (
     make_token_counter,
 )
 from app.ingestion.chunking.models import Chunk
+from pydantic import ValidationError
 
 # ======================================================================
 # Fixtures
@@ -575,11 +574,14 @@ class TestTokenCountersAndFactory:
         counter = make_token_counter(auto=False)
         assert isinstance(counter, CharApproxTokenCounter)
 
-    def test_create_embedding_service_factory(self, noop_sleep):
+    def test_create_embedding_service_factory(self, noop_sleep, monkeypatch):
         """create_embedding_service builds a valid EmbeddingService with fallback."""
+        from app.core.config import settings
+
+        monkeypatch.setattr(settings, "openai_api_key", "")
         service = create_embedding_service(sleep_fn=noop_sleep)
         assert isinstance(service, EmbeddingService)
-        # By default in test environment without OPENAI_API_KEY, uses FakeEmbeddingProvider
+        # Without OPENAI_API_KEY, uses FakeEmbeddingProvider
         assert isinstance(service._provider, FakeEmbeddingProvider)
 
         # Ensure service works

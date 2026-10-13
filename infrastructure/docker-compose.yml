@@ -51,7 +51,7 @@ services:
   # Qdrant v1.9.0 - Vector Database for Dense & Hybrid Embeddings
   # ----------------------------------------------------------------------------
   qdrant:
-    image: qdrant/qdrant:v1.9.0
+    image: qdrant/qdrant:latest
     container_name: docanalyser-qdrant
     restart: unless-stopped
     ports:

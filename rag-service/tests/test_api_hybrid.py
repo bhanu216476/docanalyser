@@ -8,8 +8,6 @@ without external infrastructure.
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.api.retrieval import set_hybrid_retriever
 from app.main import app
 from app.retrieval.exceptions import HybridRetrievalError, RetrievalQueryError
@@ -17,6 +15,7 @@ from app.retrieval.models import (
     HybridRetrievalRequest,
     HybridRetrievalResult,
 )
+from fastapi.testclient import TestClient
 
 # ---------------------------------------------------------------------------
 # Mock HybridRetriever

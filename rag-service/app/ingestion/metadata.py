@@ -79,7 +79,7 @@ class DocumentMetadata(BaseModel):
     content_hash: str = Field(
         ...,
         min_length=64,
-        max_length=64,
+        max_length=128,
         description="Deterministic SHA-256 hash of document content.",
     )
     status: DocumentStatus = Field(

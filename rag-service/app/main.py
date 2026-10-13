@@ -49,7 +49,7 @@ try:
 except ImportError:
     _FASTAPI_INSTRUMENTOR_AVAILABLE = False
 
-from app.api import documents, health, jobs, rag, retrieval  # noqa: E402
+from app.api import documents, health, jobs, rag, retrieval
 
 app = FastAPI(
     title="DocAnalyser RAG Service",

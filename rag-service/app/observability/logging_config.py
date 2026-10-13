@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -67,9 +67,7 @@ class JsonFormatter(logging.Formatter):
         trace_id, span_id = _get_otel_context()
 
         payload: dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(
-                record.created, tz=timezone.utc
-            ).isoformat(),
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "severity": record.levelname,
             "service": self._service,
             "environment": self._environment,

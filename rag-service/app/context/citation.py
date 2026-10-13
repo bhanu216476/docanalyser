@@ -140,5 +140,6 @@ def extract_citation(
         page_number=page_number,
         section=section,
         chunk_index=chunk_index,
+        passage=result.content,
         metadata=metadata,
     )

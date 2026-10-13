@@ -53,3 +53,54 @@ def test_load_pdf_rejects_non_pdf_file(tmp_path):
 
     with pytest.raises(ValueError):
         load_pdf(str(text_path))
+
+
+def test_load_pdf_rejects_empty_pdf(tmp_path):
+    pdf_path = tmp_path / "empty.pdf"
+    pdf_path.write_bytes(b"")
+
+    with pytest.raises(ValueError, match="empty"):
+        load_pdf(str(pdf_path))
+
+
+def test_load_pdf_rejects_oversized_pdf(tmp_path, monkeypatch):
+    pdf_path = tmp_path / "large.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n1 0 obj\nendobj\n%%EOF\n")
+    monkeypatch.setenv("MAX_PDF_SIZE_BYTES", "1")
+
+    with pytest.raises(ValueError, match="too large"):
+        load_pdf(str(pdf_path))
+
+
+def test_load_pdf_rejects_parser_failures(tmp_path, monkeypatch):
+    pdf_path = tmp_path / "broken.pdf"
+    _pdf_fixture(pdf_path)
+
+    class BrokenLoader:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def load(self):
+            raise RuntimeError("parser exploded")
+
+    monkeypatch.setattr("app.ingestion.pdf_loader.PyPDFLoader", BrokenLoader)
+
+    with pytest.raises(ValueError, match="Failed to parse PDF file"):
+        load_pdf(str(pdf_path))
+
+
+def test_load_pdf_rejects_blank_extraction(tmp_path, monkeypatch):
+    pdf_path = tmp_path / "blank.pdf"
+    _pdf_fixture(pdf_path)
+
+    monkeypatch.setattr(
+        "app.ingestion.pdf_loader.PyPDFLoader",
+        lambda *_args, **_kwargs: type(
+            "BlankLoader",
+            (),
+            {"load": lambda self: [Document(page_content="   ", metadata={})]},
+        )(),
+    )
+
+    with pytest.raises(ValueError, match="no extractable text"):
+        load_pdf(str(pdf_path))

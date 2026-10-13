@@ -5,7 +5,6 @@ Unit tests for retrieval metrics: Recall@K, MRR, and Context Relevance.
 from __future__ import annotations
 
 import pytest
-
 from evals.metrics.retrieval import (
     compute_context_relevance,
     compute_mrr,

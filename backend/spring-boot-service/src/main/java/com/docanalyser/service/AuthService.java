@@ -44,6 +44,10 @@ public class AuthService {
                 encoder.encode(signUpRequest.getPassword()),
                 Role.USER
         );
+        user.setProfileType(signUpRequest.getProfileType());
+        user.setDegree(signUpRequest.getDegree());
+        user.setBranch(signUpRequest.getBranch());
+        user.setStudyYear(signUpRequest.getStudyYear());
 
         userRepository.save(user);
     }
@@ -70,11 +74,24 @@ public class AuthService {
     }
 
     public UserResponse getCurrentUser(UserDetailsImpl userDetails) {
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
         String role = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .findFirst()
                 .orElse("ROLE_USER")
                 .replace("ROLE_", "");
-        return new UserResponse(userDetails.getId(), userDetails.getName(), userDetails.getUsername(), role);
+        
+        return new UserResponse(
+                user.getId(), 
+                user.getName(), 
+                user.getEmail(), 
+                role,
+                user.getProfileType(),
+                user.getDegree(),
+                user.getBranch(),
+                user.getStudyYear()
+        );
     }
 }

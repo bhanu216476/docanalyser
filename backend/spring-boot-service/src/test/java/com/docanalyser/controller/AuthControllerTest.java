@@ -160,7 +160,7 @@ class AuthControllerTest {
                 userId, "Test User", "test@example.com", "hashed",
                 authorities, true);
 
-        UserResponse response = new UserResponse(userId, "Test User", "test@example.com", "USER");
+        UserResponse response = new UserResponse(userId, "Test User", "test@example.com", "USER", null, null, null, null);
         when(authService.getCurrentUser(any())).thenReturn(response);
 
         // Use Spring Security test support: withUserDetails or @WithMockUser

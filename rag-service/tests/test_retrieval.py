@@ -3,8 +3,6 @@
 import math
 
 import pytest
-from pydantic import ValidationError
-
 from app.embeddings import EmbeddingService, FakeEmbeddingProvider
 from app.embeddings.models import EmbeddedChunk
 from app.retrieval import (
@@ -13,6 +11,7 @@ from app.retrieval import (
     RetrievalResult,
     cosine_similarity,
 )
+from pydantic import ValidationError
 
 
 @pytest.fixture
@@ -121,11 +120,19 @@ def test_equal_scores_use_stable_input_order(service: DenseRetrievalService) -> 
     assert [result.chunk_id for result in results] == ["first", "second"]
 
 
-@pytest.mark.parametrize("threshold", [math.nan, math.inf, -math.inf, "0.5", True])
+@pytest.mark.parametrize("threshold", [math.nan, math.inf, -math.inf])
 def test_score_threshold_must_be_finite_numeric(
     service: DenseRetrievalService, threshold: object
 ) -> None:
     with pytest.raises(ValueError, match="score_threshold"):
+        service.retrieve([1.0, 0.0], [], score_threshold=threshold)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("threshold", ["0.5", True])
+def test_score_threshold_must_be_numeric(
+    service: DenseRetrievalService, threshold: object
+) -> None:
+    with pytest.raises(TypeError, match="score_threshold"):
         service.retrieve([1.0, 0.0], [], score_threshold=threshold)  # type: ignore[arg-type]
 
 

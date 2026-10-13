@@ -25,16 +25,16 @@ Design decisions:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def utc_now() -> datetime:
     """Return the current timezone-aware UTC timestamp."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class IngestionOperation(StrEnum):
@@ -88,27 +88,27 @@ class IngestionJobRequest(BaseModel):
         min_length=1,
         description="Deterministic identifier of the target document.",
     )
-    file_name: Optional[str] = Field(
+    file_name: str | None = Field(
         default=None,
         min_length=1,
         description="Source file name (required for ADD / UPDATE).",
     )
-    source_url: Optional[str] = Field(
+    source_url: str | None = Field(
         default=None,
         min_length=1,
         description="Path of the document on the shared filesystem.",
     )
-    content_type: Optional[str] = Field(
+    content_type: str | None = Field(
         default=None, min_length=1, description="Optional MIME type."
     )
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional metadata merged into the document metadata.",
     )
-    version: Optional[str] = Field(
+    version: str | None = Field(
         default=None, min_length=1, description="Optional document version."
     )
-    updated_at: Optional[str] = Field(
+    updated_at: str | None = Field(
         default=None, min_length=1, description="Optional ISO-8601 update timestamp."
     )
 
@@ -123,7 +123,7 @@ class IngestionJobRequest(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_source_for_ingestion(self) -> "IngestionJobRequest":
+    def validate_source_for_ingestion(self) -> IngestionJobRequest:
         """Require a source path and file name for ADD / UPDATE operations."""
         if self.operation in (IngestionOperation.ADD, IngestionOperation.UPDATE):
             if not self.source_url:
@@ -147,28 +147,28 @@ class IngestionJob(BaseModel):
     status: IngestionJobStatus = Field(
         default=IngestionJobStatus.QUEUED, description="Current job state."
     )
-    source_url: Optional[str] = Field(default=None)
-    file_name: Optional[str] = Field(default=None)
-    content_type: Optional[str] = Field(default=None)
-    version: Optional[str] = Field(default=None)
-    updated_at: Optional[str] = Field(default=None)
+    source_url: str | None = Field(default=None)
+    file_name: str | None = Field(default=None)
+    content_type: str | None = Field(default=None)
+    version: str | None = Field(default=None)
+    updated_at: str | None = Field(default=None)
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(
         default_factory=utc_now, description="Submission timestamp (UTC)."
     )
-    started_at: Optional[datetime] = Field(
+    started_at: datetime | None = Field(
         default=None, description="Timestamp when processing started (UTC)."
     )
-    finished_at: Optional[datetime] = Field(
+    finished_at: datetime | None = Field(
         default=None, description="Timestamp when processing finished (UTC)."
     )
     chunk_count: int = Field(
         default=0, ge=0, description="Chunks indexed by a successful job."
     )
-    error: Optional[str] = Field(
+    error: str | None = Field(
         default=None, description="Failure message when status is FAILED."
     )
-    error_type: Optional[str] = Field(
+    error_type: str | None = Field(
         default=None, description="Exception class name when status is FAILED."
     )
 
@@ -195,7 +195,7 @@ class IngestionJobResponse(IngestionJob):
             "submission was coalesced into it."
         ),
     )
-    queue_position: Optional[int] = Field(
+    queue_position: int | None = Field(
         default=None,
         ge=1,
         description="1-based FIFO position while the job is QUEUED.",

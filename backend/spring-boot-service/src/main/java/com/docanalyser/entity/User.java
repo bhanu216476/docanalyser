@@ -41,6 +41,18 @@ public class User {
     @Column(name = "enabled", nullable = false)
     private boolean enabled = true;
 
+    @Column(name = "profile_type", length = 50)
+    private String profileType;
+
+    @Column(name = "degree", length = 100)
+    private String degree;
+
+    @Column(name = "branch", length = 100)
+    private String branch;
+
+    @Column(name = "study_year", length = 50)
+    private String studyYear;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -126,6 +138,30 @@ public class User {
     }
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    public String getProfileType() {
+        return profileType;
+    }
+    public void setProfileType(String profileType) {
+        this.profileType = profileType;
+    }
+    public String getDegree() {
+        return degree;
+    }
+    public void setDegree(String degree) {
+        this.degree = degree;
+    }
+    public String getBranch() {
+        return branch;
+    }
+    public void setBranch(String branch) {
+        this.branch = branch;
+    }
+    public String getStudyYear() {
+        return studyYear;
+    }
+    public void setStudyYear(String studyYear) {
+        this.studyYear = studyYear;
     }
 
     @Override

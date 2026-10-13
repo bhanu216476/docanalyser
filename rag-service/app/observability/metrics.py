@@ -13,9 +13,7 @@ import logging
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any
-
-from typing_extensions import Self
+from typing import Any, Self
 
 # ---------------------------------------------------------------------------
 # OpenTelemetry setup — graceful no-op when collector is unavailable

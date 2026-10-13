@@ -34,7 +34,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 from app.core.config import settings
 from app.jobs.exceptions import IngestionJobNotFoundError
@@ -78,17 +78,21 @@ class IngestionJobService:
     def __init__(
         self,
         lifecycle_service: Any,
-        queue: Optional[IngestionJobQueue] = None,
+        queue: IngestionJobQueue | None = None,
         *,
         worker_enabled: bool = True,
     ) -> None:
         self.lifecycle_service = lifecycle_service
-        self.queue = queue if queue is not None else IngestionJobQueue(
-            max_size=settings.ingestion_queue_max_size,
-            history_size=settings.ingestion_job_history_size,
+        self.queue = (
+            queue
+            if queue is not None
+            else IngestionJobQueue(
+                max_size=settings.ingestion_queue_max_size,
+                history_size=settings.ingestion_job_history_size,
+            )
         )
         self.worker_enabled = worker_enabled
-        self._worker_task: Optional[asyncio.Task[None]] = None
+        self._worker_task: asyncio.Task[None] | None = None
         self._processing_lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
@@ -184,9 +188,9 @@ class IngestionJobService:
     def list_jobs(
         self,
         *,
-        status: Optional[IngestionJobStatus] = None,
-        document_id: Optional[str] = None,
-        limit: Optional[int] = None,
+        status: IngestionJobStatus | None = None,
+        document_id: str | None = None,
+        limit: int | None = None,
     ) -> list[IngestionJobResponse]:
         """List job records as API responses, with optional filters."""
         return [
@@ -209,7 +213,7 @@ class IngestionJobService:
             queue_position=self.queue.queue_position(job.job_id),
         )
 
-    async def process_next_job(self) -> Optional[IngestionJob]:
+    async def process_next_job(self) -> IngestionJob | None:
         """
         Claim and process a single queued job.
 

@@ -22,7 +22,7 @@ The synchronous ingestion paths (``/api/v1/rag/ingest`` and
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ingestion", tags=["ingestion"])
 
 # Global job service instance (injected or default)
-_job_service: Optional[IngestionJobService] = None
+_job_service: IngestionJobService | None = None
 
 
 def get_job_service() -> IngestionJobService:
@@ -69,7 +69,7 @@ def get_job_service() -> IngestionJobService:
     return _job_service
 
 
-def set_job_service(service: Optional[IngestionJobService]) -> None:
+def set_job_service(service: IngestionJobService | None) -> None:
     """Inject a custom or in-memory service instance (e.g. for testing)."""
     global _job_service
     _job_service = service
@@ -140,15 +140,21 @@ async def submit_ingestion_job(request: IngestionJobRequest) -> IngestionJobResp
     status_code=status.HTTP_200_OK,
 )
 async def list_ingestion_jobs(
-    job_status: Optional[IngestionJobStatus] = Query(
-        default=None,
-        alias="status",
-        description="Filter by job state: QUEUED, PROCESSING, COMPLETED, FAILED.",
-    ),
-    document_id: Optional[str] = Query(
-        default=None, min_length=1, description="Filter by document identifier."
-    ),
-    limit: int = Query(default=50, ge=1, le=500, description="Maximum jobs returned."),
+    job_status: Annotated[
+        IngestionJobStatus | None,
+        Query(
+            alias="status",
+            description="Filter by job state: QUEUED, PROCESSING, COMPLETED, FAILED.",
+        ),
+    ] = None,
+    document_id: Annotated[
+        str | None,
+        Query(min_length=1, description="Filter by document identifier."),
+    ] = None,
+    limit: Annotated[
+        int,
+        Query(ge=1, le=500, description="Maximum jobs returned."),
+    ] = 50,
 ) -> list[IngestionJobResponse]:
     """List ingestion jobs, newest first."""
     return get_job_service().list_jobs(

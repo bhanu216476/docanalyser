@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from app.retrieval.fusion import reciprocal_rank_fusion
 from app.retrieval.models import RetrievalResult
 

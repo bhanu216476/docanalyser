@@ -24,9 +24,9 @@ Concurrency:
 from __future__ import annotations
 
 import asyncio
-from collections import deque
 import logging
-from typing import Callable, Optional
+from collections import deque
+from collections.abc import Callable
 from uuid import uuid4
 
 from app.jobs.exceptions import IngestionQueueFullError
@@ -63,7 +63,7 @@ class IngestionJobQueue:
         *,
         max_size: int = 100,
         history_size: int = 500,
-        job_id_factory: Optional[Callable[[], str]] = None,
+        job_id_factory: Callable[[], str] | None = None,
     ) -> None:
         if max_size <= 0:
             raise ValueError(f"max_size must be positive, got {max_size}")
@@ -75,7 +75,7 @@ class IngestionJobQueue:
         self._job_id_factory = job_id_factory or (lambda: uuid4().hex)
         self._jobs: dict[str, IngestionJob] = {}
         self._queued_ids: deque[str] = deque()
-        self._pending: asyncio.Queue[Optional[str]] = asyncio.Queue()
+        self._pending: asyncio.Queue[str | None] = asyncio.Queue()
 
     # ------------------------------------------------------------------
     # Introspection
@@ -105,7 +105,7 @@ class IngestionJobQueue:
         """Return the number of waiting jobs (mirrors ``pending_count``)."""
         return len(self._queued_ids)
 
-    def get(self, job_id: str) -> Optional[IngestionJob]:
+    def get(self, job_id: str) -> IngestionJob | None:
         """Return the job record for ``job_id``, or None when unknown."""
         return self._jobs.get(job_id)
 
@@ -113,7 +113,7 @@ class IngestionJobQueue:
         self,
         document_id: str,
         operation: IngestionOperation,
-    ) -> Optional[IngestionJob]:
+    ) -> IngestionJob | None:
         """
         Return the active (QUEUED or PROCESSING) job for a document and
         operation, enabling duplicate submission suppression.
@@ -127,7 +127,7 @@ class IngestionJobQueue:
                 return job
         return None
 
-    def queue_position(self, job_id: str) -> Optional[int]:
+    def queue_position(self, job_id: str) -> int | None:
         """Return the 1-based FIFO position of a waiting job, else None."""
         for position, queued_id in enumerate(self._queued_ids, start=1):
             if queued_id == job_id:
@@ -144,9 +144,9 @@ class IngestionJobQueue:
     def list_jobs(
         self,
         *,
-        status: Optional[IngestionJobStatus] = None,
-        document_id: Optional[str] = None,
-        limit: Optional[int] = None,
+        status: IngestionJobStatus | None = None,
+        document_id: str | None = None,
+        limit: int | None = None,
         newest_first: bool = True,
     ) -> list[IngestionJob]:
         """
@@ -228,7 +228,7 @@ class IngestionJobQueue:
     # Claiming and state transitions
     # ------------------------------------------------------------------
 
-    async def next_job(self) -> Optional[IngestionJob]:
+    async def next_job(self) -> IngestionJob | None:
         """
         Wait for the next queued job, claim it, and mark it PROCESSING.
 
@@ -274,7 +274,7 @@ class IngestionJobQueue:
         job_id: str,
         *,
         error: str,
-        error_type: Optional[str] = None,
+        error_type: str | None = None,
     ) -> IngestionJob:
         """Mark a job FAILED and capture the error information."""
         return self._update(

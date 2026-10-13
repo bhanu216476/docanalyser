@@ -422,11 +422,11 @@ class RAGPipeline:
 
     async def ingest_async(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         *,
-        batch_size: Optional[int] = None,
-        document_id: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        batch_size: int | None = None,
+        document_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> IngestionResponse:
         """
         Async wrapper around :meth:`ingest`.

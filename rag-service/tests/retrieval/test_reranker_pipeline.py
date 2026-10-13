@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from app.retrieval.cross_encoder_reranker import CrossEncoderReranker
 from app.retrieval.models import RetrievalResult
 from app.retrieval.reranker import IdentityReranker
