@@ -8,7 +8,6 @@ from real Dense/BM25 dependencies and Qdrant.
 from __future__ import annotations
 
 import pytest
-
 from app.retrieval.exceptions import HybridRetrievalError, RetrievalQueryError
 from app.retrieval.hybrid_retriever import HybridRetriever, create_hybrid_retriever
 from app.retrieval.models import (

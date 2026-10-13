@@ -1,8 +1,7 @@
 import pytest
-from pydantic import ValidationError
-
 from app.context.models import StructuredContext
 from app.generation.models import GeneratedAnswer, GenerationRequest
+from pydantic import ValidationError
 
 
 def test_generation_request_is_frozen_and_accepts_context() -> None:

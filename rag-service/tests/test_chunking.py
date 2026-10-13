@@ -10,14 +10,13 @@ Covers:
 """
 
 import pytest
-from pydantic import ValidationError
-
 from app.ingestion.chunking import (
     Chunk,
     FixedSizeChunker,
     RecursiveChunker,
 )
 from app.ingestion.models import Document
+from pydantic import ValidationError
 
 # ======================================================================
 # Fixtures

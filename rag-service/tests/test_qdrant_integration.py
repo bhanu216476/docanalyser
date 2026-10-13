@@ -11,7 +11,6 @@ from __future__ import annotations
 import socket
 
 import pytest
-
 from app.core.config import settings
 from app.ingestion.chunking.models import Chunk
 from app.vector_store import (

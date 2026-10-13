@@ -1,7 +1,6 @@
 import pytest
-from pydantic import ValidationError
-
 from app.api.schemas import CitationResponse, QueryRequest, QueryResponse
+from pydantic import ValidationError
 
 
 def test_query_request_valid():

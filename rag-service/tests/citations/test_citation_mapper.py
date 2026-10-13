@@ -14,7 +14,6 @@ Verifies:
 from __future__ import annotations
 
 import pytest
-
 from app.citations.mapper import CitationMapper
 from app.citations.models import GroundedCitation
 from app.context.models import Citation

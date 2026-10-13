@@ -27,8 +27,6 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
-
 from app.embeddings.exceptions import (
     EmbeddingProviderError,
     EmbeddingRetryExhaustedError,
@@ -43,6 +41,7 @@ from app.retrieval.exceptions import (
 )
 from app.retrieval.models import RetrievalFilter, RetrievalRequest, RetrievalResult
 from app.retrieval.retriever import Retriever
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 
 # ---------------------------------------------------------------------------
 # Constants

@@ -65,7 +65,7 @@ class FakeLLMProvider(LLMProvider):
         if legacy_version in self._custom_responses:
             text = self._custom_responses[legacy_version]
         else:
-              # Keep mock output deterministic while using available evidence context.
+            # Keep mock output deterministic while using available evidence context.
             prompt_str = str(prompt)
             if "Evidence Context:\n" in prompt_str:
                 context_part = (
@@ -84,7 +84,7 @@ class FakeLLMProvider(LLMProvider):
                         "documents to answer this question."
                     )
             else:
-                text = f"FAKE_RESPONSE[1] {prompt_str}"
+                text = f"FAKE_RESPONSE[{prompt_str}]"
 
         response = LLMResponse(
             text=text,
