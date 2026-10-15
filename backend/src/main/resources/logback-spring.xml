@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="springAppName" source="spring.application.name" defaultValue="spring-boot-service"/>
+    <springProperty scope="context" name="environment" source="ENVIRONMENT" defaultValue="development"/>
+    <springProperty scope="context" name="logLevel" source="LOG_LEVEL" defaultValue="INFO"/>
+
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <timeZone>UTC</timeZone>
+            <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSS'Z'</timestampPattern>
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <level>severity</level>
+                <message>message</message>
+                <logger>logger_name</logger>
+                <thread>thread_name</thread>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+            <customFields>{"service_name":"spring-boot-service","environment":"${environment}"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>trace_id</includeMdcKeyName>
+            <includeMdcKeyName>span_id</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>request_id</includeMdcKeyName>
+            <includeMdcKeyName>operation_name</includeMdcKeyName>
+            <includeMdcKeyName>duration_ms</includeMdcKeyName>
+            <includeMdcKeyName>error_type</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <root level="${logLevel}">
+        <appender-ref ref="CONSOLE_JSON" />
+    </root>
+</configuration>

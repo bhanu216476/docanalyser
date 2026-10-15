@@ -6,7 +6,7 @@ services:
     plan: free
     branch: main
     rootDir: ./backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod

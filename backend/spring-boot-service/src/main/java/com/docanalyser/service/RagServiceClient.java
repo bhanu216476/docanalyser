@@ -28,6 +28,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
+import java.util.UUID;
 
 @Service("documentRagServiceClient")
 public class RagServiceClient {
