@@ -1,108 +1,58 @@
 services:
-  # ----------------------------------------------------------------------------
-  # Python RAG Service (FastAPI)
-  # ----------------------------------------------------------------------------
   - type: web
-    name: docanalyser-rag-service
-    runtime: docker
-    dockerContext: rag-service
-    dockerfilePath: rag-service/Dockerfile
-    plan: free
+    name: docanalyser-backend
+    env: docker
     region: oregon
+    plan: free
+    branch: main
+    rootDir: ./backend
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: ENVIRONMENT
-        value: production
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
       - key: OPENAI_API_KEY
         sync: false
       - key: QDRANT_URL
         sync: false
       - key: QDRANT_API_KEY
         sync: false
-      - key: QDRANT_COLLECTION_NAME
-        value: documents
-      - key: QDRANT_VECTOR_SIZE
-        value: "1536"
-      - key: QDRANT_DISTANCE
-        value: Cosine
+      - key: DATABASE_URL
+        fromDatabase:
+          name: docanalyser-postgres
+          property: connectionString
 
-  # ----------------------------------------------------------------------------
-  # Spring Boot Backend
-  # ----------------------------------------------------------------------------
   - type: web
-    name: docanalyser-backend
-    runtime: docker
-    dockerContext: backend/spring-boot-service
-    dockerfilePath: backend/spring-boot-service/Dockerfile
-    plan: free
+    name: docanalyser-rag
+    env: docker
     region: oregon
+    plan: free
+    branch: main
+    rootDir: ./rag-service
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: SPRING_PROFILES_ACTIVE
-        value: docker
-      - key: DB_HOST
-        fromDatabase:
-          name: docanalyser-postgres
-          property: host
-      - key: DB_PORT
-        fromDatabase:
-          name: docanalyser-postgres
-          property: port
-      - key: DB_NAME
-        fromDatabase:
-          name: docanalyser-postgres
-          property: database
-      - key: DB_USER
-        fromDatabase:
-          name: docanalyser-postgres
-          property: user
-      - key: DB_PASSWORD
-        fromDatabase:
-          name: docanalyser-postgres
-          property: password
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
           name: docanalyser-redis
           property: connectionString
-      - key: RAG_SERVICE_URL
-        value: http://docanalyser-rag-service:8000
-      - key: JWT_SECRET
-        generateValue: true
-      - key: JWT_EXPIRATION
-        value: "86400000"
 
-  # ----------------------------------------------------------------------------
-  # React Frontend (Static CDN Site)
-  # ----------------------------------------------------------------------------
-  - type: web
-    name: docanalyser-frontend
-    env: static
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        value: https://docanalyser-backend.onrender.com
-
-  # ----------------------------------------------------------------------------
-  # Render Key Value / Redis
-  # ----------------------------------------------------------------------------
-  - type: redis
-    name: docanalyser-redis
-    region: oregon
-    plan: free
-    ipAllowList: []
-
-# ------------------------------------------------------------------------------
-# Managed PostgreSQL Database
-# ------------------------------------------------------------------------------
 databases:
   - name: docanalyser-postgres
     databaseName: docanalyser
-    databaseUser: postgres
+    user: docanalyser_user
     region: oregon
     plan: free
     ipAllowList: []
+
+  - name: docanalyser-redis
+    type: redis
+    region: oregon
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
