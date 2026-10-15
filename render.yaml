@@ -20,6 +20,11 @@ services:
         fromDatabase:
           name: docanalyser-postgres
           property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: docanalyser-redis
+          property: connectionString
 
   - type: web
     name: docanalyser-rag
