@@ -6,8 +6,10 @@ package com.docanalyser.entity;
 public enum DocumentStatus {
     /** Document metadata registered, awaiting processing. */
     PENDING,
-    /** Document uploaded by client/n8n, queued for processing. */
+    /** Document uploaded by client/n8n, waiting to be processed. */
     UPLOADED,
+    /** Document accepted into processing queue for worker execution. */
+    QUEUED,
     /** Document is actively being chunked, embedded, and indexed. */
     PROCESSING,
     /** Document successfully ingested, chunked, and indexed — ready for retrieval. */

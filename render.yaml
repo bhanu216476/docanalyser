@@ -1,0 +1,122 @@
+services:
+  # ----------------------------------------------------------------------------
+  # Python RAG Service (FastAPI)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: docanalyser-rag-service
+    runtime: docker
+    dockerContext: rag-service
+    dockerfilePath: rag-service/Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION_NAME
+        value: documents
+      - key: QDRANT_VECTOR_SIZE
+        value: "1536"
+      - key: QDRANT_DISTANCE
+        value: Cosine
+
+  # ----------------------------------------------------------------------------
+  # Spring Boot Backend
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: docanalyser-backend
+    runtime: docker
+    dockerContext: backend/spring-boot-service
+    dockerfilePath: backend/spring-boot-service/Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: docker
+      - key: DB_HOST
+        fromDatabase:
+          name: docanalyser-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: docanalyser-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: docanalyser-postgres
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: docanalyser-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: docanalyser-postgres
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: docanalyser-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: docanalyser-redis
+          property: port
+      - key: RAG_SERVICE_URL
+        fromService:
+          type: web
+          name: docanalyser-rag-service
+          property: host
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: "86400000"
+
+  # ----------------------------------------------------------------------------
+  # React Frontend (Static Site on Global CDN)
+  # ----------------------------------------------------------------------------
+  - type: static
+    name: docanalyser-frontend
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: docanalyser-backend
+          property: host
+      - key: VITE_RAG_URL
+        fromService:
+          type: web
+          name: docanalyser-rag-service
+          property: host
+
+  # ----------------------------------------------------------------------------
+  # Managed Redis Cache
+  # ----------------------------------------------------------------------------
+  - type: redis
+    name: docanalyser-redis
+    region: oregon
+    plan: free
+    ipAllowList: []
+
+# ------------------------------------------------------------------------------
+# Managed PostgreSQL Database
+# ------------------------------------------------------------------------------
+databases:
+  - name: docanalyser-postgres
+    databaseName: docanalyser
+    user: postgres
+    region: oregon
+    plan: free

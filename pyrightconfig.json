@@ -6,6 +6,7 @@
     "**/node_modules",
     "**/__pycache__",
     "rag-service/.venv",
+    ".venv",
     "hybrid-rag"
   ],
   "venvPath": "rag-service",

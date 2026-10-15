@@ -90,11 +90,20 @@ public class DocumentService {
         return document;
     }
 
+    public static final int MAX_INGESTION_RETRIES = 3;
+
     public void deleteDocument(UUID id, UserDetailsImpl userDetails) {
         Optional<Document> doc = getDocumentById(id, userDetails);
         if (doc.isPresent()) {
             if (documentCacheService != null) {
                 documentCacheService.evict(id);
+            }
+            if (ragServiceClient != null) {
+                try {
+                    ragServiceClient.deleteDocument(id);
+                } catch (Exception e) {
+                    log.warn("Non-fatal vector store cleanup failure for document {}: {}", id, e.getMessage());
+                }
             }
             documentRepository.delete(doc.get());
         } else {
@@ -121,6 +130,7 @@ public class DocumentService {
 
     /**
      * Retries ingestion for a document currently in FAILED state.
+     * Enforces bounded retries (maximum 3 attempts) and persists failure details in PostgreSQL.
      */
     public DocumentJobStatus retryDocument(UUID id, UserDetailsImpl userDetails) {
         Document doc = getDocumentById(id, userDetails)
@@ -132,10 +142,17 @@ public class DocumentService {
             );
         }
 
+        if (doc.getRetryCount() >= MAX_INGESTION_RETRIES) {
+            throw new IllegalStateException(
+                String.format("Document %s has exceeded maximum allowed retries (%d).", id, MAX_INGESTION_RETRIES)
+            );
+        }
+
         // State Machine transition FAILED -> PROCESSING
         DocumentStateMachine.validateTransition(doc.getStatus(), DocumentStatus.PROCESSING);
 
         doc.setStatus(DocumentStatus.PROCESSING);
+        doc.setRetryCount(doc.getRetryCount() + 1);
         documentRepository.save(doc);
 
         if (documentJobStatusService != null) {
@@ -158,6 +175,7 @@ public class DocumentService {
                 // Transition PROCESSING -> INDEXED
                 DocumentStateMachine.validateTransition(DocumentStatus.PROCESSING, DocumentStatus.INDEXED);
                 doc.setStatus(DocumentStatus.INDEXED);
+                doc.setFailureReason(null);
                 documentRepository.save(doc);
 
                 if (documentJobStatusService != null) {
@@ -168,6 +186,7 @@ public class DocumentService {
                 log.error("Retry failed for document {}: {}", id, errorMsg);
 
                 doc.setStatus(DocumentStatus.FAILED);
+                doc.setFailureReason(errorMsg);
                 documentRepository.save(doc);
 
                 if (documentJobStatusService != null) {
