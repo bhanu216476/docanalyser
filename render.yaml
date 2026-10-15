@@ -42,6 +42,13 @@ services:
           name: docanalyser-redis
           property: connectionString
 
+  - type: redis
+    name: docanalyser-redis
+    region: oregon
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
 databases:
   - name: docanalyser-postgres
     databaseName: docanalyser
@@ -49,10 +56,3 @@ databases:
     region: oregon
     plan: free
     ipAllowList: []
-
-  - name: docanalyser-redis
-    type: redis
-    region: oregon
-    plan: free
-    ipAllowList: []
-    maxmemoryPolicy: allkeys-lru
