@@ -50,7 +50,7 @@ services:
         fromDatabase:
           name: docanalyser-postgres
           property: database
-      - key: DB_USERNAME
+      - key: DB_USER
         fromDatabase:
           name: docanalyser-postgres
           property: user
@@ -58,31 +58,24 @@ services:
         fromDatabase:
           name: docanalyser-postgres
           property: password
-      - key: REDIS_HOST
+      - key: REDIS_URL
         fromService:
           type: redis
           name: docanalyser-redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          type: redis
-          name: docanalyser-redis
-          property: port
+          property: connectionString
       - key: RAG_SERVICE_URL
-        fromService:
-          type: web
-          name: docanalyser-rag-service
-          property: host
+        value: http://docanalyser-rag-service:8000
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRATION
         value: "86400000"
 
   # ----------------------------------------------------------------------------
-  # React Frontend (Static Site on Global CDN)
+  # React Frontend (Static CDN Site)
   # ----------------------------------------------------------------------------
-  - type: static
+  - type: web
     name: docanalyser-frontend
+    env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -92,18 +85,10 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: docanalyser-backend
-          property: host
-      - key: VITE_RAG_URL
-        fromService:
-          type: web
-          name: docanalyser-rag-service
-          property: host
+        value: https://docanalyser-backend.onrender.com
 
   # ----------------------------------------------------------------------------
-  # Managed Redis Cache
+  # Render Key Value / Redis
   # ----------------------------------------------------------------------------
   - type: redis
     name: docanalyser-redis
@@ -117,6 +102,7 @@ services:
 databases:
   - name: docanalyser-postgres
     databaseName: docanalyser
-    user: postgres
+    databaseUser: postgres
     region: oregon
     plan: free
+    ipAllowList: []

@@ -8,6 +8,7 @@ spring:
     password: ${DB_PASSWORD:${POSTGRES_PASSWORD:postgres}}
   data:
     redis:
+      url: ${REDIS_URL:}
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
