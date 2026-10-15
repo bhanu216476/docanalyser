@@ -123,6 +123,7 @@ class DocumentServiceTest {
         documentService.deleteDocument(docId, userDetails);
 
         verify(documentRepository).delete(userDoc);
+        verify(ragServiceClient).deleteDocument(docId);
     }
 
     @Test
@@ -188,5 +189,16 @@ class DocumentServiceTest {
         assertThatThrownBy(() -> documentService.retryDocument(docId, userDetails))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Only FAILED documents can be retried");
+    }
+
+    @Test
+    void retryDocument_exceedingMaxRetries_throwsIllegalStateException() {
+        userDoc.setStatus(DocumentStatus.FAILED);
+        userDoc.setRetryCount(DocumentService.MAX_INGESTION_RETRIES);
+        when(documentRepository.findByIdAndOwnerId(docId, ownerId)).thenReturn(Optional.of(userDoc));
+
+        assertThatThrownBy(() -> documentService.retryDocument(docId, userDetails))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("exceeded maximum allowed retries");
     }
 }

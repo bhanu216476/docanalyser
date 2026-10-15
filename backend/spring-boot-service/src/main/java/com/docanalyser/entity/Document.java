@@ -46,7 +46,7 @@ public class Document {
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
 
-    @Column(name = "content_hash", nullable = false, length = 64)
+    @Column(name = "content_hash", nullable = false, length = 128)
     private String contentHash;
 
     @ManyToOne
@@ -56,6 +56,15 @@ public class Document {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private DocumentStatus status = DocumentStatus.PENDING;
+
+    @Column(name = "failure_reason", columnDefinition = "TEXT")
+    private String failureReason;
+
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount = 0;
+
+    @Column(name = "queued_at")
+    private Instant queuedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -186,6 +195,30 @@ public class Document {
 
     public void setStatus(DocumentStatus status) {
         this.status = status;
+    }
+
+    public String getFailureReason() {
+        return failureReason;
+    }
+
+    public void setFailureReason(String failureReason) {
+        this.failureReason = failureReason;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
+    }
+
+    public Instant getQueuedAt() {
+        return queuedAt;
+    }
+
+    public void setQueuedAt(Instant queuedAt) {
+        this.queuedAt = queuedAt;
     }
 
     public Instant getCreatedAt() {

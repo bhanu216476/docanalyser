@@ -132,6 +132,7 @@ public class IngestionController {
             DocumentStateMachine.validateTransition(DocumentStatus.PROCESSING, DocumentStatus.INDEXED);
             if (document != null) {
                 document.setStatus(DocumentStatus.INDEXED);
+                document.setFailureReason(null);
                 documentRepository.save(document);
             }
             if (documentJobStatusService != null) {
@@ -153,6 +154,7 @@ public class IngestionController {
             // Step 5: Failure -> PROCESSING -> FAILED
             if (document != null) {
                 document.setStatus(DocumentStatus.FAILED);
+                document.setFailureReason(errorMsg);
                 documentRepository.save(document);
             }
             if (documentJobStatusService != null) {

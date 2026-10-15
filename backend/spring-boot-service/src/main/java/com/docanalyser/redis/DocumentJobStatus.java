@@ -25,17 +25,26 @@ public class DocumentJobStatus implements Serializable {
     @JsonProperty("error")
     private String errorMessage;
 
+    @JsonProperty("retryCount")
+    private Integer retryCount;
+
     public DocumentJobStatus() {
     }
 
     public DocumentJobStatus(String jobId, UUID documentId, DocumentStatus status,
                              Instant startedAt, Instant updatedAt, String errorMessage) {
+        this(jobId, documentId, status, startedAt, updatedAt, errorMessage, 0);
+    }
+
+    public DocumentJobStatus(String jobId, UUID documentId, DocumentStatus status,
+                             Instant startedAt, Instant updatedAt, String errorMessage, Integer retryCount) {
         this.jobId = jobId;
         this.documentId = documentId;
         this.status = status;
         this.startedAt = startedAt;
         this.updatedAt = updatedAt;
         this.errorMessage = errorMessage;
+        this.retryCount = retryCount;
     }
 
     public static DocumentJobStatus fromDocument(Document doc) {
@@ -46,7 +55,8 @@ public class DocumentJobStatus implements Serializable {
                 doc.getStatus(),
                 doc.getCreatedAt(),
                 doc.getUpdatedAt(),
-                null
+                doc.getFailureReason(),
+                doc.getRetryCount()
         );
     }
 
@@ -96,6 +106,14 @@ public class DocumentJobStatus implements Serializable {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public Integer getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(Integer retryCount) {
+        this.retryCount = retryCount;
     }
 
     @Override

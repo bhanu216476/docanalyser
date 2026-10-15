@@ -31,7 +31,7 @@ public final class DocumentStateMachine {
 
         // Initial creation
         if (current == null) {
-            return next == DocumentStatus.UPLOADED || next == DocumentStatus.PENDING;
+            return next == DocumentStatus.UPLOADED || next == DocumentStatus.PENDING || next == DocumentStatus.QUEUED;
         }
 
         // Idempotent update
@@ -40,13 +40,14 @@ public final class DocumentStateMachine {
         }
 
         return switch (current) {
-            case PENDING -> next == DocumentStatus.UPLOADED || next == DocumentStatus.PROCESSING;
-            case UPLOADED -> next == DocumentStatus.PROCESSING;
+            case PENDING -> next == DocumentStatus.UPLOADED || next == DocumentStatus.QUEUED || next == DocumentStatus.PROCESSING;
+            case UPLOADED -> next == DocumentStatus.QUEUED || next == DocumentStatus.PROCESSING;
+            case QUEUED -> next == DocumentStatus.PROCESSING || next == DocumentStatus.FAILED;
             case PROCESSING -> next == DocumentStatus.INDEXED
                     || next == DocumentStatus.READY
                     || next == DocumentStatus.PROCESSED
                     || next == DocumentStatus.FAILED;
-            case FAILED -> next == DocumentStatus.PROCESSING; // Only allowed transition from FAILED is retry
+            case FAILED -> next == DocumentStatus.QUEUED || next == DocumentStatus.PROCESSING; // Retries can queue or start processing
             case INDEXED, READY, PROCESSED -> false; // Terminal states cannot transition
         };
     }

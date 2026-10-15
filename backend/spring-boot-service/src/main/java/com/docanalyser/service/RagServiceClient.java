@@ -60,14 +60,34 @@ public class RagServiceClient {
      * Sends a query to the Python RAG service. Returns the full response body map.
      * Python endpoint: POST /api/v1/rag/query
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> queryRagService(String query) {
+        return queryRagService(query, null);
+    }
+
+    /**
+     * Sends a query to the Python RAG service with document or metadata filters.
+     * Python endpoint: POST /api/v1/rag/query
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> queryRagService(String query, Map<String, Object> filters) {
         String url = ragServiceUrl + "/api/v1/rag/query";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        Map<String, Object> requestBody = Map.of("query", query);
+        String correlationId = org.slf4j.MDC.get("correlationId");
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        headers.set("X-Correlation-ID", correlationId);
+        headers.set("X-Request-ID", correlationId);
+
+        java.util.Map<String, Object> requestBody = new java.util.HashMap<>();
+        requestBody.put("query", query);
+        if (filters != null && !filters.isEmpty()) {
+            requestBody.put("filters", filters);
+        }
+
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
         try {
@@ -172,6 +192,48 @@ public class RagServiceClient {
         } catch (RestClientException e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Failed to communicate with RAG ingestion service: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Deletes a document's embeddings and lexical index from the Python RAG service.
+     * Python endpoint: POST /api/v1/documents (event: DOCUMENT_DELETED)
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> deleteDocument(UUID documentId) {
+        if (documentId == null) {
+            return Map.of("success", true);
+        }
+        String url = ragServiceUrl + "/api/v1/documents";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        String correlationId = org.slf4j.MDC.get("correlationId");
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        headers.set("X-Correlation-ID", correlationId);
+        headers.set("X-Request-ID", correlationId);
+
+        Map<String, Object> requestBody = Map.of(
+                "event", "DOCUMENT_DELETED",
+                "document_id", documentId.toString()
+        );
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+        try {
+            ResponseEntity<Map> response = buildRestTemplate().postForEntity(url, request, Map.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("Successfully cleaned up RAG vectors for document {}", documentId);
+                return (Map<String, Object>) response.getBody();
+            } else {
+                log.warn("RAG deletion returned status: {}", response.getStatusCode());
+                return Map.of("success", false, "status", response.getStatusCode().toString());
+            }
+        } catch (Exception e) {
+            log.error("Failed to clean up RAG vectors for document {}: {}", documentId, e.getMessage());
+            return Map.of("success", false, "error", e.getMessage() != null ? e.getMessage() : "Deletion failed");
         }
     }
 }
