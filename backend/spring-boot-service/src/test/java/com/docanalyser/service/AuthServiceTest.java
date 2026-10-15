@@ -3,7 +3,6 @@ package com.docanalyser.service;
 import com.docanalyser.dto.request.LoginRequest;
 import com.docanalyser.dto.request.RegisterRequest;
 import com.docanalyser.dto.response.JwtResponse;
-import com.docanalyser.entity.Role;
 import com.docanalyser.entity.User;
 import com.docanalyser.repository.UserRepository;
 import com.docanalyser.security.jwt.JwtUtils;

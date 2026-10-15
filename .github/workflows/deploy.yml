@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Deployment Pipeline
 # ==============================================================================
 #
@@ -40,28 +40,28 @@ jobs:
         run: |
           if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
             echo "Deployment credentials not configured. Skipping actual deployment."
-            echo "DEPLOY_READY=false" >> $GITHUB_ENV
+            echo "DEPLOY_READY=false" >> $GITHUB_OUTPUT
           else
             echo "Deployment credentials found."
-            echo "DEPLOY_READY=true" >> $GITHUB_ENV
+            echo "DEPLOY_READY=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Deploy application
-        if: env.DEPLOY_READY == 'true'
+        if: steps.check-config.outputs.DEPLOY_READY == 'true'
         run: |
           echo "Simulating deployment steps using Docker Compose..."
           # Example: ssh user@host "cd /opt/docanalyser && docker compose pull && docker compose up -d"
           echo "Deployment successful."
 
       - name: Post-deployment health check
-        if: env.DEPLOY_READY == 'true'
+        if: steps.check-config.outputs.DEPLOY_READY == 'true'
         run: |
           echo "Checking application health..."
           # Example: curl -f http://production.url/api/health || exit 1
           echo "Health check passed."
 
       - name: Deployment unconfigured summary
-        if: env.DEPLOY_READY == 'false'
+        if: steps.check-config.outputs.DEPLOY_READY == 'false'
         run: |
           echo "## Deployment Blocked :warning:" >> $GITHUB_STEP_SUMMARY
           echo "Deployment infrastructure and secrets are not configured." >> $GITHUB_STEP_SUMMARY
