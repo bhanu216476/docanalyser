@@ -1,9 +1,5 @@
 package com.docanalyser.observability;
 
-import com.docanalyser.security.SecurityConfig;
-import com.docanalyser.security.jwt.AuthEntryPointJwt;
-import com.docanalyser.security.jwt.JwtUtils;
-import com.docanalyser.security.services.UserDetailsServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;

@@ -17,7 +17,7 @@ public class RagServiceClient {
 
     public RagServiceClient(
             RestClient.Builder restClientBuilder,
-            @Value("${rag.service.url}") String ragServiceUrl,
+            @Value("${rag.service.url:http://localhost:8000}") String ragServiceUrl,
             @Value("${rag.service.internal-token:}") String internalToken
     ) {
         this.restClient = restClientBuilder.baseUrl(ragServiceUrl).build();

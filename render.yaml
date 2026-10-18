@@ -10,6 +10,12 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      - key: RAG_SERVICE_URL
+        value: http://docanalyser-rag:8000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: "86400000"
       - key: OPENAI_API_KEY
         sync: false
       - key: QDRANT_URL
@@ -35,6 +41,8 @@ services:
     rootDir: ./rag-service
     dockerfilePath: ./Dockerfile
     envVars:
+      - key: PORT
+        value: "8000"
       - key: OPENAI_API_KEY
         sync: false
       - key: QDRANT_URL
@@ -46,6 +54,20 @@ services:
           type: redis
           name: docanalyser-redis
           property: connectionString
+
+  - type: web
+    name: docanalyser-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://docanalyser-backend.onrender.com
 
   - type: redis
     name: docanalyser-redis

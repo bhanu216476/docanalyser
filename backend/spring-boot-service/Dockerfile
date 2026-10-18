@@ -35,4 +35,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=30s \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
 
-ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

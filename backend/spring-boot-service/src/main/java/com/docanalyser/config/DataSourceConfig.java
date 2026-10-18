@@ -82,6 +82,10 @@ public class DataSourceConfig {
                         config.setPassword(URLDecoder.decode(password, StandardCharsets.UTF_8));
                     }
 
+                    if ((host.contains("render.com") || host.contains("oregon-postgres")) && !dbAndQuery.contains("sslmode")) {
+                        dbAndQuery += (dbAndQuery.contains("?") ? "&" : "?") + "sslmode=require";
+                    }
+
                     String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + dbAndQuery;
                     config.setJdbcUrl(jdbcUrl);
                     log.info("Configured DataSource from DATABASE_URL -> jdbc:postgresql://{}:{}/{}", host, port, dbAndQuery.split("\\?")[0]);
@@ -99,9 +103,13 @@ public class DataSourceConfig {
                         if (path != null && path.startsWith("/")) {
                             path = path.substring(1);
                         }
+                        String query = uri.getQuery();
+                        if (uri.getHost() != null && (uri.getHost().contains("render.com") || uri.getHost().contains("oregon-postgres")) && (query == null || !query.contains("sslmode"))) {
+                            query = (query == null || query.isBlank()) ? "sslmode=require" : query + "&sslmode=require";
+                        }
                         String jdbcUrl = "jdbc:postgresql://" + uri.getHost() + ":" + port + "/" + path;
-                        if (uri.getQuery() != null && !uri.getQuery().isBlank()) {
-                            jdbcUrl += "?" + uri.getQuery();
+                        if (query != null && !query.isBlank()) {
+                            jdbcUrl += "?" + query;
                         }
                         config.setJdbcUrl(jdbcUrl);
                         log.info("Configured DataSource from URI -> jdbc:postgresql://{}:{}/{}", uri.getHost(), port, path);
@@ -119,8 +127,8 @@ public class DataSourceConfig {
             config.setPassword(defaultPassword);
         }
 
-        config.setMaximumPoolSize(10);
-        config.setMinimumIdle(2);
+        config.setMaximumPoolSize(5);
+        config.setMinimumIdle(1);
         config.setConnectionTimeout(30000);
         config.setIdleTimeout(600000);
         config.setMaxLifetime(1800000);

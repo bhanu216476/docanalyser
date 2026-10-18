@@ -3,7 +3,7 @@ server:
 
 rag:
   service:
-    url: ${RAG_SERVICE_URL}
+    url: ${RAG_SERVICE_URL:http://localhost:8000}
 
 spring:
   application:
