@@ -21,7 +21,6 @@ import org.springframework.web.server.ResponseStatusException;
 import com.docanalyser.dto.request.IngestionRequest;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -92,6 +91,7 @@ public class RagServiceClient {
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
         try {
+            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> response = buildRestTemplate().postForEntity(url, request, Map.class);
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return (Map<String, Object>) response.getBody();
@@ -180,6 +180,7 @@ public class RagServiceClient {
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
         try {
+            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> response = buildRestTemplate().postForEntity(ingestUrl, requestEntity, Map.class);
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return (Map<String, Object>) response.getBody();
@@ -224,6 +225,7 @@ public class RagServiceClient {
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
         try {
+            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> response = buildRestTemplate().postForEntity(url, request, Map.class);
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 log.info("Successfully cleaned up RAG vectors for document {}", documentId);
