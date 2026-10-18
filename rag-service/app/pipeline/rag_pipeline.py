@@ -196,9 +196,31 @@ class RAGPipeline:
             )
 
         # 6. Reranker
-        self.reranker = reranker or MockReranker(
-            default_top_k=settings.reranker_default_top_k
-        )
+        if reranker is not None:
+            self.reranker = reranker
+        elif getattr(settings, "reranker_type", "mock").lower() == "cross_encoder":
+            try:
+                from app.reranking.cross_encoder import CrossEncoderCandidateReranker
+
+                self.reranker = CrossEncoderCandidateReranker(
+                    model_name=getattr(
+                        settings,
+                        "cross_encoder_model_name",
+                        "cross-encoder/ms-marco-MiniLM-L-6-v2",
+                    ),
+                    default_top_k=settings.reranker_default_top_k,
+                    max_top_k=settings.reranker_max_top_k,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to initialize CrossEncoderCandidateReranker (%s); falling back to MockReranker.",
+                    exc,
+                )
+                self.reranker = MockReranker(
+                    default_top_k=settings.reranker_default_top_k
+                )
+        else:
+            self.reranker = MockReranker(default_top_k=settings.reranker_default_top_k)
 
         # 7. Context Builder
         self.context_builder = context_builder or ContextBuilder()
@@ -210,7 +232,24 @@ class RAGPipeline:
         self.prompt_builder = prompt_builder or PromptBuilder()
 
         # 10. LLM Provider
-        self.llm_provider = llm_provider or FakeLLMProvider()
+        if llm_provider is not None:
+            self.llm_provider = llm_provider
+        elif getattr(settings, "openai_api_key", "").strip():
+            try:
+                from app.llm.providers import OpenAILLMProvider
+
+                self.llm_provider = OpenAILLMProvider(
+                    api_key=settings.openai_api_key.strip(),
+                    timeout=settings.llm_timeout,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to initialize OpenAILLMProvider (%s); falling back to FakeLLMProvider.",
+                    exc,
+                )
+                self.llm_provider = FakeLLMProvider()
+        else:
+            self.llm_provider = FakeLLMProvider()
 
         # 11. Citation Mapper
         self.citation_mapper = citation_mapper or CitationMapper()
@@ -765,6 +804,7 @@ class RAGPipeline:
                 "Fake" in type(self.llm_provider).__name__
                 or "Mock" in type(self.llm_provider).__name__
             )
+            metadata["is_mock_llm"] = is_mock
             try:
                 llm_response = self.generate(prompt)
                 llm_dur = time.perf_counter() - t5

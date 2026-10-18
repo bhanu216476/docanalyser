@@ -1,0 +1,128 @@
+{
+  "name": "DocAnalyser - Automated Document Ingestion Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingest-document",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook Ingestion Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 1: Validate payload and calculate SHA-256 content hash\nconst crypto = require('crypto');\n\nconst item = $input.first().json;\nconst body = item.body || item;\n\nif (!body.fileName || !body.fileName.trim()) {\n  throw new Error('fileName is required in ingestion payload');\n}\n\nconst fileName = body.fileName.trim();\nconst source = body.source || 'n8n-automated-sync';\nconst fileUrl = body.fileUrl || body.source || '';\nconst rawContent = body.content || fileUrl || fileName;\n\n// Compute deterministic SHA-256 hash\nconst hash = 'sha256:' + crypto.createHash('sha256').update(rawContent, 'utf8').digest('hex');\n\nconst fileType = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : 'txt';\nconst mimeType = body.mimeType || (fileType === 'pdf' ? 'application/pdf' : 'text/plain');\n\nreturn [{\n  json: {\n    documentId: body.documentId || crypto.randomUUID(),\n    fileName: fileName,\n    fileType: fileType,\n    mimeType: mimeType,\n    source: source,\n    fileUrl: fileUrl,\n    fileSize: body.fileSize || Buffer.byteLength(rawContent, 'utf8'),\n    contentHash: hash,\n    ownerId: body.ownerId || null,\n    attempt: 1\n  }\n}];"
+      },
+      "id": "node-validate-and-hash",
+      "name": "Validate & Compute Hash",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SPRING_BOOT_URL || 'http://backend:8080' }}/api/internal/documents/ingest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.N8N_INGESTION_TOKEN || 'docanalyser-n8n-internal-token-secret' }}"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{ $json.documentId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  documentId: $json.documentId,\n  fileName: $json.fileName,\n  fileType: $json.fileType,\n  mimeType: $json.mimeType,\n  source: $json.source,\n  fileUrl: $json.fileUrl,\n  fileSize: $json.fileSize,\n  contentHash: $json.contentHash\n}) }}",
+        "options": {
+          "retry": {
+            "maxRetries": 3,
+            "waitBetweenTries": 2000
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "node-post-ingest",
+      "name": "Call Spring Boot Ingest API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node-respond-success",
+      "name": "Respond With Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        960,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Ingestion Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate & Compute Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Compute Hash": {
+      "main": [
+        [
+          {
+            "node": "Call Spring Boot Ingest API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Spring Boot Ingest API": {
+      "main": [
+        [
+          {
+            "node": "Respond With Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

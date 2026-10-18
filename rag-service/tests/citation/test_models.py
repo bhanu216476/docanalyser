@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from app.citation.models import ExtractedCitations
 from pydantic import ValidationError
+
+from app.citation.models import ExtractedCitations
 
 
 def test_accepts_citation_list() -> None:

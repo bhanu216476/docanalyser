@@ -2,6 +2,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
+
 from app.api.documents import (
     DocumentEvent,
     DocumentLifecycleRequest,
@@ -13,7 +15,6 @@ from app.pipeline.document_lifecycle import (
     DocumentLifecycleError,
     DocumentLifecycleService,
 )
-from fastapi.testclient import TestClient
 
 
 class FakeVectorStore:

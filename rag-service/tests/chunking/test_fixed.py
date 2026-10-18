@@ -1,8 +1,9 @@
 """Tests for fixed-size chunking strategy."""
 
 import pytest
-from app.chunking.fixed import fixed_chunk_documents
 from langchain_core.documents import Document
+
+from app.chunking.fixed import fixed_chunk_documents
 
 
 def test_fixed_chunking_basic():

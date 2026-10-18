@@ -5,6 +5,7 @@ Integration and edge case tests for RAG pipeline Confidence Scoring.
 from pathlib import Path
 
 import pytest
+
 from app.confidence.calculator import ConfidenceCalculator
 from app.confidence.models import (
     ConfidenceBand,

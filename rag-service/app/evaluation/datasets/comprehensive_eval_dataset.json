@@ -1,0 +1,547 @@
+{
+  "name": "comprehensive_eval_dataset",
+  "version": "1.0",
+  "description": "Comprehensive benchmark evaluation dataset of 60 questions covering exact facts, semantic, multi-chunk, multi-document, insufficient evidence, misleading assumptions, and page citations.",
+  "cases": [
+    {
+      "id": "EF-001",
+      "category": "exact_fact",
+      "question": "What is the primary role of PostgreSQL in DocAnalyser?",
+      "expected_answer": "PostgreSQL serves as the authoritative persistence store for canonical document metadata and lifecycle states.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_pg"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-002",
+      "category": "exact_fact",
+      "question": "What vector database is used for storing dense chunk embeddings?",
+      "expected_answer": "Qdrant is used as the vector database for storing and querying dense embeddings.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_qdrant"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-003",
+      "category": "exact_fact",
+      "question": "Which algorithm is used to combine dense retrieval and BM25 results?",
+      "expected_answer": "Reciprocal Rank Fusion (RRF) is used to fuse dense semantic and BM25 lexical rankings.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_rrf"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-004",
+      "category": "exact_fact",
+      "question": "What are the allowed lifecycle states of a document during ingestion?",
+      "expected_answer": "The allowed states are UPLOADED, QUEUED, PROCESSING, INDEXED, and FAILED.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_lifecycle"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-005",
+      "category": "exact_fact",
+      "question": "What is the maximum number of ingestion retries allowed for a failed document?",
+      "expected_answer": "A maximum of 3 ingestion retry attempts are permitted.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_retries"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-006",
+      "category": "exact_fact",
+      "question": "What tool coordinates automated workflows and document synchronization from Google Drive?",
+      "expected_answer": "n8n coordinates workflow automation and document synchronization from external sources.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_n8n"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-007",
+      "category": "exact_fact",
+      "question": "Which HTTP header is used to authenticate internal n8n ingestion requests?",
+      "expected_answer": "The X-Internal-Token header is required for internal API calls.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_auth"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-008",
+      "category": "exact_fact",
+      "question": "What default ranking constant k is configured for Reciprocal Rank Fusion?",
+      "expected_answer": "The default ranking constant k is 60.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_rrf"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-009",
+      "category": "exact_fact",
+      "question": "Which Cross-Encoder model is configured by default for reranking retrieved candidates?",
+      "expected_answer": "cross-encoder/ms-marco-MiniLM-L-6-v2 is the default reranking model.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_rerank"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "EF-010",
+      "category": "exact_fact",
+      "question": "What caching and session coordination store is utilized alongside PostgreSQL?",
+      "expected_answer": "Redis is used for caching, document job tracking, and session coordination.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_redis"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-011",
+      "category": "semantic",
+      "question": "How does DocAnalyser ensure that lexical keyword search remains effective when semantic similarity is low?",
+      "expected_answer": "By maintaining an in-memory BM25 inverted index alongside dense retrieval and fusing candidates through RRF.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_bm25"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-012",
+      "category": "semantic",
+      "question": "Why is reciprocal rank fusion preferred over raw score weighted averaging for hybrid retrieval?",
+      "expected_answer": "RRF operates on ordinal rankings rather than incomparable score distributions from dense cosine similarity and BM25.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_rrf"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-013",
+      "category": "semantic",
+      "question": "How does the platform handle model-loading failures or timeouts during reranking?",
+      "expected_answer": "The Cross-Encoder candidate reranker catches exceptions and safely falls back to candidate retrieval scores.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_rerank"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-014",
+      "category": "semantic",
+      "question": "What role does the Context Builder play in preparing evidence for the LLM?",
+      "expected_answer": "It deduplicates chunks, enforces token budgets, preserves source provenance, and structures formatted evidence.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_context"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-015",
+      "category": "semantic",
+      "question": "How is tenant isolation maintained in document vector searches?",
+      "expected_answer": "Vector searches and queries apply user-level owner_id and document_id metadata filters in Qdrant.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_security"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-016",
+      "category": "semantic",
+      "question": "What happens if a user tries to query without having uploaded any documents?",
+      "expected_answer": "The system applies an owner filter returning zero evidence candidates, prompting an honest refusal response.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_security", "arch_chunk_decision"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-017",
+      "category": "semantic",
+      "question": "How does the system distinguish syntactically valid citations from evidence-supported claims?",
+      "expected_answer": "CitationVerifier checks that cited references exist in context and verifies claim semantic entailment against cited excerpts.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_verification"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-018",
+      "category": "semantic",
+      "question": "How does DocAnalyser protect against prompt injection in user-uploaded documents?",
+      "expected_answer": "Uploaded document text is encapsulated within isolated evidence context delimiters and prompt templates sanitize user inputs.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_security"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-019",
+      "category": "semantic",
+      "question": "What prevents repeated processing of duplicate document uploads?",
+      "expected_answer": "SHA-256 content hashes are calculated and deduplicated in PostgreSQL prior to triggering vector ingestion.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_dedup"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "SEM-020",
+      "category": "semantic",
+      "question": "How does the system maintain data consistency when a document is deleted?",
+      "expected_answer": "Document deletion removes metadata from PostgreSQL, purges Redis caches, and deletes vectors from Qdrant and BM25 indexes.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_delete"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "MC-021",
+      "category": "multi_chunk",
+      "question": "Explain the two-stage retrieval process from initial dense and sparse search up to final candidate selection.",
+      "expected_answer": "Stage 1 executes parallel Dense and BM25 retrievals, merged via RRF; Stage 2 applies a Cross-Encoder reranker to order top candidates.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_rrf", "arch_chunk_rerank"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-022",
+      "category": "multi_chunk",
+      "question": "How do token budgeting and oversized chunk handling ensure reliable generation without context overflow?",
+      "expected_answer": "ContextBuilder checks cumulative tokens against the budget limit and applies configured policies like skip or truncate for oversized chunks.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_context", "arch_chunk_budget"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-023",
+      "category": "multi_chunk",
+      "question": "How do CitationMapper and CitationVerifier work together to provide verified citations?",
+      "expected_answer": "CitationMapper matches citations in generated text to the context registry, while CitationVerifier assesses factual grounding.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_mapper", "arch_chunk_verification"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-024",
+      "category": "multi_chunk",
+      "question": "What signals are combined by the ConfidenceCalculator to produce a composite confidence score?",
+      "expected_answer": "ConfidenceCalculator combines retrieval rank scores, reranking deltas, citation support ratios, and answerability evaluation signals.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_confidence", "arch_chunk_decision"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-025",
+      "category": "multi_chunk",
+      "question": "Describe the journey of an uploaded file from disk loading to indexing in both vector and lexical stores.",
+      "expected_answer": "The file is loaded, chunked by structure-aware chunkers, embedded via EmbeddingService, upserted to Qdrant, and registered in BM25.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_ingest_flow", "arch_chunk_indexing"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-026",
+      "category": "multi_chunk",
+      "question": "How does the system ensure document state consistency during asynchronous ingestion failures?",
+      "expected_answer": "Exceptions transition the state machine to FAILED, record the failure reason in PostgreSQL, and update Redis job statuses.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_lifecycle", "ops_chunk_retries"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-027",
+      "category": "multi_chunk",
+      "question": "What metrics are collected across ingestion and retrieval stages for Prometheus monitoring?",
+      "expected_answer": "Prometheus monitors ingestion success/failure rates, latencies for dense, BM25, reranking, and LLM generation, plus citation verification counts.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_observability", "ops_chunk_metrics"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-028",
+      "category": "multi_chunk",
+      "question": "What role does correlation ID play across Spring Boot and FastAPI services in distributed tracing?",
+      "expected_answer": "Spring Boot injects X-Correlation-ID and X-Request-ID headers into outbound HTTP calls so OpenTelemetry traces link spans across both services.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_observability", "ops_chunk_tracing"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-029",
+      "category": "multi_chunk",
+      "question": "How are duplicate documents detected and reported back to calling clients?",
+      "expected_answer": "IngestionController calculates the SHA-256 hash and returns status READY or INDEXED with a duplicate ignored notice.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_dedup", "ops_chunk_lifecycle"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MC-030",
+      "category": "multi_chunk",
+      "question": "How does the DecisionLayer determine whether an evidence context is sufficient to answer a query?",
+      "expected_answer": "It evaluates candidate relevance scores, context token length, and presence of minimum semantic keywords before permitting generation.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_decision", "arch_chunk_budget"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-031",
+      "category": "multi_document",
+      "question": "Compare the responsibilities of PostgreSQL and Redis in the DocAnalyser architecture.",
+      "expected_answer": "PostgreSQL holds durable document metadata and authoritative state, while Redis provides fast caching and transient job coordination.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["arch_chunk_pg", "ops_chunk_redis"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-032",
+      "category": "multi_document",
+      "question": "How do Spring Boot security and FastAPI ingestion endpoints coordinate document ownership?",
+      "expected_answer": "Spring Boot enforces user authentication via JWT, registers ownership in Postgres, and passes tenant filters to the FastAPI RAG service.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["arch_chunk_security", "ops_chunk_auth"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-033",
+      "category": "multi_document",
+      "question": "How does an automated n8n workflow update document status in both PostgreSQL and Redis?",
+      "expected_answer": "n8n calls Spring Boot's internal ingestion endpoint, which transitions the state machine in Redis and persists lifecycle updates to PostgreSQL.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_n8n", "arch_chunk_pg"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-034",
+      "category": "multi_document",
+      "question": "What happens when a document fails ingestion, and how does the administrator safely retry it?",
+      "expected_answer": "The failure reason is saved in PostgreSQL; the administrator triggers /retry, which verifies bounded retry limits and resumes processing.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_retries", "arch_chunk_pg"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-035",
+      "category": "multi_document",
+      "question": "How are metrics from Qdrant and FastAPI aggregated and visualized in Grafana?",
+      "expected_answer": "OpenTelemetry and Prometheus scrape FastAPI and Spring Boot metrics endpoints, and preconfigured Grafana dashboards display latency and throughput.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_observability", "arch_chunk_qdrant"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-036",
+      "category": "multi_document",
+      "question": "How do document deletion events propagate from the user interface down to vector and lexical indices?",
+      "expected_answer": "The UI calls Spring Boot /api/documents/{id}, which evicts Redis cache, calls FastAPI to delete Qdrant and BM25 vectors, and deletes the Postgres row.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_delete", "arch_chunk_qdrant"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-037",
+      "category": "multi_document",
+      "question": "How do content hash validation and unique document identifiers prevent index corruption in Qdrant?",
+      "expected_answer": "Content hashes detect duplicates, and Qdrant chunk keys incorporate deterministic document IDs so re-indexing overwrites rather than duplicates.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_dedup", "arch_chunk_qdrant"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-038",
+      "category": "multi_document",
+      "question": "What is the relationship between OpenTelemetry tracing and OpenAILLMProvider latency tracking?",
+      "expected_answer": "OpenTelemetry wraps pipeline operations in distributed spans, while OpenAILLMProvider records exact duration and token counts via RagMetrics.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_tracing", "arch_chunk_llm"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-039",
+      "category": "multi_document",
+      "question": "How do Spring Boot Flyway migrations and FastAPI collection setup ensure schema compatibility?",
+      "expected_answer": "Flyway executes numbered SQL migrations for relational schema evolution, while FastAPI runs ensure_collection() on Qdrant startup.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["arch_chunk_pg", "arch_chunk_qdrant"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "MD-040",
+      "category": "multi_document",
+      "question": "How do the React frontend and Spring Boot backend synchronize document upload progress?",
+      "expected_answer": "The frontend uploads files via REST, receives an initial status, and periodically polls /status or listens for updates as the state advances to INDEXED.",
+      "relevant_document_ids": ["architecture_handbook", "operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_lifecycle", "arch_chunk_frontend"],
+      "expected_citations": [1, 2]
+    },
+    {
+      "id": "IE-041",
+      "category": "insufficient_evidence",
+      "question": "What is the exact quarterly revenue of Acme Corporation for the fiscal year 2035?",
+      "expected_answer": "I don't have enough information in the provided documents.",
+      "relevant_document_ids": [],
+      "relevant_chunk_ids": [],
+      "expected_citations": []
+    },
+    {
+      "id": "IE-042",
+      "category": "insufficient_evidence",
+      "question": "Which quantum encryption algorithm does DocAnalyser use for inter-service communication?",
+      "expected_answer": "I don't have enough information in the provided documents.",
+      "relevant_document_ids": [],
+      "relevant_chunk_ids": [],
+      "expected_citations": []
+    },
+    {
+      "id": "IE-043",
+      "category": "insufficient_evidence",
+      "question": "Who was the lead architect who designed the original Apache Lucene library in 1999?",
+      "expected_answer": "I don't have enough information in the provided documents.",
+      "relevant_document_ids": [],
+      "relevant_chunk_ids": [],
+      "expected_citations": []
+    },
+    {
+      "id": "IE-044",
+      "category": "insufficient_evidence",
+      "question": "What are the secret nuclear launch codes mentioned in the operations guide?",
+      "expected_answer": "I don't have enough information in the provided documents.",
+      "relevant_document_ids": [],
+      "relevant_chunk_ids": [],
+      "expected_citations": []
+    },
+    {
+      "id": "IE-045",
+      "category": "insufficient_evidence",
+      "question": "What is the average flight speed of an unladen European swallow according to the documents?",
+      "expected_answer": "I don't have enough information in the provided documents.",
+      "relevant_document_ids": [],
+      "relevant_chunk_ids": [],
+      "expected_citations": []
+    },
+    {
+      "id": "IE-046",
+      "category": "insufficient_evidence",
+      "question": "What temperature is recommended for baking sourdough bread in the architecture handbook?",
+      "expected_answer": "I don't have enough information in the provided documents.",
+      "relevant_document_ids": [],
+      "relevant_chunk_ids": [],
+      "expected_citations": []
+    },
+    {
+      "id": "IE-047",
+      "category": "insufficient_evidence",
+      "question": "What is the price of a Tesla Model S in the European market?",
+      "expected_answer": "I don't have enough information in the provided documents.",
+      "relevant_document_ids": [],
+      "relevant_chunk_ids": [],
+      "expected_citations": []
+    },
+    {
+      "id": "IE-048",
+      "category": "insufficient_evidence",
+      "question": "What were the complete contents of document 9999-nonexistent?",
+      "expected_answer": "I don't have enough information in the provided documents.",
+      "relevant_document_ids": [],
+      "relevant_chunk_ids": [],
+      "expected_citations": []
+    },
+    {
+      "id": "MA-049",
+      "category": "misleading_assumption",
+      "question": "Since DocAnalyser uses MongoDB as its primary relational database, how does it configure ACID transactions?",
+      "expected_answer": "The assumption is incorrect; DocAnalyser uses PostgreSQL as its relational database, not MongoDB.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_pg"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "MA-050",
+      "category": "misleading_assumption",
+      "question": "Given that infinite retries are automatically performed for failed document uploads, why does memory leak?",
+      "expected_answer": "The premise is false; DocAnalyser enforces bounded retries with a maximum limit of 3 attempts, avoiding infinite loops.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_retries"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "MA-051",
+      "category": "misleading_assumption",
+      "question": "Because dense retrieval always replaces BM25 keyword search completely in DocAnalyser, why is BM25 index still present?",
+      "expected_answer": "The premise is incorrect; DocAnalyser combines both dense retrieval and BM25 through hybrid Reciprocal Rank Fusion.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_rrf"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "MA-052",
+      "category": "misleading_assumption",
+      "question": "Why does the Cross-Encoder crash the entire API whenever a candidate score is NaN?",
+      "expected_answer": "The premise is incorrect; the Cross-Encoder sanitizes non-finite scores and provides graceful fallback to candidate retrieval scores.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_rerank"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "MA-053",
+      "category": "misleading_assumption",
+      "question": "Since n8n is required for executing synchronous user search queries, what happens when n8n goes offline?",
+      "expected_answer": "The premise is mistaken; n8n is strictly an asynchronous ingestion automation tool and is not required for search queries.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_n8n"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "MA-054",
+      "category": "misleading_assumption",
+      "question": "How does DocAnalyser allow any regular user to delete and cite other users' private documents?",
+      "expected_answer": "DocAnalyser enforces strict multi-tenant ownership validation; users can only access and cite documents they own.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_security"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "PC-055",
+      "category": "page_citation",
+      "question": "According to Section 2.1 of the architecture handbook, what vector distance metric is used in Qdrant?",
+      "expected_answer": "Section 2.1 states that Cosine distance is used as the similarity metric for vector collections.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_qdrant_sec2"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "PC-056",
+      "category": "page_citation",
+      "question": "What token budget limit is specified on Page 3 for context assembly?",
+      "expected_answer": "Page 3 specifies a default context token budget limit of 2000 tokens.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_budget_p3"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "PC-057",
+      "category": "page_citation",
+      "question": "According to Section 4 of the operations guide, which endpoint is called to poll document status?",
+      "expected_answer": "Section 4 specifies that GET /api/documents/{id}/status is used to poll document job status.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_status_sec4"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "PC-058",
+      "category": "page_citation",
+      "question": "What is the maximum upload file size configured in Section 3 of the security policy?",
+      "expected_answer": "Section 3 limits standard document uploads to a maximum file size of 50 megabytes.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_sec_policy"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "PC-059",
+      "category": "page_citation",
+      "question": "Which Prometheus scrape port is defined in Section 5 of the operations guide?",
+      "expected_answer": "Section 5 defines port 9090 for Prometheus metric collection.",
+      "relevant_document_ids": ["operations_guide"],
+      "relevant_chunk_ids": ["ops_chunk_prom_port"],
+      "expected_citations": [1]
+    },
+    {
+      "id": "PC-060",
+      "category": "page_citation",
+      "question": "According to Page 7, what is the default batch size for embedding generation?",
+      "expected_answer": "Page 7 states the default embedding batch size is 20 chunks per API call.",
+      "relevant_document_ids": ["architecture_handbook"],
+      "relevant_chunk_ids": ["arch_chunk_embed_p7"],
+      "expected_citations": [1]
+    }
+  ]
+}

@@ -30,6 +30,10 @@ class EvaluationCase(BaseModel):
         default=None,
         description="Optional expected citation IDs for the answer.",
     )
+    category: str | None = Field(
+        default=None,
+        description="Optional question category (e.g., exact_fact, semantic, multi_chunk, insufficient_evidence).",
+    )
 
     model_config = ConfigDict(frozen=True)
 

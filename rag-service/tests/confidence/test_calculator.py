@@ -3,6 +3,7 @@ Unit tests for ConfidenceCalculator covering all mandatory test cases from Secti
 """
 
 import pytest
+
 from app.confidence.calculator import ConfidenceCalculator
 from app.confidence.models import (
     ConfidenceBand,

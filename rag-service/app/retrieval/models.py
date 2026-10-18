@@ -49,6 +49,10 @@ class RetrievalFilter(BaseModel):
         default=None,
         description="Filter by single document ID or list of document IDs.",
     )
+    owner_id: str | list[str] | None = Field(
+        default=None,
+        description="Filter by single owner ID or list of owner IDs.",
+    )
     file_type: str | list[str] | None = Field(
         default=None,
         description=("Filter by single file type or list of file types (e.g. 'md')."),
@@ -81,7 +85,7 @@ class RetrievalFilter(BaseModel):
         extra="forbid",
     )
 
-    @field_validator("document_id", "file_type", "source")
+    @field_validator("document_id", "owner_id", "file_type", "source")
     @classmethod
     def validate_non_blank(
         cls,
@@ -107,6 +111,7 @@ class RetrievalFilter(BaseModel):
             value is None
             for value in (
                 self.document_id,
+                self.owner_id,
                 self.file_type,
                 self.source,
                 self.page_number,

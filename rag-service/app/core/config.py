@@ -126,6 +126,10 @@ class Settings(BaseSettings):
     rerank_candidate_top_k: int = 20
     rerank_top_k: int = 5
 
+    # Reranker selection ('mock' or 'cross_encoder')
+    reranker_type: str = "mock"
+    cross_encoder_model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
     # ------------------------------------------------------------------
     # Context Builder Configuration
     # ------------------------------------------------------------------
@@ -280,6 +284,16 @@ class Settings(BaseSettings):
                 f"context_oversized_policy must be 'skip' or 'truncate', got '{v}'"
             )
         return v
+
+    @field_validator("reranker_type")
+    @classmethod
+    def validate_reranker_type(cls, v: str) -> str:
+        normalized = v.strip().lower()
+        if normalized not in ("mock", "cross_encoder"):
+            raise ValueError(
+                f"reranker_type must be one of 'mock', 'cross_encoder', got '{v}'"
+            )
+        return normalized
 
     @field_validator("prompt_version")
     @classmethod

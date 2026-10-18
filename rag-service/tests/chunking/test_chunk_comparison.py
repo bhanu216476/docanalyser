@@ -1,12 +1,13 @@
 """Benchmark test comparing Fixed, Recursive, and Semantic chunking on 100-page synthetic document."""
 
+from langchain_core.documents import Document
+
 from app.chunking.benchmark import (
     evaluate_chunking_strategy,
     format_benchmark_table,
     generate_synthetic_100_page_doc,
 )
 from app.chunking.service import chunk_documents
-from langchain_core.documents import Document
 from tests.chunking.fake_embeddings import FakeEmbeddings
 
 

@@ -15,6 +15,8 @@ for fast, zero-delay, deterministic execution without network calls.
 """
 
 import pytest
+from pydantic import ValidationError
+
 from app.embeddings import (
     CharApproxTokenCounter,
     EmbeddingProvider,
@@ -30,7 +32,6 @@ from app.embeddings import (
     make_token_counter,
 )
 from app.ingestion.chunking.models import Chunk
-from pydantic import ValidationError
 
 # ======================================================================
 # Fixtures

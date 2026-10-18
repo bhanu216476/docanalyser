@@ -15,6 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from app.pipeline.demo_cli import DemoLLMProvider, generate_demo_pdf
 from app.pipeline.models import RAGQueryRequest, RAGResponse
 from app.pipeline.rag_pipeline import RAGPipeline, create_rag_pipeline

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from app.retrieval.hybrid_retriever import HybridRetriever
 from app.retrieval.hybrid_service import HybridRetrievalService
 from app.retrieval.models import RetrievalFilter, RetrievalResult

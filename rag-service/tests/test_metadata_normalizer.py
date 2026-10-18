@@ -5,6 +5,8 @@ Unit tests for document metadata model and Python metadata normalization.
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
+
 from app.ingestion import (
     DocumentMetadata,
     DocumentStatus,
@@ -14,7 +16,6 @@ from app.ingestion import (
     compute_content_hash,
     normalize_file_type,
 )
-from pydantic import ValidationError
 
 
 def test_txt_metadata_normalization():

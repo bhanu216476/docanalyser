@@ -23,6 +23,7 @@ class EvaluationRunner:
         self,
         dataset: Sequence[EvaluationCase] | str | None,
         pipeline: Any | None = None,
+        dataset_name: str = "evaluation_dataset",
     ) -> None:
         if isinstance(dataset, (str, bytes)):
             cases = load_evaluation_dataset(dataset)
@@ -32,6 +33,7 @@ class EvaluationRunner:
             cases = list(dataset)
         self.dataset = cases
         self.pipeline = pipeline
+        self.dataset_name = dataset_name
 
     def run(self) -> EvaluationReport:
         records: list[EvaluationRecord] = []
@@ -91,8 +93,47 @@ class EvaluationRunner:
             refused_questions=refused_count,
         )
 
+        per_category: dict[str, dict[str, Any]] = {}
+        distinct_categories = {c.category for c in self.dataset if c.category}
+        for cat in distinct_categories:
+            cat_records = [
+                r for r in records if r.category == cat and r.status == "completed"
+            ]
+            if cat_records:
+                cat_hits = [
+                    float(r.retrieval_metrics["hit_rate_at_k"])
+                    for r in cat_records
+                    if r.retrieval_metrics.get("hit_rate_at_k") is not None
+                ]
+                cat_recalls = [
+                    float(r.retrieval_metrics["recall_at_k"])
+                    for r in cat_records
+                    if r.retrieval_metrics.get("recall_at_k") is not None
+                ]
+                cat_mrrs = [
+                    float(r.retrieval_metrics["mrr"])
+                    for r in cat_records
+                    if r.retrieval_metrics.get("mrr") is not None
+                ]
+                per_category[cat] = {
+                    "count": len(cat_records),
+                    "hit_rate_at_k": _aggregate(cat_hits),
+                    "recall_at_k": _aggregate(cat_recalls),
+                    "mrr": _aggregate(cat_mrrs),
+                    "answered_count": sum(
+                        1
+                        for r in cat_records
+                        if r.decision_metrics.get("answered_count") == 1
+                    ),
+                    "refused_count": sum(
+                        1
+                        for r in cat_records
+                        if r.decision_metrics.get("refused_count") == 1
+                    ),
+                }
+
         report = EvaluationReport(
-            dataset_name="evaluation_dataset",
+            dataset_name=self.dataset_name,
             total_cases=len(self.dataset),
             completed_cases=sum(
                 1 for record in records if record.status == "completed"
@@ -102,6 +143,7 @@ class EvaluationRunner:
             grounding_metrics=grounding_summary,
             decision_metrics=decision_summary,
             latency_metrics=compute_latency_stats(latencies),
+            per_category_metrics=per_category,
             records=records,
         )
         return report
@@ -158,6 +200,7 @@ class EvaluationRunner:
         return EvaluationRecord(
             id=case.id,
             question=case.question,
+            category=case.category,
             status="completed",
             answer=response.answer,
             retrieved_chunk_ids=retrieved_chunk_ids,
@@ -217,10 +260,12 @@ def main() -> None:
     from app.pipeline.rag_pipeline import create_rag_pipeline
 
     dataset = load_evaluation_dataset(args.dataset)
+    dataset_name = args.dataset.split("/")[-1].split("\\")[-1].rsplit(".", 1)[0]
     report = EvaluationRunner(
-        dataset=dataset, pipeline=create_rag_pipeline(in_memory=True)
+        dataset=dataset,
+        pipeline=create_rag_pipeline(in_memory=True),
+        dataset_name=dataset_name,
     ).run()
-    report.dataset_name = args.dataset.split("/")[-1].split("\\")[-1].rsplit(".", 1)[0]
     report_path = report.export_json(args.output)
     print(
         json.dumps(

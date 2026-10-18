@@ -1,8 +1,9 @@
 """Tests for recursive character chunking strategy."""
 
 import pytest
-from app.chunking.recursive import recursive_chunk_documents
 from langchain_core.documents import Document
+
+from app.chunking.recursive import recursive_chunk_documents
 
 
 def test_recursive_chunking_basic():

@@ -22,6 +22,7 @@ class EvaluationRecord(BaseModel):
     retrieval_metrics: dict[str, float | None] = Field(default_factory=dict)
     grounding_metrics: dict[str, Any] = Field(default_factory=dict)
     decision_metrics: dict[str, float | int | None] = Field(default_factory=dict)
+    category: str | None = Field(default=None, description="Question category.")
     error: str | None = Field(default=None)
 
     model_config = ConfigDict(frozen=True)
@@ -38,6 +39,7 @@ class EvaluationReport(BaseModel):
     grounding_metrics: dict[str, Any] = Field(default_factory=dict)
     decision_metrics: dict[str, float | int | None] = Field(default_factory=dict)
     latency_metrics: dict[str, float] = Field(default_factory=dict)
+    per_category_metrics: dict[str, Any] = Field(default_factory=dict)
     records: list[EvaluationRecord] = Field(default_factory=list)
 
     model_config = ConfigDict(frozen=True)

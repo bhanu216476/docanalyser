@@ -7,6 +7,7 @@ Uses MockReranker and deterministic mock retrievers for fully offline tests.
 from __future__ import annotations
 
 import pytest
+
 from app.reranking.experiment import RerankingExperimentFramework
 from app.reranking.mock_reranker import MockReranker
 from app.reranking.models import (

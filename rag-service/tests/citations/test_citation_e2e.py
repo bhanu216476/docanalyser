@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from app.citations.mapper import CitationMapper
 from app.citations.models import CitationValidationPolicy, InvalidCitationError
 from app.llm.prompts.models import Prompt

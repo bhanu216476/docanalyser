@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from app.context.models import ContextItem, StructuredContext
 from pydantic import ValidationError
+
+from app.context.models import ContextItem, StructuredContext
 
 
 def test_context_item_defaults_and_structured_count() -> None:

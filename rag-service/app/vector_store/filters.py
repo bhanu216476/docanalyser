@@ -30,6 +30,7 @@ from app.vector_store.exceptions import FilterValidationError
 ALLOWED_FILTER_FIELDS: frozenset[str] = frozenset(
     {
         "document_id",
+        "owner_id",
         "file_type",
         "source",
         "chunk_index",
@@ -47,6 +48,7 @@ class VectorStoreFilter(BaseModel):
 
     Attributes:
         document_id:    Filter by one or more document IDs.
+        owner_id:       Filter by document owner ID.
         file_type:      Filter by one or more file types (e.g. 'md', 'txt').
         source:         Filter by exact normalized source URI/path.
         chunk_index:    Filter by exact 0-based chunk index.
@@ -58,6 +60,10 @@ class VectorStoreFilter(BaseModel):
     document_id: str | list[str] | None = Field(
         default=None,
         description="Filter by single document ID or list of document IDs.",
+    )
+    owner_id: str | list[str] | None = Field(
+        default=None,
+        description="Filter by single owner ID or list of owner IDs.",
     )
     file_type: str | list[str] | None = Field(
         default=None,
@@ -134,6 +140,7 @@ class FilterBuilder:
                 cls.validate_field_name(key)
             filter_obj = VectorStoreFilter(
                 document_id=filter_spec.get("document_id"),
+                owner_id=filter_spec.get("owner_id"),
                 file_type=filter_spec.get("file_type"),
                 source=filter_spec.get("source"),
                 chunk_index=filter_spec.get("chunk_index"),
@@ -145,6 +152,7 @@ class FilterBuilder:
                     if k
                     not in {
                         "document_id",
+                        "owner_id",
                         "file_type",
                         "source",
                         "chunk_index",
@@ -168,6 +176,12 @@ class FilterBuilder:
         if filter_obj.document_id is not None:
             must_conditions.append(
                 cls._build_match_condition("document_id", filter_obj.document_id)
+            )
+
+        # Owner ID filter
+        if filter_obj.owner_id is not None:
+            must_conditions.append(
+                cls._build_match_condition("owner_id", filter_obj.owner_id)
             )
 
         # File type filter

@@ -31,6 +31,7 @@ Metrics:
 from __future__ import annotations
 
 from app.reranking.base import BaseReranker, Reranker
+from app.reranking.cross_encoder import CrossEncoderCandidateReranker
 from app.reranking.experiment import RerankingExperimentFramework
 from app.reranking.metrics import compute_latency, compute_ranking_metrics
 from app.reranking.mock_reranker import MockReranker
@@ -46,6 +47,7 @@ from app.reranking.pipeline import RerankedPipeline
 
 __all__ = [
     "BaseReranker",
+    "CrossEncoderCandidateReranker",
     "LatencyMetrics",
     # Implementations
     "MockReranker",
