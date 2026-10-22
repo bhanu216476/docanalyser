@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Upload, CheckCircle2, Clock, AlertTriangle, Trash2, RefreshCw, Eye, Search, Plus } from 'lucide-react';
 import DocumentDetailsSheet from '../components/DocumentDetailsSheet';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://docanalyser-backend.onrender.com');
 
 export default function Documents({
   documents = [],

@@ -11,7 +11,9 @@ services:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: RAG_SERVICE_URL
-        value: http://docanalyser-rag:8000
+        value: https://docanalyser-rag.onrender.com
+      - key: N8N_INGESTION_TOKEN
+        value: docanalyser-n8n-internal-token-secret
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRATION
@@ -68,6 +70,8 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://docanalyser-backend.onrender.com
+      - key: VITE_RAG_URL
+        value: https://docanalyser-rag.onrender.com
 
   - type: redis
     name: docanalyser-redis

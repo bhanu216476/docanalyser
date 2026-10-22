@@ -2,6 +2,25 @@
 
 A production-grade, containerized AI/RAG application for intelligent document analysis, hybrid search, citation verification, and factual question-answering.
 
+[![Live App](https://img.shields.io/badge/Live_App-docanalyser--frontend.onrender.com-success?style=for-the-badge&logo=render)](https://docanalyser-frontend.onrender.com)
+[![Backend API](https://img.shields.io/badge/Backend_API-docanalyser--backend.onrender.com-blue?style=for-the-badge&logo=spring)](https://docanalyser-backend.onrender.com/api/health)
+[![RAG Engine](https://img.shields.io/badge/RAG_Engine-docanalyser--rag.onrender.com-blueviolet?style=for-the-badge&logo=fastapi)](https://docanalyser-rag.onrender.com/health)
+
+---
+
+## 🌐 Live Production Deployment (Render Cloud)
+
+DocAnalyser is live and accessible online:
+
+| Service | Live URL | Health / Status Endpoint | Description |
+| :--- | :--- | :--- | :--- |
+| **Frontend Web App** | [https://docanalyser-frontend.onrender.com](https://docanalyser-frontend.onrender.com) | Live Global Route | Interactive React 18 / Vite SPA Dashboard |
+| **Spring Boot API** | [https://docanalyser-backend.onrender.com](https://docanalyser-backend.onrender.com) | [`/api/health`](https://docanalyser-backend.onrender.com/api/health) · [`/actuator/health`](https://docanalyser-backend.onrender.com/actuator/health) | Java 21 REST API, JWT Auth, Postgres 16, Redis |
+| **FastAPI RAG Service** | [https://docanalyser-rag.onrender.com](https://docanalyser-rag.onrender.com) | [`/health`](https://docanalyser-rag.onrender.com/health) | Python 3.12 Hybrid Dense + BM25 Retrieval Engine |
+| **RAG Interactive Swagger Docs** | [https://docanalyser-rag.onrender.com/docs](https://docanalyser-rag.onrender.com/docs) | [`/docs`](https://docanalyser-rag.onrender.com/docs) | Swagger UI API Explorer |
+| **Managed PostgreSQL** | Render PostgreSQL 16 (Oregon) | Internal SSL Port 5432 | Flyway migrations, user entities & documents |
+| **Managed Redis Cache** | Render Valkey 8 / Redis 7.2 (Oregon) | Internal SSL Port 6379 | State machine & query result caching |
+
 ---
 
 ## 1. System Architecture
@@ -79,7 +98,17 @@ DocAnalyser employs an enterprise microservices architecture containerized with 
 
 ## 3. Platform URLs & Health Endpoints
 
-| Component | URL | Health Check / Status |
+### ☁️ Production Cloud Endpoints (Render)
+| Component | Live Production URL | Health Check / Status |
+| :--- | :--- | :--- |
+| **React Frontend** | [https://docanalyser-frontend.onrender.com](https://docanalyser-frontend.onrender.com) | Live Global Route |
+| **Spring Boot API** | [https://docanalyser-backend.onrender.com](https://docanalyser-backend.onrender.com) | [`/api/health`](https://docanalyser-backend.onrender.com/api/health) |
+| **Spring Actuator Metrics** | [https://docanalyser-backend.onrender.com/actuator/health](https://docanalyser-backend.onrender.com/actuator/health) | Full Component Diagnostics |
+| **FastAPI RAG Service** | [https://docanalyser-rag.onrender.com](https://docanalyser-rag.onrender.com) | [`/health`](https://docanalyser-rag.onrender.com/health) |
+| **FastAPI Swagger Docs** | [https://docanalyser-rag.onrender.com/docs](https://docanalyser-rag.onrender.com/docs) | Interactive Swagger UI Explorer |
+
+### 💻 Local Development Endpoints (Docker Compose)
+| Component | Local URL | Health Check / Status |
 | :--- | :--- | :--- |
 | **React Frontend** | [http://localhost:5173](http://localhost:5173) | `http://localhost:5173/health` |
 | **Spring Boot API** | [http://localhost:8080](http://localhost:8080) | `http://localhost:8080/api/health` |

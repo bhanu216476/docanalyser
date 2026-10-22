@@ -17,8 +17,8 @@ import System from './pages/System';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-const RAG_BASE = import.meta.env.VITE_RAG_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://docanalyser-backend.onrender.com');
+const RAG_BASE = import.meta.env.VITE_RAG_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://docanalyser-rag.onrender.com');
 
 function AppShell() {
   const { user } = useAuth();

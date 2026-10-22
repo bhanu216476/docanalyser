@@ -72,7 +72,7 @@ app:
     connect-timeout-ms: ${RAG_CONNECT_TIMEOUT_MS:5000}
     read-timeout-ms: ${RAG_READ_TIMEOUT_MS:60000}
   internal:
-    api-token: ${N8N_INGESTION_TOKEN:changeme-internal-token-use-env-var}
+    api-token: ${N8N_INGESTION_TOKEN:docanalyser-n8n-internal-token-secret}
   redis:
     cache-document-ttl-seconds: ${CACHE_DOCUMENT_TTL_SECONDS:300}
     session-state-ttl-seconds: ${SESSION_STATE_TTL_SECONDS:1800}

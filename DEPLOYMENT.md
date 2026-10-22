@@ -23,7 +23,16 @@ Render natively reads [`render.yaml`](./render.yaml) from this repository to aut
    - `QDRANT_URL`: Your Qdrant Cloud Cluster URL (or self-hosted Qdrant URL).
    - `QDRANT_API_KEY`: Your Qdrant API key (if using Qdrant Cloud).
 6. Click **Apply**.
-7. Render will build and deploy all services simultaneously. Once finished, Render will provide a public URL for your frontend (e.g., `https://docanalyser-frontend.onrender.com`).
+7. Render will build and deploy all services simultaneously. Once finished, Render provisions the live services:
+
+### 🚀 Active Render Live URLs:
+- **Frontend App:** [https://docanalyser-frontend.onrender.com](https://docanalyser-frontend.onrender.com)
+- **Spring Boot API:** [https://docanalyser-backend.onrender.com](https://docanalyser-backend.onrender.com)
+- **Backend Health Check:** [https://docanalyser-backend.onrender.com/api/health](https://docanalyser-backend.onrender.com/api/health)
+- **Backend Actuator Health:** [https://docanalyser-backend.onrender.com/actuator/health](https://docanalyser-backend.onrender.com/actuator/health)
+- **FastAPI RAG Engine:** [https://docanalyser-rag.onrender.com](https://docanalyser-rag.onrender.com)
+- **RAG Health Check:** [https://docanalyser-rag.onrender.com/health](https://docanalyser-rag.onrender.com/health)
+- **RAG Interactive Swagger Docs:** [https://docanalyser-rag.onrender.com/docs](https://docanalyser-rag.onrender.com/docs)
 
 ---
 

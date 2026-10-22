@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, Users, Files, MessageSquare, Server, CheckCircle, XCircle, Loader } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-const RAG_BASE = import.meta.env.VITE_RAG_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://docanalyser-backend.onrender.com');
+const RAG_BASE = import.meta.env.VITE_RAG_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://docanalyser-rag.onrender.com');
 
 function HealthDot({ status }) {
   const color = status === 'healthy' ? 'var(--success)' : status === 'offline' ? 'var(--error)' : 'var(--warning)';
