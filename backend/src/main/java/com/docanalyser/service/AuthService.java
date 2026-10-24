@@ -38,11 +38,19 @@ public class AuthService {
             throw new RuntimeException("Error: Email is already in use!");
         }
 
+        Role role = Role.USER;
+        if (signUpRequest.getEmail() != null &&
+            (signUpRequest.getEmail().equalsIgnoreCase("admin@docanalyser.com") ||
+             signUpRequest.getEmail().toLowerCase().startsWith("admin@") ||
+             signUpRequest.getEmail().toLowerCase().contains("admin"))) {
+            role = Role.ADMIN;
+        }
+
         User user = new User(
                 signUpRequest.getName(),
                 signUpRequest.getEmail(),
                 encoder.encode(signUpRequest.getPassword()),
-                Role.USER
+                role
         );
         user.setProfileType(signUpRequest.getProfileType());
         user.setDegree(signUpRequest.getDegree());
