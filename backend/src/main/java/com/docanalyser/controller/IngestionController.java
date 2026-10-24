@@ -41,6 +41,9 @@ public class IngestionController {
     private final DocumentJobStatusService documentJobStatusService;
     private final DocumentCacheService documentCacheService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.docanalyser.repository.UserRepository userRepository;
+
     @org.springframework.beans.factory.annotation.Autowired
     public IngestionController(RagServiceClient ragServiceClient,
                                DocumentRepository documentRepository,
@@ -102,6 +105,19 @@ public class IngestionController {
                         DocumentStatus.UPLOADED
                 );
                 document.setId(docId);
+
+                try {
+                    org.springframework.security.core.Authentication auth =
+                            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getPrincipal() instanceof com.docanalyser.security.services.UserDetailsImpl userDetails) {
+                        if (userRepository != null) {
+                            userRepository.findById(userDetails.getId()).ifPresent(document::setOwner);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not associate document {} with owner: {}", docId, e.getMessage());
+                }
+
                 document = documentRepository.save(document);
             }
         }

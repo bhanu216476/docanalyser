@@ -33,5 +33,7 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findByOwnerId(UUID ownerId);
 
+    List<Document> findByOwnerIsNull();
+
     Optional<Document> findByIdAndOwnerId(UUID id, UUID ownerId);
 }

@@ -47,9 +47,7 @@ export default function AskAI({
 
   const handleSuggestionClick = (questionText) => {
     setQueryInput(questionText);
-    setTimeout(() => {
-      handleSendQuery();
-    }, 50);
+    handleSendQuery(null, questionText);
   };
 
   // Helper to parse answer text and turn [1], [2] into interactive CitationBadges

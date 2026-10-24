@@ -28,12 +28,14 @@ export function AuthProvider({ children }) {
             const userData = await res.json();
             setUser(userData);
             localStorage.setItem('docanalyser_user', JSON.stringify(userData));
+          } else if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('docanalyser_user');
+            setUser(null);
           }
         } catch (err) {
-          // If offline, keep saved local user session
+          // If network unreachable, keep saved local user session
         }
-      } else if (!savedUser) {
-        // Default guest session so user can immediately view pages if preferred
       }
 
       setLoading(false);
@@ -42,72 +44,93 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
+    let res;
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
+      res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
+    } catch (err) {
+      // Backend completely unreachable: fallback for local demo
+      const localUser = {
+        id: `usr-${Date.now().toString().slice(-4)}`,
+        name: email.split('@')[0] || 'User',
+        email: email,
+        role: email.toLowerCase().includes('admin') ? 'ADMIN' : 'USER'
+      };
+      setUser(localUser);
+      localStorage.setItem('token', 'offline-demo-token');
+      localStorage.setItem('docanalyser_user', JSON.stringify(localUser));
+      return;
+    }
 
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem('token', data.token);
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
 
+      let userData = {
+        id: data.id || 'user-1',
+        name: data.name || email.split('@')[0],
+        email: data.email || email,
+        role: data.role || 'USER'
+      };
+
+      try {
         const meRes = await fetch(`${API_BASE}/api/auth/me`, {
           headers: { 'Authorization': `Bearer ${data.token}` }
         });
-        let userData = {
-          id: data.id || 'user-1',
-          name: data.name || email.split('@')[0],
-          email: data.email || email,
-          role: data.role || 'USER'
-        };
         if (meRes.ok) {
           userData = await meRes.json();
         }
-        setUser(userData);
-        localStorage.setItem('docanalyser_user', JSON.stringify(userData));
-        return;
-      }
-    } catch (err) {
-      // Backend offline
+      } catch (e) {}
+
+      setUser(userData);
+      localStorage.setItem('docanalyser_user', JSON.stringify(userData));
+      return;
     }
 
-    // Fallback authentication for offline local testing
-    const localUser = {
-      id: `usr-${Date.now().toString().slice(-4)}`,
-      name: email.split('@')[0] || 'User',
-      email: email,
-      role: email.toLowerCase().includes('admin') ? 'ADMIN' : 'USER'
-    };
-    setUser(localUser);
-    localStorage.setItem('token', 'offline-demo-token');
-    localStorage.setItem('docanalyser_user', JSON.stringify(localUser));
+    // Backend responded with an error (401, 400, etc.)
+    let errMessage = 'Invalid email or password';
+    try {
+      const errData = await res.json();
+      errMessage = errData.message || errData.error || (typeof errData === 'object' ? Object.values(errData)[0] : null) || errMessage;
+    } catch (e) {}
+    throw new Error(errMessage);
   };
 
   const register = async (userData) => {
+    let res;
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
+      res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
       });
-
-      if (res.ok) return;
     } catch (err) {
-      // Backend offline
+      // Backend completely unreachable: fallback for local demo
+      const localUser = {
+        id: `usr-${Date.now().toString().slice(-4)}`,
+        name: userData.name || 'User',
+        email: userData.email,
+        role: 'USER'
+      };
+      setUser(localUser);
+      localStorage.setItem('token', 'offline-demo-token');
+      localStorage.setItem('docanalyser_user', JSON.stringify(localUser));
+      return;
     }
 
-    // Save registered user locally for seamless offline demo
-    const localUser = {
-      id: `usr-${Date.now().toString().slice(-4)}`,
-      name: userData.name || 'User',
-      email: userData.email,
-      role: 'USER'
-    };
-    setUser(localUser);
-    localStorage.setItem('token', 'offline-demo-token');
-    localStorage.setItem('docanalyser_user', JSON.stringify(localUser));
+    if (res.ok) {
+      return;
+    }
+
+    let errMessage = 'Registration failed';
+    try {
+      const errData = await res.json();
+      errMessage = errData.message || errData.error || (typeof errData === 'object' ? Object.values(errData)[0] : null) || errMessage;
+    } catch (e) {}
+    throw new Error(errMessage);
   };
 
   const logout = () => {

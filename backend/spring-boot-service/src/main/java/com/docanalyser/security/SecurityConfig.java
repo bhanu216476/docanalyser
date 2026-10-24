@@ -91,7 +91,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/prometheus").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
-                        .requestMatchers("/api/internal/**").hasRole("SYSTEM")
+                        .requestMatchers("/api/internal/**").hasAnyRole("SYSTEM", "USER", "ADMIN")
                         .anyRequest().authenticated()
                 );
 

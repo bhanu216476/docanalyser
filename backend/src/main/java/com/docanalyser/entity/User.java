@@ -72,6 +72,9 @@ public class User {
 
     @PrePersist
     protected void onCreate() {
+        if (this.id == null) {
+            this.id = UUID.randomUUID();
+        }
         Instant now = Instant.now();
         if (this.createdAt == null) {
             this.createdAt = now;

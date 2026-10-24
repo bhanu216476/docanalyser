@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
@@ -91,34 +91,35 @@ function AppShell() {
   }, []);
 
   // Fetch real document list from Spring API if authenticated
-  useEffect(() => {
-    const fetchDocuments = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/documents`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setDocuments(data.map(doc => ({
-              id: doc.id || `doc-${doc.contentHash?.substring(0, 6)}`,
-              title: doc.fileName || doc.title || 'Untitled Document',
-              fileName: doc.fileName || 'document.pdf',
-              category: doc.source || 'Ingested',
-              status: doc.status || 'PROCESSED',
-              chunks: doc.chunkCount || doc.chunks || 12,
-              uploadedAt: doc.createdAt ? new Date(doc.createdAt).toISOString().replace('T', ' ').slice(0, 16) : 'Recently'
-            })));
-          }
+  const fetchDocuments = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token || token === 'offline-demo-token') return;
+    try {
+      const res = await fetch(`${API_BASE}/api/documents`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setDocuments(data.map(doc => ({
+            id: doc.id || `doc-${doc.contentHash?.substring(0, 6)}`,
+            title: doc.fileName || doc.title || 'Untitled Document',
+            fileName: doc.fileName || 'document.pdf',
+            category: doc.source || 'Ingested',
+            status: doc.status || 'PROCESSED',
+            chunks: doc.chunkCount || doc.chunks || 12,
+            uploadedAt: doc.createdAt ? new Date(doc.createdAt).toISOString().replace('T', ' ').slice(0, 16) : 'Recently'
+          })));
         }
-      } catch (err) {
-        // Keep initial fallback documents if API not reachable
       }
-    };
-    fetchDocuments();
+    } catch (err) {
+      // Keep initial fallback documents if API not reachable
+    }
   }, []);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleUpload = async (e) => {
     e?.preventDefault();
@@ -181,6 +182,8 @@ function AppShell() {
       setUploadTitle('');
       setUploadContent('');
       setUploadMessage({ type: 'success', text: `Document "${newDoc.title}" successfully ingested and indexed!` });
+      // Refresh documents from API if available
+      fetchDocuments();
     } catch (err) {
       setUploadMessage({ type: 'error', text: 'Ingestion failed: ' + err.message });
     } finally {
@@ -188,11 +191,11 @@ function AppShell() {
     }
   };
 
-  const handleSendQuery = async (e) => {
+  const handleSendQuery = async (e, textOverride = null) => {
     e?.preventDefault();
-    if (!queryInput.trim() || isQuerying) return;
+    const userText = (textOverride || queryInput).trim();
+    if (!userText || isQuerying) return;
 
-    const userText = queryInput.trim();
     setQueryInput('');
     setMessages(prev => [...prev, { id: `user-${Date.now()}`, role: 'user', text: userText }]);
     setIsQuerying(true);

@@ -48,7 +48,18 @@ public class DocumentService {
         if (isAdmin) {
             return documentRepository.findAll();
         } else {
-            return documentRepository.findByOwnerId(userDetails.getId());
+            List<Document> userDocs = documentRepository.findByOwnerId(userDetails.getId());
+            try {
+                List<Document> publicDocs = documentRepository.findByOwnerIsNull();
+                if (publicDocs != null && !publicDocs.isEmpty()) {
+                    java.util.LinkedHashSet<Document> allDocs = new java.util.LinkedHashSet<>(userDocs != null ? userDocs : List.of());
+                    allDocs.addAll(publicDocs);
+                    return new java.util.ArrayList<>(allDocs);
+                }
+            } catch (Exception e) {
+                log.debug("Could not fetch unassigned public documents: {}", e.getMessage());
+            }
+            return userDocs != null ? userDocs : List.of();
         }
     }
 
@@ -80,6 +91,17 @@ public class DocumentService {
             document = documentRepository.findById(id);
         } else {
             document = documentRepository.findByIdAndOwnerId(id, userDetails.getId());
+            if (document.isEmpty()) {
+                // If not found by owner, allow access if document has no owner (system document)
+                try {
+                    Optional<Document> publicDoc = documentRepository.findById(id);
+                    if (publicDoc.isPresent() && publicDoc.get().getOwner() == null) {
+                        document = publicDoc;
+                    }
+                } catch (Exception e) {
+                    log.debug("Error checking public document fallback for {}: {}", id, e.getMessage());
+                }
+            }
         }
 
         // Populate cache on successful fetch
