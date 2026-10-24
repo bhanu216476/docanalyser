@@ -19,17 +19,26 @@ public class DocAnalyserApplication {
     public CommandLineRunner initAdminUser(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         return args -> {
             String adminEmail = "admin@docanalyser.com";
-            if (!userRepository.existsByEmail(adminEmail)) {
-                User admin = new User(
-                    "System Administrator",
-                    adminEmail,
-                    passwordEncoder.encode("Admin@123456"),
-                    Role.ADMIN
-                );
-                admin.setProfileType("Admin");
-                userRepository.save(admin);
-                System.out.println(">>> Initialized default admin user: " + adminEmail);
-            }
+            userRepository.findByEmail(adminEmail).ifPresentOrElse(
+                user -> {
+                    if (user.getRole() != Role.ADMIN) {
+                        user.setRole(Role.ADMIN);
+                        userRepository.save(user);
+                        System.out.println(">>> Promoted existing user to ADMIN: " + adminEmail);
+                    }
+                },
+                () -> {
+                    User admin = new User(
+                        "System Administrator",
+                        adminEmail,
+                        passwordEncoder.encode("Admin@123456"),
+                        Role.ADMIN
+                    );
+                    admin.setProfileType("Admin");
+                    userRepository.save(admin);
+                    System.out.println(">>> Initialized default admin user: " + adminEmail);
+                }
+            );
         };
     }
 }
