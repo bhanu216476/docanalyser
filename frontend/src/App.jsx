@@ -222,19 +222,29 @@ function AppShell() {
           },
           body: JSON.stringify(payload)
         });
+        let errorMessage = null;
         if (res.ok) {
           ragResponse = await res.json();
         } else {
+          try {
+            const errJson = await res.json();
+            if (errJson && errJson.detail) {
+              errorMessage = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+            }
+          } catch (_) {}
+
           // Fallback legacy endpoint check
-          const fallbackRes = await fetch(`${RAG_BASE}/rag/query`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify({ query: userText, top_k: 5 })
-          });
-          if (fallbackRes.ok) ragResponse = await fallbackRes.json();
+          try {
+            const fallbackRes = await fetch(`${RAG_BASE}/rag/query`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+              },
+              body: JSON.stringify({ query: userText, top_k: 5 })
+            });
+            if (fallbackRes.ok) ragResponse = await fallbackRes.json();
+          } catch (_) {}
         }
       } catch (e) {}
 
@@ -256,7 +266,7 @@ function AppShell() {
         setMessages(prev => [...prev, {
           id: `ai-${Date.now()}`,
           role: 'assistant',
-          text: `I couldn't find enough information in the uploaded documents to answer this question.`,
+          text: errorMessage || `I couldn't find enough information in the uploaded documents to answer this question.`,
           meta: null
         }]);
       }

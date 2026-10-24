@@ -594,6 +594,31 @@ class RAGPipeline:
             max_output_tokens=settings.llm_max_output_tokens,
         )
 
+    def _generate_extractive_fallback(
+        self, built_context: BuiltContext, query: str
+    ) -> str:
+        """
+        Synthesize a grounded extractive answer directly from selected chunks
+        when the external LLM provider encounters an error or timeout.
+        """
+        if not built_context.selected_chunks:
+            return "I don't have enough information in the provided documents."
+
+        chunks = built_context.selected_chunks
+        parts = []
+        for i, chunk in enumerate(chunks[:3], start=1):
+            content = chunk.content.strip()
+            content = " ".join(content.split())
+            if content:
+                if len(content) > 350:
+                    content = content[:350].rsplit(" ", 1)[0] + "..."
+                parts.append(f"{content} [{i}]")
+
+        if not parts:
+            return "I don't have enough information in the provided documents."
+
+        return "Based on your documents:\n\n" + "\n\n".join(parts)
+
     # -----------------------------------------------------------------------
     # End-to-End Query Orchestration
     # -----------------------------------------------------------------------
@@ -821,7 +846,10 @@ class RAGPipeline:
                     output_tokens=getattr(llm_response, "completion_tokens", None),
                 )
             except Exception as exc:
-                logger.error("LLM generation failed: %s", exc)
+                logger.warning(
+                    "Primary LLM generation failed (%s); using grounded extractive synthesis.",
+                    exc,
+                )
                 llm_dur = time.perf_counter() - t5
                 RagMetrics().record_llm_request(
                     duration_s=llm_dur,
@@ -831,11 +859,16 @@ class RAGPipeline:
                     outcome="failure",
                     error_type=type(exc).__name__,
                 )
-                RagMetrics().record_pipeline_failure("llm")
-                RagMetrics().record_pipeline_duration(
-                    time.perf_counter() - t_total_start, outcome="failure"
+                fallback_answer = self._generate_extractive_fallback(
+                    built_context, query_str
                 )
-                raise QueryPipelineError(f"LLM generation failed: {exc}") from exc
+                llm_response = LLMResponse(
+                    text=fallback_answer,
+                    model="grounded-extractive-fallback",
+                    input_tokens=built_context.token_count,
+                    output_tokens=len(fallback_answer.split()),
+                    total_tokens=built_context.token_count + len(fallback_answer.split()),
+                )
             latencies["llm_generation_ms"] = (time.perf_counter() - t5) * 1000.0
             metadata["prompt_tokens"] = llm_response.prompt_tokens
             metadata["model_id"] = llm_response.model_id

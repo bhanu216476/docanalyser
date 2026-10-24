@@ -28,6 +28,28 @@ _NON_INFORMATIVE_TOKENS = {
     "with",
 }
 
+_META_INSPECTION_TOKENS = {
+    "document",
+    "documents",
+    "data",
+    "file",
+    "files",
+    "content",
+    "contents",
+    "summary",
+    "summarize",
+    "docx",
+    "pdf",
+    "text",
+    "show",
+    "give",
+    "tell",
+    "overview",
+    "explain",
+    "everything",
+    "all",
+}
+
 
 class DecisionLayer:
     """Decide whether selected context is meaningfully related to a query.
@@ -47,9 +69,15 @@ class DecisionLayer:
                 confidence=0.0,
             )
 
-        evidence_tokens = self._tokens(
-            chunk.content for chunk in context.selected_chunks
-        )
+        evidence_sources = [chunk.content for chunk in context.selected_chunks]
+        for chunk in context.selected_chunks:
+            meta = getattr(chunk, "metadata", None)
+            if isinstance(meta, dict):
+                for val in meta.values():
+                    if isinstance(val, str):
+                        evidence_sources.append(val)
+
+        evidence_tokens = self._tokens(evidence_sources)
         if not context.context_text.strip() or not evidence_tokens:
             return DecisionResult(
                 should_answer=False,
@@ -67,6 +95,14 @@ class DecisionLayer:
 
         overlap = query_tokens & evidence_tokens
         if not overlap:
+            meta_overlap = query_tokens & _META_INSPECTION_TOKENS
+            if meta_overlap and len(evidence_tokens) >= 5:
+                confidence = len(meta_overlap) / len(query_tokens)
+                return DecisionResult(
+                    should_answer=True,
+                    reason="sufficient_evidence",
+                    confidence=confidence,
+                )
             return DecisionResult(
                 should_answer=False,
                 reason="irrelevant_evidence",

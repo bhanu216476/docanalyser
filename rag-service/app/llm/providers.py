@@ -125,9 +125,36 @@ class OpenAILLMProvider(LLMProvider):
         temperature: float,
         max_output_tokens: int,
     ) -> LLMResponse:
+        chosen_model = model
+        if not chosen_model or chosen_model in ("gpt-5.6-luna", "default"):
+            chosen_model = "gpt-4o-mini"
+
         try:
+            # Prefer standard chat completions API if available on client
+            if hasattr(self._client, "chat") and hasattr(self._client.chat, "completions"):
+                try:
+                    response = self._client.chat.completions.create(
+                        model=chosen_model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=temperature,
+                        max_tokens=max_output_tokens,
+                    )
+                    text = response.choices[0].message.content or ""
+                    usage = getattr(response, "usage", None)
+                    return LLMResponse(
+                        text=text,
+                        model=str(getattr(response, "model", chosen_model) or chosen_model),
+                        input_tokens=_usage_value(usage, "prompt_tokens") or _usage_value(usage, "input_tokens"),
+                        output_tokens=_usage_value(usage, "completion_tokens") or _usage_value(usage, "output_tokens"),
+                        total_tokens=_usage_value(usage, "total_tokens"),
+                    )
+                except Exception as chat_err:
+                    # If chat.completions failed, fall through to responses.create if available
+                    if not (hasattr(self._client, "responses") and hasattr(self._client.responses, "create")):
+                        raise chat_err
+
             response = self._client.responses.create(
-                model=model,
+                model=chosen_model,
                 input=prompt,
                 temperature=temperature,
                 max_output_tokens=max_output_tokens,
@@ -135,7 +162,7 @@ class OpenAILLMProvider(LLMProvider):
             usage = getattr(response, "usage", None)
             return LLMResponse(
                 text=str(getattr(response, "output_text", "") or ""),
-                model=str(getattr(response, "model", model) or model),
+                model=str(getattr(response, "model", chosen_model) or chosen_model),
                 input_tokens=_usage_value(usage, "input_tokens"),
                 output_tokens=_usage_value(usage, "output_tokens"),
                 total_tokens=_usage_value(usage, "total_tokens"),

@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     # LLM Generation Configuration
     # ------------------------------------------------------------------
     # Override with LLM_MODEL in .env for deployments using another model.
-    llm_model: str = "gpt-5.6-luna"
+    llm_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.2
     llm_max_input_tokens: int = 12000
     llm_max_output_tokens: int = 1500
