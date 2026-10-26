@@ -85,9 +85,9 @@ export default function Documents({
   };
 
   return (
-    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '24px' }}>
+    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <h1 className="page-title">Documents</h1>
         <p style={{ color: 'var(--t2)', fontSize: '13.5px', marginTop: '4px' }}>
           Add files once, then ask questions about all of them.
@@ -95,7 +95,7 @@ export default function Documents({
       </div>
 
       {/* Main Grid: Left Upload Zone & Form / Right Table */}
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '24px', alignItems: 'start' }}>
+      <div className="documents-layout-grid">
         {/* Drag & Drop Upload Zone & Ingestion Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Drop Zone Box */}
@@ -110,7 +110,7 @@ export default function Documents({
               borderStyle: 'dashed',
               borderWidth: '2px',
               textAlign: 'center',
-              padding: '28px 20px',
+              padding: '24px 18px',
               transition: 'all 0.15s ease'
             }}
           >
@@ -130,13 +130,14 @@ export default function Documents({
               <Upload size={20} />
             </div>
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--tx)', marginBottom: '4px' }}>
-              Drop files here to add them
+              Upload Documents
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--t2)', marginBottom: '16px' }}>
-              PDF, DOCX or TXT · up to 50 MB each
+              Tap to browse or drop files · PDF, DOCX or TXT up to 50 MB
             </p>
 
-            <label className="btn btn-secondary" style={{ display: 'inline-flex', cursor: 'pointer' }}>
+            <label className="btn btn-secondary" style={{ display: 'inline-flex', cursor: 'pointer', minHeight: '40px', alignItems: 'center' }}>
+              <Upload size={14} style={{ marginRight: '6px' }} />
               <span>Browse files</span>
               <input
                 type="file"
@@ -247,9 +248,9 @@ export default function Documents({
         {/* Right Table Section */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Filters & Search Row */}
-          <div className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            {/* Filter pills */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            {/* Filter pills — horizontally scrollable on mobile */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', maxWidth: '100%', paddingBottom: '2px', WebkitOverflowScrolling: 'touch' }}>
               <button
                 type="button"
                 onClick={() => setFilterStatus('ALL')}
@@ -257,6 +258,7 @@ export default function Documents({
                 style={{
                   padding: '5px 12px',
                   fontSize: '12.5px',
+                  whiteSpace: 'nowrap',
                   backgroundColor: filterStatus === 'ALL' ? 'var(--s2)' : 'transparent',
                   color: filterStatus === 'ALL' ? 'var(--tx)' : 'var(--t2)',
                   fontWeight: filterStatus === 'ALL' ? 600 : 400
@@ -271,6 +273,7 @@ export default function Documents({
                 style={{
                   padding: '5px 12px',
                   fontSize: '12.5px',
+                  whiteSpace: 'nowrap',
                   backgroundColor: filterStatus === 'PROCESSED' ? 'var(--s2)' : 'transparent',
                   color: filterStatus === 'PROCESSED' ? 'var(--ok)' : 'var(--t2)',
                   fontWeight: filterStatus === 'PROCESSED' ? 600 : 400
@@ -285,6 +288,7 @@ export default function Documents({
                 style={{
                   padding: '5px 12px',
                   fontSize: '12.5px',
+                  whiteSpace: 'nowrap',
                   backgroundColor: filterStatus === 'PROCESSING' ? 'var(--s2)' : 'transparent',
                   color: filterStatus === 'PROCESSING' ? 'var(--ac)' : 'var(--t2)',
                   fontWeight: filterStatus === 'PROCESSING' ? 600 : 400
@@ -299,6 +303,7 @@ export default function Documents({
                 style={{
                   padding: '5px 12px',
                   fontSize: '12.5px',
+                  whiteSpace: 'nowrap',
                   backgroundColor: filterStatus === 'FAILED' ? 'var(--s2)' : 'transparent',
                   color: filterStatus === 'FAILED' ? 'var(--err)' : 'var(--t2)',
                   fontWeight: filterStatus === 'FAILED' ? 600 : 400
@@ -309,7 +314,7 @@ export default function Documents({
             </div>
 
             {/* Filter Search Input */}
-            <div style={{ position: 'relative', width: '220px' }}>
+            <div style={{ position: 'relative', width: '100%', maxWidth: '240px', minWidth: '160px' }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--mu)' }} />
               <input
                 type="text"
@@ -317,12 +322,12 @@ export default function Documents({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="input-base"
-                style={{ paddingLeft: '32px', paddingTop: '6px', paddingBottom: '6px', fontSize: '12.5px' }}
+                style={{ paddingLeft: '32px', paddingTop: '6px', paddingBottom: '6px', fontSize: '12.5px', width: '100%' }}
               />
             </div>
           </div>
 
-          {/* Document Table Card */}
+          {/* Document Table Card & Mobile Cards */}
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             {filteredDocs.length === 0 ? (
               <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--t2)' }}>
@@ -331,18 +336,114 @@ export default function Documents({
                 <p style={{ fontSize: '12.5px' }}>Upload a file or change your search filter.</p>
               </div>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Document</th>
-                    <th>Collection</th>
-                    <th>Chunks</th>
-                    <th>Status</th>
-                    <th>Indexed</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <>
+                {/* Desktop Table View */}
+                <div className="desktop-table-view table-responsive-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Document</th>
+                        <th>Collection</th>
+                        <th>Chunks</th>
+                        <th>Status</th>
+                        <th>Indexed</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredDocs.map((doc) => {
+                        const name = doc.title || doc.fileName || 'Document';
+                        const ext = (doc.fileName?.split('.').pop() || 'pdf').toLowerCase();
+                        const isProcessed = doc.status === 'PROCESSED' || doc.status === 'INDEXED' || doc.status === 'READY';
+                        const isFailed = doc.status === 'FAILED';
+
+                        return (
+                          <tr
+                            key={doc.id}
+                            onClick={() => setSelectedDoc(doc)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span className={`file-badge ${ext === 'pdf' ? 'pdf' : ext === 'docx' ? 'docx' : 'other'}`}>
+                                  {ext.toUpperCase()}
+                                </span>
+                                <span style={{ fontWeight: 600, color: 'var(--tx)' }}>{name}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '12px', color: 'var(--t2)' }}>{doc.category || 'Engineering'}</span>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: 'JetBrains Mono', fontSize: '12px', fontWeight: 600, color: 'var(--ac)' }}>
+                                {doc.chunks || 0}
+                              </span>
+                            </td>
+                            <td>
+                              {isProcessed ? (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--ok)', fontSize: '12px', fontWeight: 500 }}>
+                                  <CheckCircle2 size={13} />
+                                  <span>Processed</span>
+                                </div>
+                              ) : isFailed ? (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--err)', fontSize: '12px', fontWeight: 500 }}>
+                                  <AlertTriangle size={13} />
+                                  <span>Failed</span>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--ac)', fontSize: '12px', fontWeight: 500 }}>
+                                  <Clock size={13} className="animate-spin" />
+                                  <span>Processing</span>
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ fontSize: '12px', color: 'var(--mu)' }}>
+                              {doc.uploadedAt || 'Recently'}
+                            </td>
+                            <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                              <div style={{ display: 'inline-flex', gap: '4px' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost"
+                                  onClick={() => setSelectedDoc(doc)}
+                                  title="View Document Details"
+                                  style={{ padding: '6px 10px', minHeight: '34px' }}
+                                >
+                                  <Eye size={14} />
+                                </button>
+
+                                {isFailed && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    onClick={() => handleRetryDocument(doc.id)}
+                                    title="Retry Ingestion"
+                                    style={{ padding: '6px 10px', color: 'var(--ac)', minHeight: '34px' }}
+                                  >
+                                    <RefreshCw size={14} />
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost"
+                                  onClick={() => handleDeleteDocument(doc.id)}
+                                  title="Delete Document"
+                                  style={{ padding: '6px 10px', color: 'var(--err)', minHeight: '34px' }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Responsive Cards View (<= 768px) */}
+                <div className="mobile-card-list" style={{ padding: '12px' }}>
                   {filteredDocs.map((doc) => {
                     const name = doc.title || doc.fileName || 'Document';
                     const ext = (doc.fileName?.split('.').pop() || 'pdf').toLowerCase();
@@ -350,88 +451,97 @@ export default function Documents({
                     const isFailed = doc.status === 'FAILED';
 
                     return (
-                      <tr
+                      <div
                         key={doc.id}
+                        className="mobile-doc-card"
                         onClick={() => setSelectedDoc(doc)}
                         style={{ cursor: 'pointer' }}
                       >
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {/* Top: Badge + Title + Collection */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                             <span className={`file-badge ${ext === 'pdf' ? 'pdf' : ext === 'docx' ? 'docx' : 'other'}`}>
                               {ext.toUpperCase()}
                             </span>
-                            <span style={{ fontWeight: 600, color: 'var(--tx)' }}>{name}</span>
+                            <div style={{ fontWeight: 600, color: 'var(--tx)', fontSize: '13.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {name}
+                            </div>
                           </div>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '12px', color: 'var(--t2)' }}>{doc.category || 'Engineering'}</span>
-                        </td>
-                        <td>
-                          <span style={{ fontFamily: 'JetBrains Mono', fontSize: '12px', fontWeight: 600, color: 'var(--ac)' }}>
-                            {doc.chunks || 0}
+                          <span className="badge badge-violet" style={{ fontSize: '11px', flexShrink: 0 }}>
+                            {doc.category || 'Engineering'}
                           </span>
-                        </td>
-                        <td>
-                          {isProcessed ? (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--ok)', fontSize: '12px', fontWeight: 500 }}>
-                              <CheckCircle2 size={13} />
-                              <span>Processed</span>
-                            </div>
-                          ) : isFailed ? (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--err)', fontSize: '12px', fontWeight: 500 }}>
-                              <AlertTriangle size={13} />
-                              <span>Failed</span>
-                            </div>
-                          ) : (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--ac)', fontSize: '12px', fontWeight: 500 }}>
-                              <Clock size={13} className="animate-spin" />
-                              <span>Processing</span>
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ fontSize: '12px', color: 'var(--mu)' }}>
-                          {doc.uploadedAt || 'Recently'}
-                        </td>
-                        <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-                          <div style={{ display: 'inline-flex', gap: '4px' }}>
-                            <button
-                              type="button"
-                              className="btn btn-ghost"
-                              onClick={() => setSelectedDoc(doc)}
-                              title="View Document Details"
-                              style={{ padding: '4px 8px' }}
-                            >
-                              <Eye size={14} />
-                            </button>
+                        </div>
 
-                            {isFailed && (
-                              <button
-                                type="button"
-                                className="btn btn-ghost"
-                                onClick={() => handleRetryDocument(doc.id)}
-                                title="Retry Ingestion"
-                                style={{ padding: '4px 8px', color: 'var(--ac)' }}
-                              >
-                                <RefreshCw size={14} />
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              className="btn btn-ghost"
-                              onClick={() => handleDeleteDocument(doc.id)}
-                              title="Delete Document"
-                              style={{ padding: '4px 8px', color: 'var(--err)' }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                        {/* Mid row: Chunks + Status + Date */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: 'var(--t2)', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span>Chunks: <strong style={{ fontFamily: 'JetBrains Mono', color: 'var(--ac)' }}>{doc.chunks || 0}</strong></span>
+                            <span>{doc.uploadedAt || 'Recently'}</span>
                           </div>
-                        </td>
-                      </tr>
+
+                          <div>
+                            {isProcessed ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--ok)', fontWeight: 500 }}>
+                                <CheckCircle2 size={13} /> Processed
+                              </span>
+                            ) : isFailed ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--err)', fontWeight: 500 }}>
+                                <AlertTriangle size={13} /> Failed
+                              </span>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--ac)', fontWeight: 500 }}>
+                                <Clock size={13} className="animate-spin" /> Processing
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bottom action buttons */}
+                        <div 
+                          style={{ 
+                            display: 'flex', 
+                            gap: '8px', 
+                            borderTop: '1px solid var(--bd)', 
+                            paddingTop: '10px',
+                            marginTop: '2px' 
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => setSelectedDoc(doc)}
+                            style={{ flex: 1, padding: '7px 10px', fontSize: '12.5px', justifyContent: 'center', minHeight: '38px' }}
+                          >
+                            <Eye size={14} />
+                            <span>Details</span>
+                          </button>
+
+                          {isFailed && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => handleRetryDocument(doc.id)}
+                              style={{ padding: '7px 12px', fontSize: '12.5px', color: 'var(--ac)', minHeight: '38px' }}
+                            >
+                              <RefreshCw size={14} />
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            style={{ padding: '7px 12px', fontSize: '12.5px', color: 'var(--err)', minHeight: '38px' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </>
             )}
           </div>
         </div>

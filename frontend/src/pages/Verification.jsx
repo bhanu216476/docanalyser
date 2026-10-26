@@ -12,9 +12,9 @@ export default function Verification({ messages = [], documents = [] }) {
   const sourceCoverage = '100%';
 
   return (
-    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '24px' }}>
+    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
       {/* Page Title */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <h1 className="page-title">Verification</h1>
         <p style={{ color: 'var(--t2)', fontSize: '13.5px', marginTop: '4px' }}>
           Automated NLI entailment checking and citation faithfulness transparency.
@@ -22,7 +22,7 @@ export default function Verification({ messages = [], documents = [] }) {
       </div>
 
       {/* Headline Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+      <div className="stats-grid-responsive">
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '12px', color: 'var(--mu)', fontWeight: 500 }}>Citation Accuracy</span>
@@ -78,40 +78,42 @@ export default function Verification({ messages = [], documents = [] }) {
             <p style={{ fontSize: '12.5px' }}>Ask a question in the Ask AI workspace to trigger real-time verification.</p>
           </div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Answer Preview</th>
-                <th>Citations</th>
-                <th>Verification State</th>
-                <th>NLI Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {aiMessages.map((msg, idx) => (
-                <tr key={msg.id || idx}>
-                  <td>
-                    <div style={{ fontSize: '13px', color: 'var(--tx)', maxWidth: '460px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {msg.text}
-                    </div>
-                  </td>
-                  <td>
-                    <span style={{ fontFamily: 'JetBrains Mono', fontSize: '12px', color: 'var(--ac)', fontWeight: 600 }}>
-                      {msg.meta?.citations?.length || 2} sources
-                    </span>
-                  </td>
-                  <td>
-                    <VerifiedPill verification={msg.meta?.verification || { verified: true, status: 'VERIFIED' }} />
-                  </td>
-                  <td>
-                    <span style={{ fontFamily: 'JetBrains Mono', fontSize: '12px', color: 'var(--ok)', fontWeight: 600 }}>
-                      98.5%
-                    </span>
-                  </td>
+          <div className="table-responsive-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Answer Preview</th>
+                  <th>Citations</th>
+                  <th>Verification State</th>
+                  <th>NLI Score</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {aiMessages.map((msg, idx) => (
+                  <tr key={msg.id || idx}>
+                    <td>
+                      <div style={{ fontSize: '13px', color: 'var(--tx)', maxWidth: '460px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {msg.text}
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontFamily: 'JetBrains Mono', fontSize: '12px', color: 'var(--ac)', fontWeight: 600 }}>
+                        {msg.meta?.citations?.length || 2} sources
+                      </span>
+                    </td>
+                    <td>
+                      <VerifiedPill verification={msg.meta?.verification || { verified: true, status: 'VERIFIED' }} />
+                    </td>
+                    <td>
+                      <span style={{ fontFamily: 'JetBrains Mono', fontSize: '12px', color: 'var(--ok)', fontWeight: 600 }}>
+                        98.5%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

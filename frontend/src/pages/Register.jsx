@@ -50,7 +50,7 @@ export default function Register() {
       <div className="auth-branding">
         <div style={{ position: 'relative', zIndex: 1, maxWidth: '460px' }}>
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '40px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'clamp(16px, 3vw, 36px)' }}>
             <div
               style={{
                 width: '36px',
@@ -70,17 +70,17 @@ export default function Register() {
             </span>
           </div>
 
-          <h2 className="font-fraunces" style={{ fontSize: '38px', fontWeight: 600, lineHeight: 1.2, color: 'var(--tx)', marginBottom: '16px' }}>
+          <h2 className="font-fraunces" style={{ fontSize: 'clamp(24px, 4vw, 38px)', fontWeight: 600, lineHeight: 1.2, color: 'var(--tx)', marginBottom: '14px' }}>
             Join the future of{' '}
             <span style={{ color: 'var(--ac)' }}>
               document intelligence.
             </span>
           </h2>
-          <p style={{ fontSize: '14px', color: 'var(--t2)', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '13.5px', color: 'var(--t2)', lineHeight: 1.6 }}>
             Create your account and start extracting grounded, verified answers from your data instantly.
           </p>
 
-          <div style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ marginTop: 'clamp(20px, 3vw, 36px)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {[
               { text: 'Hybrid BM25 + Dense Retrieval' },
               { text: 'NLI Citation Verification' },
@@ -88,7 +88,7 @@ export default function Register() {
             ].map(item => (
               <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ color: 'var(--ac)', fontSize: '12px' }}>✦</span>
-                <span style={{ fontSize: '13.5px', color: 'var(--t2)' }}>{item.text}</span>
+                <span style={{ fontSize: '13px', color: 'var(--t2)' }}>{item.text}</span>
               </div>
             ))}
           </div>

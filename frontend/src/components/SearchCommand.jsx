@@ -46,16 +46,25 @@ export default function SearchCommand({ isOpen, onClose, documents = [] }) {
     <div className="cmd-overlay" onClick={onClose}>
       <div className="cmd-dialog" onClick={(e) => e.stopPropagation()}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <Search size={18} style={{ position: 'absolute', left: '16px', color: 'var(--mu)' }} />
+          <Search size={18} style={{ position: 'absolute', left: '16px', color: 'var(--mu)', pointerEvents: 'none' }} />
           <input
             type="text"
             className="cmd-input"
             placeholder="Search documents, pages, or commands..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            style={{ paddingLeft: '44px' }}
+            style={{ paddingLeft: '44px', paddingRight: '44px', fontSize: '15px' }}
             autoFocus
           />
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onClose}
+            aria-label="Close search"
+            style={{ position: 'absolute', right: '10px', padding: '6px', minWidth: '32px', minHeight: '32px', color: 'var(--mu)' }}
+          >
+            ✕
+          </button>
         </div>
         <div className="cmd-list">
           {filteredPages.length > 0 && (

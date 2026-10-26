@@ -43,7 +43,7 @@ export default function Login() {
       <div className="auth-branding">
         <div style={{ position: 'relative', zIndex: 1, maxWidth: '460px' }}>
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '40px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'clamp(16px, 3vw, 36px)' }}>
             <div
               style={{
                 width: '36px',
@@ -63,11 +63,11 @@ export default function Login() {
             </span>
           </div>
 
-          <h2 className="font-fraunces" style={{ fontSize: '38px', fontWeight: 600, lineHeight: 1.2, color: 'var(--tx)', marginBottom: '16px' }}>
+          <h2 className="font-fraunces" style={{ fontSize: 'clamp(24px, 4vw, 38px)', fontWeight: 600, lineHeight: 1.2, color: 'var(--tx)', marginBottom: '14px' }}>
             Your knowledge.<br />
             Made <span style={{ color: 'var(--ac)' }}>intelligent.</span>
           </h2>
-          <p style={{ fontSize: '14px', color: 'var(--t2)', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '13.5px', color: 'var(--t2)', lineHeight: 1.6 }}>
             Ask questions, discover insights, and get grounded, citation-verified answers from your enterprise knowledge base.
           </p>
         </div>

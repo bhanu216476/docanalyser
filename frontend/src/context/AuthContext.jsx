@@ -9,41 +9,56 @@ export function AuthProvider({ children }) {
 
   // Restore session on mount
   useEffect(() => {
+    let isMounted = true;
     const checkSession = async () => {
       const token = localStorage.getItem('token');
       const savedUser = localStorage.getItem('docanalyser_user');
 
       if (savedUser) {
         try {
-          setUser(JSON.parse(savedUser));
+          const parsed = JSON.parse(savedUser);
+          if (isMounted) {
+            setUser(parsed);
+            setLoading(false); // Instantly unblock UI using cached profile
+          }
         } catch (e) {}
       }
 
-      if (token) {
+      if (token && token !== 'offline-demo-token') {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
         try {
           const res = await fetch(`${API_BASE}/api/auth/me`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            signal: controller.signal
           });
           if (res.ok) {
             const userData = await res.json();
             if (userData.email && userData.email.toLowerCase().includes('admin')) {
               userData.role = 'ADMIN';
             }
-            setUser(userData);
-            localStorage.setItem('docanalyser_user', JSON.stringify(userData));
+            if (isMounted) {
+              setUser(userData);
+              localStorage.setItem('docanalyser_user', JSON.stringify(userData));
+            }
           } else if (res.status === 401 || res.status === 403) {
             localStorage.removeItem('token');
             localStorage.removeItem('docanalyser_user');
-            setUser(null);
+            if (isMounted) setUser(null);
           }
         } catch (err) {
-          // If network unreachable, keep saved local user session
+          // If network unreachable, retain saved local user session gracefully
+        } finally {
+          clearTimeout(timeoutId);
         }
       }
 
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     };
     checkSession();
+    return () => { isMounted = false; };
   }, []);
 
   const login = async (email, password) => {

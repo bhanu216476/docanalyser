@@ -47,9 +47,9 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div style={{ maxWidth:'1200px', width:'100%' }}>
-      <div style={{ marginBottom:'2rem' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'0.375rem' }}>
+    <div style={{ maxWidth:'1200px', width:'100%', margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
+      <div style={{ marginBottom:'1.5rem' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'0.375rem', flexWrap: 'wrap' }}>
           <h1 style={{ fontSize:'1.625rem', fontWeight:700, color:'var(--text-primary)' }}>Admin Dashboard</h1>
           <span className="badge badge-violet">ADMIN</span>
         </div>
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:'1rem', marginBottom:'1.75rem' }}>
+      <div className="stats-grid-responsive" style={{ marginBottom:'1.5rem' }}>
         {stats.map(s => {
           const Icon = s.icon;
           return (
@@ -72,7 +72,7 @@ export default function AdminDashboard() {
         })}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem' }}>
+      <div className="admin-two-col">
         {/* Recent Users */}
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
           <div style={{ padding:'1.125rem 1.5rem', borderBottom:'1px solid var(--border-subtle)', display:'flex', alignItems:'center', gap:'0.625rem' }}>

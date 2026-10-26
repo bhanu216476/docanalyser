@@ -44,9 +44,9 @@ export default function Retrieval({ messages = [], documents = [] }) {
   const activeChunk = sampleChunks[selectedChunkIdx] || sampleChunks[0];
 
   return (
-    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '24px' }}>
+    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
       {/* Page Title */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <h1 className="page-title">Retrieval</h1>
         <p style={{ color: 'var(--t2)', fontSize: '13.5px', marginTop: '4px' }}>
           Visual RAG pipeline stages and interactive chunk candidate inspector.
@@ -54,12 +54,12 @@ export default function Retrieval({ messages = [], documents = [] }) {
       </div>
 
       {/* Visual RAG Pipeline Flow */}
-      <div className="card" style={{ marginBottom: '24px' }}>
+      <div className="card" style={{ marginBottom: '20px' }}>
         <h2 className="font-fraunces" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--tx)', marginBottom: '16px' }}>
           Hybrid Retrieval & Reranking Pipeline
         </h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', alignItems: 'stretch' }}>
           {pipelineSteps.map((step, idx) => {
             const Icon = step.icon;
             return (
@@ -69,7 +69,7 @@ export default function Retrieval({ messages = [], documents = [] }) {
                     backgroundColor: 'var(--s2)',
                     border: '1px solid var(--bd)',
                     borderRadius: 'var(--r-md)',
-                    padding: '14px 12px',
+                    padding: '12px 10px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '6px'
@@ -81,7 +81,7 @@ export default function Retrieval({ messages = [], documents = [] }) {
                       0{idx + 1}
                     </span>
                   </div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx)' }}>
+                  <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--tx)' }}>
                     {step.title}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--t2)', lineHeight: 1.4 }}>
@@ -95,7 +95,7 @@ export default function Retrieval({ messages = [], documents = [] }) {
       </div>
 
       {/* Chunk Inspector */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px', alignItems: 'start' }}>
+      <div className="retrieval-layout-grid">
         {/* Candidate Chunks List */}
         <div className="card" style={{ padding: '16px' }}>
           <h3 className="font-fraunces" style={{ fontSize: '16px', fontWeight: 600, color: 'var(--tx)', marginBottom: '12px' }}>

@@ -86,13 +86,13 @@ export default function DocumentDetailsSheet({ document, onClose, onDelete, onRe
         )}
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
+        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', paddingTop: '16px' }}>
           {document.status === 'FAILED' && onRetry && (
             <button
               type="button"
               className="btn btn-secondary"
               onClick={() => onRetry(document.id)}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minHeight: '42px', justifyContent: 'center' }}
             >
               <RefreshCw size={14} />
               <span>Retry Ingestion</span>
@@ -104,7 +104,7 @@ export default function DocumentDetailsSheet({ document, onClose, onDelete, onRe
               type="button"
               className="btn btn-danger"
               onClick={() => onDelete(document.id)}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minHeight: '42px', justifyContent: 'center' }}
             >
               <Trash2 size={14} />
               <span>Delete Document</span>

@@ -77,41 +77,54 @@ export default function AskAI({
   const hasUserMessages = messages.some(m => m.role === 'user');
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: 'calc(100vh - 54px)',
-        width: '100%',
-        overflow: 'hidden',
-        backgroundColor: 'var(--bg)'
-      }}
-    >
+    <div className="ask-layout-container">
       {/* ============================================================
-         LEFT CHAT COLUMN (430px desktop, 380px @ 1024px, 100% @ <900px)
+         LEFT CHAT COLUMN (430px desktop, 100% @ <960px)
          ============================================================ */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '430px',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: 'transparent',
-          borderRight: '1px solid var(--bd)',
-          flexShrink: 0
-        }}
-        className="ask-chat-column"
-      >
+      <div className="ask-chat-column">
+        {/* Mobile Evidence & Document Scope Bar (<960px) */}
+        <div 
+          className="mobile-ask-header" 
+          style={{ 
+            display: 'none', 
+            padding: '10px 16px', 
+            borderBottom: '1px solid var(--bd)', 
+            backgroundColor: 'var(--s1)', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            flexShrink: 0
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--tx)' }}>Ask AI</span>
+            {selectedDocId !== 'all' && (
+              <span className="badge badge-cyan" style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '11px' }}>
+                {documents.find(d => d.id === selectedDocId)?.title || '1 file'}
+              </span>
+            )}
+          </div>
+          {currentCitations.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setIsMobileViewerOpen(true)}
+              style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', minHeight: '32px' }}
+            >
+              <FileText size={13} style={{ color: 'var(--ac)' }} />
+              <span>Evidence ({currentCitations.length})</span>
+            </button>
+          )}
+        </div>
 
         {/* Messages Body Scroll Area */}
         <div
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '20px',
+            padding: '16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px'
+            gap: '18px'
           }}
         >
           {/* Empty State when no user query yet */}
@@ -264,9 +277,9 @@ export default function AskAI({
       </div>
 
       {/* ============================================================
-         RIGHT DOCUMENT VIEWER COLUMN (Remaining width)
+         RIGHT DOCUMENT VIEWER COLUMN (Desktop only, hidden on <=960px)
          ============================================================ */}
-      <div style={{ flex: 1, height: '100%', minWidth: 0 }}>
+      <div className="ask-viewer-desktop">
         <DocumentViewer
           citations={currentCitations}
           activeCitationId={activeCitationId}
@@ -274,10 +287,21 @@ export default function AskAI({
         />
       </div>
 
-      {/* Mobile Slide-Over Panel (<900px) */}
+      {/* Mobile Slide-Over Panel (<960px) */}
       {isMobileViewerOpen && (
         <div className="sheet-overlay" onClick={() => setIsMobileViewerOpen(false)}>
-          <div className="sheet-content" onClick={(e) => e.stopPropagation()} style={{ padding: 0, width: '90%', maxWidth: '540px' }}>
+          <div 
+            className="sheet-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ 
+              padding: 0, 
+              width: '100%', 
+              maxWidth: '560px',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
             <DocumentViewer
               citations={currentCitations}
               activeCitationId={activeCitationId}

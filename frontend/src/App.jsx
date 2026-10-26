@@ -1,24 +1,50 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 import TopBar from './components/TopBar';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleGuard from './components/RoleGuard';
 
-import Login from './pages/Login';
-import Register from './pages/Register';
-import AskAI from './pages/AskAI';
-import Documents from './pages/Documents';
-import KnowledgeBase from './pages/KnowledgeBase';
-import Retrieval from './pages/Retrieval';
-import Verification from './pages/Verification';
-import System from './pages/System';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminUsers from './pages/AdminUsers';
+// Route-level code splitting with React.lazy
+const AskAI = lazy(() => import('./pages/AskAI'));
+const Documents = lazy(() => import('./pages/Documents'));
+const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
+const Retrieval = lazy(() => import('./pages/Retrieval'));
+const Verification = lazy(() => import('./pages/Verification'));
+const System = lazy(() => import('./pages/System'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminUsers = lazy(() => import('./pages/AdminUsers'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
 
 const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://docanalyser-backend.onrender.com');
 const RAG_BASE = import.meta.env.VITE_RAG_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://docanalyser-rag.onrender.com');
+
+// Lightweight skeleton fallback for route suspense
+function PageSkeleton() {
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: 'calc(100vh - 120px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '14px',
+        color: 'var(--mu)',
+        padding: '24px'
+      }}
+      aria-busy="true"
+      aria-label="Loading page..."
+    >
+      <Loader2 size={28} className="animate-spin" style={{ color: 'var(--ac)' }} />
+      <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--t2)' }}>Loading view...</span>
+    </div>
+  );
+}
 
 function AppShell() {
   const { user } = useAuth();
@@ -68,35 +94,62 @@ function AppShell() {
   const [isQuerying, setIsQuerying] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState('all');
 
-  // Periodic real backend health polling
+  // Periodic real backend health polling — parallelized and bounded with AbortController
   useEffect(() => {
+    let isMounted = true;
+
     const checkHealth = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      const checkEndpoint = async (url) => {
+        try {
+          const res = await fetch(url, { signal: controller.signal });
+          return res.ok ? 'healthy' : 'offline';
+        } catch {
+          return 'offline';
+        }
+      };
+
       try {
-        const res = await fetch(`${API_BASE}/api/health`);
-        setBackendHealth(res.ok ? 'healthy' : 'offline');
-      } catch {
-        setBackendHealth('offline');
-      }
-      try {
-        const res = await fetch(`${RAG_BASE}/health`);
-        setRagHealth(res.ok ? 'healthy' : 'offline');
-      } catch {
-        setRagHealth('offline');
+        const [backendRes, ragRes] = await Promise.allSettled([
+          checkEndpoint(`${API_BASE}/api/health`),
+          checkEndpoint(`${RAG_BASE}/health`)
+        ]);
+
+        if (isMounted) {
+          setBackendHealth(backendRes.status === 'fulfilled' ? backendRes.value : 'offline');
+          setRagHealth(ragRes.status === 'fulfilled' ? ragRes.value : 'offline');
+        }
+      } finally {
+        clearTimeout(timeoutId);
       }
     };
 
     checkHealth();
-    const interval = setInterval(checkHealth, 15000);
-    return () => clearInterval(interval);
+    // Refresh health every 30s when tab is active
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        checkHealth();
+      }
+    }, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   // Fetch real document list from Spring API if authenticated
   const fetchDocuments = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token || token === 'offline-demo-token') return;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
       const res = await fetch(`${API_BASE}/api/documents`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: controller.signal
       });
       if (res.ok) {
         const data = await res.json();
@@ -114,6 +167,8 @@ function AppShell() {
       }
     } catch (err) {
       // Keep initial fallback documents if API not reachable
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, []);
 
@@ -291,70 +346,72 @@ function AppShell() {
       />
       <main className="main-content">
         <div className="page-content">
-          <Routes>
-            <Route
-              path="/"
-              element={<Navigate to="/ask-ai" replace />}
-            />
-            <Route
-              path="/ask-ai"
-              element={
-                <AskAI
-                  messages={messages}
-                  queryInput={queryInput}
-                  setQueryInput={setQueryInput}
-                  isQuerying={isQuerying}
-                  handleSendQuery={handleSendQuery}
-                  documents={documents}
-                  selectedDocId={selectedDocId}
-                  setSelectedDocId={setSelectedDocId}
-                />
-              }
-            />
-            <Route
-              path="/documents"
-              element={
-                <Documents
-                  documents={documents}
-                  setDocuments={setDocuments}
-                  handleUpload={handleUpload}
-                  isUploading={isUploading}
-                  uploadMessage={uploadMessage}
-                  uploadTitle={uploadTitle}
-                  setUploadTitle={setUploadTitle}
-                  uploadCategory={uploadCategory}
-                  setUploadCategory={setUploadCategory}
-                  uploadContent={uploadContent}
-                  setUploadContent={setUploadContent}
-                />
-              }
-            />
-            <Route
-              path="/knowledge"
-              element={<KnowledgeBase documents={documents} />}
-            />
-            <Route
-              path="/retrieval"
-              element={<Retrieval messages={messages} documents={documents} />}
-            />
-            <Route
-              path="/verification"
-              element={<Verification messages={messages} documents={documents} />}
-            />
-            <Route
-              path="/system"
-              element={<System backendHealth={backendHealth} ragHealth={ragHealth} />}
-            />
+          <Suspense fallback={<PageSkeleton />}>
+            <Routes>
+              <Route
+                path="/"
+                element={<Navigate to="/ask-ai" replace />}
+              />
+              <Route
+                path="/ask-ai"
+                element={
+                  <AskAI
+                    messages={messages}
+                    queryInput={queryInput}
+                    setQueryInput={setQueryInput}
+                    isQuerying={isQuerying}
+                    handleSendQuery={handleSendQuery}
+                    documents={documents}
+                    selectedDocId={selectedDocId}
+                    setSelectedDocId={setSelectedDocId}
+                  />
+                }
+              />
+              <Route
+                path="/documents"
+                element={
+                  <Documents
+                    documents={documents}
+                    setDocuments={setDocuments}
+                    handleUpload={handleUpload}
+                    isUploading={isUploading}
+                    uploadMessage={uploadMessage}
+                    uploadTitle={uploadTitle}
+                    setUploadTitle={setUploadTitle}
+                    uploadCategory={uploadCategory}
+                    setUploadCategory={setUploadCategory}
+                    uploadContent={uploadContent}
+                    setUploadContent={setUploadContent}
+                  />
+                }
+              />
+              <Route
+                path="/knowledge"
+                element={<KnowledgeBase documents={documents} />}
+              />
+              <Route
+                path="/retrieval"
+                element={<Retrieval messages={messages} documents={documents} />}
+              />
+              <Route
+                path="/verification"
+                element={<Verification messages={messages} documents={documents} />}
+              />
+              <Route
+                path="/system"
+                element={<System backendHealth={backendHealth} ragHealth={ragHealth} />}
+              />
 
-            {/* Admin-only routes */}
-            <Route element={<RoleGuard allowedRoles={['ADMIN']} />}>
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-            </Route>
+              {/* Admin-only routes */}
+              <Route element={<RoleGuard allowedRoles={['ADMIN']} />}>
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+              </Route>
 
-            {/* Catch-all */}
-            <Route path="*" element={<Navigate to="/ask-ai" replace />} />
-          </Routes>
+              {/* Catch-all */}
+              <Route path="*" element={<Navigate to="/ask-ai" replace />} />
+            </Routes>
+          </Suspense>
         </div>
       </main>
     </div>
@@ -363,15 +420,17 @@ function AppShell() {
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+    <Suspense fallback={<PageSkeleton />}>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-      {/* Protected application shell */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/*" element={<AppShell />} />
-      </Route>
-    </Routes>
+        {/* Protected application shell */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/*" element={<AppShell />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }

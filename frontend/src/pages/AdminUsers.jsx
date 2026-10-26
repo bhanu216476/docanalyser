@@ -32,16 +32,16 @@ export default function AdminUsers() {
   };
 
   return (
-    <div style={{ maxWidth:'1100px', width:'100%' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:'2rem' }}>
+    <div style={{ maxWidth:'1100px', width:'100%', margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
+      <div className="page-header-responsive" style={{ marginBottom:'1.5rem' }}>
         <div>
-          <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'0.375rem' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'0.375rem', flexWrap: 'wrap' }}>
             <h1 style={{ fontSize:'1.625rem', fontWeight:700, color:'var(--text-primary)' }}>User Management</h1>
             <span className="badge badge-violet">ADMIN</span>
           </div>
           <p style={{ color:'var(--text-muted)', fontSize:'0.9rem' }}>View and manage platform users. All actions are backend-enforced.</p>
         </div>
-        <button onClick={fetchUsers} className="btn btn-secondary" style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+        <button onClick={fetchUsers} className="btn btn-secondary" style={{ display:'flex', alignItems:'center', gap:'0.5rem', minHeight: '38px' }}>
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
@@ -62,66 +62,113 @@ export default function AdminUsers() {
 
       {!loading && (
         <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-subtle)', borderRadius:'var(--radius-lg)', overflow:'hidden' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Profile</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
+          {/* Desktop Table View */}
+          <div className="desktop-table-view table-responsive-container">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} style={{ padding:'3.5rem', textAlign:'center', color:'var(--text-muted)' }}>
-                    <div className="icon-box icon-box-lg icon-box-violet" style={{ margin:'0 auto 1rem' }}>
-                      <Users size={26} />
-                    </div>
-                    <p>No users found. The backend <code style={{ color:'var(--primary)' }}>/api/admin/users</code> endpoint needs to be running.</p>
-                  </td>
+                  <th>User</th>
+                  <th>Profile</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
                 </tr>
-              ) : users.map((u, i) => (
-                <tr key={u.id || i}>
-                  <td>
-                    <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
-                      <div style={{ width:'34px', height:'34px', borderRadius:'50%', flexShrink:0,
-                        background:'var(--gradient-primary)', display:'flex', alignItems:'center', justifyContent:'center',
-                        color:'#fff', fontWeight:700, fontSize:'0.875rem' }}>
-                        {u.name?.charAt(0)?.toUpperCase()}
+              </thead>
+              <tbody>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding:'3.5rem', textAlign:'center', color:'var(--text-muted)' }}>
+                      <div className="icon-box icon-box-lg icon-box-violet" style={{ margin:'0 auto 1rem' }}>
+                        <Users size={26} />
                       </div>
-                      <div>
-                        <div style={{ fontWeight:500, color:'var(--text-primary)', fontSize:'0.875rem' }}>{u.name}</div>
-                        <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{u.email}</div>
+                      <p>No users found. The backend <code style={{ color:'var(--primary)' }}>/api/admin/users</code> endpoint needs to be running.</p>
+                    </td>
+                  </tr>
+                ) : users.map((u, i) => (
+                  <tr key={u.id || i}>
+                    <td>
+                      <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                        <div style={{ width:'34px', height:'34px', borderRadius:'50%', flexShrink:0,
+                          background:'var(--gradient-primary)', display:'flex', alignItems:'center', justifyContent:'center',
+                          color:'#fff', fontWeight:700, fontSize:'0.875rem' }}>
+                          {u.name?.charAt(0)?.toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight:500, color:'var(--text-primary)', fontSize:'0.875rem' }}>{u.name}</div>
+                          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{u.email}</div>
+                        </div>
                       </div>
+                    </td>
+                    <td>{u.profileType ? <span className="badge badge-cyan">{u.profileType}</span> : <span style={{ color:'var(--text-muted)', fontSize:'0.8rem' }}>—</span>}</td>
+                    <td><span className={u.role === 'ADMIN' ? 'badge badge-violet' : 'badge badge-cyan'}>{u.role}</span></td>
+                    <td>
+                      <span className={u.enabled !== false ? 'badge badge-success' : 'badge badge-error'}>
+                        {u.enabled !== false ? 'Active' : 'Disabled'}
+                      </span>
+                    </td>
+                    <td style={{ fontSize:'0.78rem', color:'var(--text-muted)' }}>
+                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
+                    </td>
+                    <td>
+                      <button onClick={() => handleToggle(u.id, u.enabled !== false)}
+                        className={u.enabled !== false ? 'btn btn-danger' : 'btn btn-secondary'}
+                        style={{ fontSize:'0.78rem', padding:'0.3rem 0.75rem', minHeight: '32px' }}>
+                        {u.enabled !== false
+                          ? <><UserX size={13} /> Disable</>
+                          : <><UserCheck size={13} /> Enable</>
+                        }
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile User Card List (<= 768px) */}
+          <div className="mobile-card-list" style={{ padding: '12px' }}>
+            {users.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                No users found.
+              </div>
+            ) : users.map((u, i) => (
+              <div key={u.id || i} className="mobile-doc-card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width:'36px', height:'36px', borderRadius:'50%', flexShrink:0,
+                    backgroundColor:'var(--ac)', display:'flex', alignItems:'center', justifyContent:'center',
+                    color:'#fff', fontWeight:700, fontSize:'0.9rem' }}>
+                    {u.name?.charAt(0)?.toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.name}
                     </div>
-                  </td>
-                  <td>{u.profileType ? <span className="badge badge-cyan">{u.profileType}</span> : <span style={{ color:'var(--text-muted)', fontSize:'0.8rem' }}>—</span>}</td>
-                  <td><span className={u.role === 'ADMIN' ? 'badge badge-violet' : 'badge badge-cyan'}>{u.role}</span></td>
-                  <td>
-                    <span className={u.enabled !== false ? 'badge badge-success' : 'badge badge-error'}>
-                      {u.enabled !== false ? 'Active' : 'Disabled'}
-                    </span>
-                  </td>
-                  <td style={{ fontSize:'0.78rem', color:'var(--text-muted)' }}>
-                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
-                  </td>
-                  <td>
-                    <button onClick={() => handleToggle(u.id, u.enabled !== false)}
-                      className={u.enabled !== false ? 'btn btn-danger' : 'btn btn-secondary'}
-                      style={{ fontSize:'0.78rem', padding:'0.3rem 0.75rem' }}>
-                      {u.enabled !== false
-                        ? <><UserX size={13} /> Disable</>
-                        : <><UserCheck size={13} /> Enable</>
-                      }
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.email}
+                    </div>
+                  </div>
+                  <span className={u.role === 'ADMIN' ? 'badge badge-violet' : 'badge badge-cyan'}>{u.role}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  <span>Status: <strong style={{ color: u.enabled !== false ? 'var(--ok)' : 'var(--err)' }}>{u.enabled !== false ? 'Active' : 'Disabled'}</strong></span>
+                  <span>{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'Joined recently'}</span>
+                </div>
+
+                <button 
+                  onClick={() => handleToggle(u.id, u.enabled !== false)}
+                  className={u.enabled !== false ? 'btn btn-danger' : 'btn btn-secondary'}
+                  style={{ width: '100%', marginTop: '8px', minHeight: '38px', justifyContent: 'center' }}
+                >
+                  {u.enabled !== false
+                    ? <><UserX size={14} /> Disable User</>
+                    : <><UserCheck size={14} /> Enable User</>
+                  }
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

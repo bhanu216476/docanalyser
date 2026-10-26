@@ -53,9 +53,9 @@ export default function System({ backendHealth = 'checking', ragHealth = 'checki
   ];
 
   return (
-    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '24px' }}>
+    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
       {/* Page Title */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <h1 className="page-title">System</h1>
         <p style={{ color: 'var(--t2)', fontSize: '13.5px', marginTop: '4px' }}>
           System architecture topology, service status, and container health.
@@ -63,49 +63,43 @@ export default function System({ backendHealth = 'checking', ragHealth = 'checki
       </div>
 
       {/* Topology Architecture Diagram */}
-      <div className="card" style={{ marginBottom: '24px' }}>
+      <div className="card" style={{ marginBottom: '20px' }}>
         <h2 className="font-fraunces" style={{ fontSize: '18px', fontWeight: 600, color: 'var(--tx)', marginBottom: '16px' }}>
           System Architecture Topology
         </h2>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', padding: '16px', backgroundColor: 'var(--s2)', borderRadius: 'var(--r-md)' }}>
-          <div style={{ textAlign: 'center', padding: '12px 20px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-md)', border: '1px solid var(--bd)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--mu)', fontFamily: 'JetBrains Mono' }}>CLIENT</div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx)' }}>Frontend</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', padding: '14px', backgroundColor: 'var(--s2)', borderRadius: 'var(--r-md)' }}>
+          <div style={{ textAlign: 'center', padding: '14px 16px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-md)', border: '1px solid var(--bd)' }}>
+            <div style={{ fontSize: '11px', color: 'var(--mu)', fontFamily: 'JetBrains Mono' }}>CLIENT TIER</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx)', marginTop: '2px' }}>React Frontend</div>
+            <div style={{ fontSize: '11px', color: 'var(--t2)', marginTop: '2px' }}>Vite · SPA</div>
           </div>
 
-          <ArrowRight size={16} style={{ color: 'var(--mu)' }} />
-
-          <div style={{ textAlign: 'center', padding: '12px 20px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-md)', border: `1px solid ${isSpringHealthy ? 'var(--ok)' : 'var(--err)'}` }}>
+          <div style={{ textAlign: 'center', padding: '14px 16px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-md)', border: `1px solid ${isSpringHealthy ? 'var(--ok)' : 'var(--err)'}` }}>
             <div style={{ fontSize: '11px', color: 'var(--mu)', fontFamily: 'JetBrains Mono' }}>ORCHESTRATOR</div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx)' }}>Spring Boot API</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx)', marginTop: '2px' }}>Spring Boot API</div>
+            <div style={{ fontSize: '11px', color: isSpringHealthy ? 'var(--ok)' : 'var(--err)', marginTop: '2px' }}>{backendHealth}</div>
           </div>
 
-          <ArrowRight size={16} style={{ color: 'var(--mu)' }} />
-
-          <div style={{ textAlign: 'center', padding: '12px 20px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-md)', border: `1px solid ${isRagHealthy ? 'var(--ok)' : 'var(--err)'}` }}>
+          <div style={{ textAlign: 'center', padding: '14px 16px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-md)', border: `1px solid ${isRagHealthy ? 'var(--ok)' : 'var(--err)'}` }}>
             <div style={{ fontSize: '11px', color: 'var(--mu)', fontFamily: 'JetBrains Mono' }}>RAG ENGINE</div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx)' }}>Python RAG Engine</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--tx)', marginTop: '2px' }}>FastAPI RAG</div>
+            <div style={{ fontSize: '11px', color: isRagHealthy ? 'var(--ok)' : 'var(--err)', marginTop: '2px' }}>{ragHealth}</div>
           </div>
 
-          <ArrowRight size={16} style={{ color: 'var(--mu)' }} />
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div style={{ padding: '8px 12px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', fontSize: '12px', fontWeight: 600, color: 'var(--ac)' }}>
-              Qdrant
-            </div>
-            <div style={{ padding: '8px 12px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', fontSize: '12px', fontWeight: 600, color: 'var(--ac)' }}>
-              Postgres
-            </div>
-            <div style={{ padding: '8px 12px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-sm)', border: '1px solid var(--bd)', fontSize: '12px', fontWeight: 600, color: 'var(--ac)' }}>
-              Redis
+          <div style={{ textAlign: 'center', padding: '14px 16px', backgroundColor: 'var(--s1)', borderRadius: 'var(--r-md)', border: '1px solid var(--bd)' }}>
+            <div style={{ fontSize: '11px', color: 'var(--mu)', fontFamily: 'JetBrains Mono' }}>DATA STORES</div>
+            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '3px 8px', backgroundColor: 'var(--s2)', borderRadius: 'var(--r-sm)', fontSize: '11px', fontWeight: 600, color: 'var(--ac)' }}>Qdrant</span>
+              <span style={{ padding: '3px 8px', backgroundColor: 'var(--s2)', borderRadius: 'var(--r-sm)', fontSize: '11px', fontWeight: 600, color: 'var(--ac)' }}>Postgres</span>
+              <span style={{ padding: '3px 8px', backgroundColor: 'var(--s2)', borderRadius: 'var(--r-sm)', fontSize: '11px', fontWeight: 600, color: 'var(--ac)' }}>Redis</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Real Service Health Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
         {services.map((svc) => {
           const Icon = svc.icon;
           const isHealthy = svc.status === 'healthy';

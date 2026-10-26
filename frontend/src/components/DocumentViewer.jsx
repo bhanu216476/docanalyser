@@ -140,18 +140,20 @@ export default function DocumentViewer({ citations = [], activeCitationId, onSel
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '8px 20px',
+          flexWrap: 'wrap',
+          gap: '8px',
+          padding: '8px 14px',
           backgroundColor: 'var(--s1)',
           borderBottom: '1px solid var(--bd)',
           fontSize: '12px',
           color: 'var(--t2)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 12px' }}>
           <span>Page <strong>{pageNum}</strong> of {totalPages}</span>
-          <span style={{ color: 'var(--bd)' }}>|</span>
+          <span style={{ color: 'var(--bd)' }}>·</span>
           <span>Cited as <strong style={{ color: 'var(--ac)', fontFamily: 'JetBrains Mono' }}>{citationIdTag}</strong></span>
-          <span style={{ color: 'var(--bd)' }}>|</span>
+          <span style={{ color: 'var(--bd)' }}>·</span>
           <span>Relevance <strong>{relevancePct}%</strong></span>
         </div>
 
@@ -168,7 +170,7 @@ export default function DocumentViewer({ citations = [], activeCitationId, onSel
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '32px 24px',
+          padding: 'clamp(16px, 3vw, 28px) clamp(12px, 3vw, 20px)',
           display: 'flex',
           justifyContent: 'center',
           backgroundColor: 'var(--bg)'
@@ -181,10 +183,10 @@ export default function DocumentViewer({ citations = [], activeCitationId, onSel
             backgroundColor: 'var(--s1)',
             border: '1px solid var(--bd)',
             borderRadius: 'var(--r-lg)',
-            padding: '36px 40px',
+            padding: 'clamp(20px, 4vw, 32px) clamp(16px, 4vw, 32px)',
             boxShadow: 'var(--shadow-md)',
             height: 'fit-content',
-            minHeight: '420px'
+            minHeight: '360px'
           }}
         >
           {/* Sheet Header */}

@@ -16,9 +16,9 @@ export default function KnowledgeBase({ documents = [] }) {
   const collections = Object.values(collectionsMap);
 
   return (
-    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '24px' }}>
+    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
       {/* Page Title */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <h1 className="page-title">Knowledge</h1>
         <p style={{ color: 'var(--t2)', fontSize: '13.5px', marginTop: '4px' }}>
           Vector storage, embeddings, and active document collection metrics.
@@ -26,7 +26,7 @@ export default function KnowledgeBase({ documents = [] }) {
       </div>
 
       {/* Headline Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+      <div className="stats-grid-responsive">
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '12px', color: 'var(--mu)', fontWeight: 500 }}>Documents</span>
@@ -86,7 +86,7 @@ export default function KnowledgeBase({ documents = [] }) {
           Document Collections
         </h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '14px' }}>
           {collections.length === 0 ? (
             <div className="card" style={{ gridColumn: '1 / -1', padding: '32px', textAlign: 'center', color: 'var(--t2)' }}>
               No collections created yet. Upload a document to build knowledge collections.
@@ -115,36 +115,38 @@ export default function KnowledgeBase({ documents = [] }) {
             Active Knowledge Base Items
           </h3>
         </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Document</th>
-              <th>Collection</th>
-              <th>Chunks</th>
-              <th>Vector Index</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documents.length === 0 ? (
+        <div className="table-responsive-container">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--mu)' }}>
-                  No documents in knowledge base.
-                </td>
+                <th>Document</th>
+                <th>Collection</th>
+                <th>Chunks</th>
+                <th>Vector Index</th>
+                <th>Status</th>
               </tr>
-            ) : (
-              documents.map((doc, idx) => (
-                <tr key={doc.id || idx}>
-                  <td style={{ fontWeight: 600, color: 'var(--tx)' }}>{doc.title || doc.fileName}</td>
-                  <td><span className="badge badge-violet">{doc.category || 'Engineering'}</span></td>
-                  <td style={{ fontFamily: 'JetBrains Mono', color: 'var(--ac)' }}>{doc.chunks || 0}</td>
-                  <td style={{ fontSize: '12px', color: 'var(--t2)' }}>Qdrant · 1536d</td>
-                  <td><span className="badge badge-success">Indexed</span></td>
+            </thead>
+            <tbody>
+              {documents.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--mu)' }}>
+                    No documents in knowledge base.
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                documents.map((doc, idx) => (
+                  <tr key={doc.id || idx}>
+                    <td style={{ fontWeight: 600, color: 'var(--tx)' }}>{doc.title || doc.fileName}</td>
+                    <td><span className="badge badge-violet">{doc.category || 'Engineering'}</span></td>
+                    <td style={{ fontFamily: 'JetBrains Mono', color: 'var(--ac)' }}>{doc.chunks || 0}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--t2)' }}>Qdrant · 1536d</td>
+                    <td><span className="badge badge-success">Indexed</span></td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
