@@ -1,8 +1,8 @@
 server:
   port: ${PORT:8080}
   tomcat:
-    max-http-form-post-size: 25MB
-    max-swallow-size: 25MB
+    max-http-form-post-size: 70MB
+    max-swallow-size: 70MB
 
 rag:
   service:
@@ -13,8 +13,8 @@ spring:
     name: spring-boot-service
   servlet:
     multipart:
-      max-file-size: 25MB
-      max-request-size: 25MB
+      max-file-size: 70MB
+      max-request-size: 70MB
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:docanalyser}
     username: ${DB_USERNAME:${DB_USER:postgres}}

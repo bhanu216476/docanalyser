@@ -211,7 +211,7 @@ The workflow validates files before sending to Spring Boot:
 | Excel | `application/vnd.ms-excel` | ❌ |
 | Images | `image/*` | ❌ |
 
-**Maximum file size:** 15 MB (configurable in the workflow's `Validate Format & Size` node).
+**Maximum file size:** 50 MB (configurable in the workflow's `Validate Format & Size` node).
 
 ---
 
@@ -238,7 +238,7 @@ the **Test users** list. Add it (Step 4 → "Add Test Users").
 - Verify both values are identical and that Spring Boot restarted after the change.
 
 ### File too large / format rejected
-The validation node rejects files > 15 MB or with unsupported MIME types.
+The validation node rejects files > 50 MB or with unsupported MIME types.
 Check the n8n execution log for the `Validate Format & Size` node output.
 
 ### Document not appearing in DocAnalyser after n8n reports success
@@ -329,3 +329,4 @@ n8n will be available at `http://localhost:5678`.
 | `docs/integrations/google-drive-n8n.md` | Architecture and API reference |
 | `backend/.../controller/IngestionController.java` | Spring Boot ingestion endpoint |
 | `backend/.../service/RagServiceClient.java` | File transfer to FastAPI RAG service |
+

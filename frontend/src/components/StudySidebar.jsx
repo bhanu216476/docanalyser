@@ -66,7 +66,7 @@ export default function StudySidebar({
             <span className="study-badge-pill">PDF, TXT, MD</span>
           </div>
           <p className="study-materials-desc">
-            Upload enterprise documents, research papers, or technical reports (up to 15MB).
+            Upload enterprise documents, research papers, or technical reports (up to 50MB).
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export default function StudySidebar({
             <strong>Click to upload</strong> or drag & drop
           </div>
           <div className="study-dropzone-sub">
-            PDF, TXT, or MD documents (max 15MB)
+            PDF, TXT, or MD documents (max 50MB)
           </div>
         </div>
 

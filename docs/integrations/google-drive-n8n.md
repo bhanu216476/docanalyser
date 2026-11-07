@@ -16,7 +16,7 @@ n8n Workflow  (google_drive_ingestion_workflow.json)
     |
     | 1. Google Drive Trigger — detect new/updated file
     | 2. Download Drive File — download binary via Google Drive OAuth2
-    | 3. Validate Format & Size — check extension (pdf/txt/md), max 15 MB
+    | 3. Validate Format & Size — check extension (pdf/txt/md), max 50 MB
     | 4. Extract Metadata & Compute SHA-256 — build base64 data URI
     v
 POST /api/internal/documents/ingest
@@ -162,7 +162,7 @@ The workflow is in `infrastructure/n8n/google_drive_ingestion_workflow.json`.
 | 1 | Google Drive Trigger | Polls the target folder every minute for new/updated files |
 | 2 | Manual / Test Webhook | Alternative trigger for manual testing |
 | 3 | Download Drive File | Downloads binary via Google Drive OAuth2 |
-| 4 | Validate Format & Size | Rejects unsupported types and files > 15 MB |
+| 4 | Validate Format & Size | Rejects unsupported types and files > 50 MB |
 | 5 | Is File Valid? | IF branch — routes valid vs. rejected |
 | 6 | Extract Metadata & Compute SHA-256 | Deterministic UUID from Drive fileId; SHA-256 of binary; base64 encoding |
 | 7 | Send to Spring Boot Ingestion API | POST with `X-Internal-Token` and `fileData` base64 |
@@ -234,7 +234,7 @@ The workflow is in `infrastructure/n8n/google_drive_ingestion_workflow.json`.
 | DOCX | `application/vnd.openxmlformats-...` | ❌ Not supported by existing pipeline |
 | Images | `image/*` | ❌ |
 
-**Maximum file size**: 15 MB (workflow validation) / 25 MB (Spring Boot multipart limit)
+**Maximum file size**: 50 MB (workflow validation) / 25 MB (Spring Boot multipart limit)
 
 ---
 
@@ -245,7 +245,7 @@ The workflow produces structured output for each failure scenario:
 | Scenario | Workflow output |
 |---|---|
 | Unsupported file type | `Format Validation Failure` node — includes file name and reason |
-| File > 15 MB | `Format Validation Failure` node |
+| File > 50 MB | `Format Validation Failure` node |
 | Spring Boot returns non-2xx | `Format Ingestion Failure` node — includes status code and response body |
 | RAG service failure | Spring Boot returns 5xx → `Format Ingestion Failure` node |
 
