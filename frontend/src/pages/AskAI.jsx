@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Sparkles, HelpCircle, Loader, FileText, ArrowUpRight } from 'lucide-react';
+import { 
+  Sparkles, Bot, FileText, CheckCircle2, 
+  HelpCircle, ChevronRight, X, ArrowUpRight,
+  BookOpen, Zap, Target, FileCheck, Lightbulb
+} from 'lucide-react';
+import RobotMascot from '../components/RobotMascot';
+import StudyComposer from '../components/StudyComposer';
 import CitationBadge from '../components/CitationBadge';
 import VerifiedPill from '../components/VerifiedPill';
-import DocumentViewer from '../components/DocumentViewer';
-import Composer from '../components/Composer';
 
 export default function AskAI({
   messages = [],
@@ -13,41 +17,122 @@ export default function AskAI({
   isQuerying,
   handleSendQuery,
   documents = [],
-  selectedDocId,
+  selectedDocId = 'all',
   setSelectedDocId
 }) {
-  const [activeCitationId, setActiveCitationId] = useState(null);
-  const [currentCitations, setCurrentCitations] = useState([]);
-  const [isMobileViewerOpen, setIsMobileViewerOpen] = useState(false);
+  const [activeCitation, setActiveCitation] = useState(null);
+  const [activeEvidenceModal, setActiveEvidenceModal] = useState(false);
+  const [studyMode, setStudyMode] = useState('deep'); // 'deep' | 'flashcards' | 'quiz' | 'summary'
   const bottomRef = useRef(null);
 
-  // Suggested question cards for empty state
-  const suggestedQuestions = [
-    "What are the core architecture components of our Hybrid RAG system?",
-    "How does citation verification guarantee response faithfulness?",
-    "Summarize key document ingestion pipelines and indexing stages.",
-    "Explain Reciprocal Rank Fusion (RRF) and cross-encoder reranking."
-  ];
-
-  // Auto-scroll to bottom of chat on new message
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-
-    // Update active citations list from last assistant message with citations
-    const lastAiMsg = [...messages].reverse().find(m => m.role === 'assistant' && m.meta?.citations?.length > 0);
-    if (lastAiMsg && lastAiMsg.meta?.citations) {
-      setCurrentCitations(lastAiMsg.meta.citations);
-    }
-  }, [messages, isQuerying]);
-
-  const handleSelectCitation = (citationId) => {
-    setActiveCitationId(citationId);
-    setIsMobileViewerOpen(true);
+  // Dynamic quick prompt cards based on active mode
+  const cardsByMode = {
+    deep: [
+      {
+        title: "Key Document Insights",
+        desc: "Extract core themes and definitions",
+        prompt: "What are the core concepts and fundamental definitions in the uploaded documents?"
+      },
+      {
+        title: "Contextual Understanding",
+        desc: "Explain complex mechanisms clearly",
+        prompt: "Provide a clear, contextual explanation of the most complex mechanism discussed in these documents."
+      },
+      {
+        title: "💡 Related Information",
+        desc: "Explore implications and applications",
+        prompt: "What are practical next steps, key implications, or related areas mentioned in these documents?"
+      },
+      {
+        title: "🎯 Document Knowledge Check",
+        desc: "Validate comprehension of key points",
+        prompt: "Generate 5 questions based on the uploaded documents to test comprehension of the material."
+      }
+    ],
+    flashcards: [
+      {
+        title: "⚡ Terminology & Entities",
+        desc: "Key terms & concise definitions",
+        prompt: "Identify and define the key technical terms, entities, and specialized vocabulary in these documents."
+      },
+      {
+        title: "🧠 Cause & Effect Analysis",
+        desc: "Analyze mechanisms and linkages",
+        prompt: "Analyze the cause-and-effect relationships and mechanisms described across the documents."
+      },
+      {
+        title: "📐 Standards & Specifications",
+        desc: "Rules, criteria, and metrics",
+        prompt: "Extract the core standards, specifications, rules, or formulas detailed in the documents."
+      },
+      {
+        title: "🎯 Multi-Source Retrieval",
+        desc: "In-depth cross-document search",
+        prompt: "Retrieve nuanced details, critical caveats, and edge cases across all uploaded documents."
+      }
+    ],
+    quiz: [
+      {
+        title: "🎯 Evidence Grounding Check",
+        desc: "Verify factual claims against sources",
+        prompt: "List the primary factual claims made in the documents along with exact citations supporting each claim."
+      },
+      {
+        title: "❓ Verification Inquiries",
+        desc: "Cross-reference key statements",
+        prompt: "Cross-reference the findings across sections and highlight any corroborating or conflicting statements."
+      },
+      {
+        title: "🔍 Detect Inconsistencies",
+        desc: "Identify ambiguities or contradictions",
+        prompt: "Identify any ambiguities, conflicting claims, or potential contradictions within the uploaded text."
+      },
+      {
+        title: "⏱️ Fact Extraction Drill",
+        desc: "Fast, verified factual retrieval",
+        prompt: "Extract 5 verified key facts directly grounded in the text with precise source references."
+      }
+    ],
+    summary: [
+      {
+        title: "📋 Executive Summary",
+        desc: "Structured overview and takeaways",
+        prompt: "Generate a structured executive summary summarizing all key sections, findings, and takeaways."
+      },
+      {
+        title: "📊 Topic Hierarchy",
+        desc: "Organized outline & relationships",
+        prompt: "Break down the knowledge in these documents into an organized hierarchical outline with main topics and sub-topics."
+      },
+      {
+        title: "💡 Practical Applications",
+        desc: "Operational use cases and impact",
+        prompt: "Provide concrete real-world applications and operational use cases for the concepts explained in these documents."
+      },
+      {
+        title: "🔑 Critical Rules & Methodologies",
+        desc: "Core logic and procedural steps",
+        prompt: "List all methodologies, key procedures, and critical guidelines discussed in the documents with clear explanations."
+      }
+    ]
   };
 
-  const handleSuggestionClick = (questionText) => {
-    setQueryInput(questionText);
-    handleSendQuery(null, questionText);
+  // Quick Action Chips
+  const quickActionChips = [
+    { label: "⚡ Generate Key Insights", prompt: "Extract the key insights and findings from the uploaded documents." },
+    { label: "🎯 Test Document Understanding", prompt: "Test my understanding of these documents with 3 targeted questions." },
+    { label: "📝 Generate Summary", prompt: "Generate a comprehensive summary of the main topics in these documents." },
+    { label: "💡 Simplify Explanation", prompt: "Explain the central concepts in simple, accessible terms as if I were a beginner." }
+  ];
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isQuerying]);
+
+  const handleCardClick = (promptText) => {
+    setQueryInput(promptText);
+    handleSendQuery(null, promptText);
   };
 
   // Helper to parse answer text and turn [1], [2] into interactive CitationBadges
@@ -59,14 +144,17 @@ export default function AskAI({
       const match = part.match(/^\[(\d+)\]$/);
       if (match) {
         const citationNum = parseInt(match[1], 10);
-        const isActive = activeCitationId === citationNum;
+        const citationObj = citations.find(c => c.index === citationNum || c.id === citationNum);
         return (
           <CitationBadge
             key={index}
             index={citationNum}
             label={part}
-            isActive={isActive}
-            onClick={() => handleSelectCitation(citationNum)}
+            isActive={activeCitation?.index === citationNum}
+            onClick={() => {
+              setActiveCitation(citationObj || { index: citationNum, text: `Passage reference [${citationNum}]` });
+              setActiveEvidenceModal(true);
+            }}
           />
         );
       }
@@ -75,239 +163,297 @@ export default function AskAI({
   };
 
   const hasUserMessages = messages.some(m => m.role === 'user');
+  const activeCards = cardsByMode[studyMode] || cardsByMode.deep;
 
   return (
-    <div className="ask-layout-container">
-      {/* ============================================================
-         LEFT CHAT COLUMN (430px desktop, 100% @ <960px)
-         ============================================================ */}
-      <div className="ask-chat-column">
-        {/* Mobile Evidence & Document Scope Bar (<960px) */}
-        <div 
-          className="mobile-ask-header" 
-          style={{ 
-            display: 'none', 
-            padding: '10px 16px', 
-            borderBottom: '1px solid var(--bd)', 
-            backgroundColor: 'var(--s1)', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            flexShrink: 0
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--tx)' }}>Ask AI</span>
-            {selectedDocId !== 'all' && (
-              <span className="badge badge-cyan" style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '11px' }}>
-                {documents.find(d => d.id === selectedDocId)?.title || '1 file'}
-              </span>
-            )}
-          </div>
-          {currentCitations.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setIsMobileViewerOpen(true)}
-              style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', minHeight: '32px' }}
-            >
-              <FileText size={13} style={{ color: 'var(--ac)' }} />
-              <span>Evidence ({currentCitations.length})</span>
-            </button>
-          )}
-        </div>
+    <div className="study-main-area">
+      {/* Scrollable Chat Viewport */}
+      <div className="study-chat-scroll">
+        {!hasUserMessages ? (
+          /* ========================================================
+             HERO EMPTY STATE WITH MADDY & ENHANCED ELEMENTS
+             ======================================================== */
+          <div className="study-hero-state">
+            {/* Animated Floating Robot Mascot MADDY */}
+            <RobotMascot
+              size="lg"
+              speech="Hi! I'm MADDY..."
+            />
 
-        {/* Messages Body Scroll Area */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '18px'
-          }}
-        >
-          {/* Empty State when no user query yet */}
-          {!hasUserMessages && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ac)' }}>
-                <Sparkles size={16} />
-                <span style={{ fontSize: '13px', fontWeight: 600 }}>Ask questions about your documents</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {suggestedQuestions.map((qText, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleSuggestionClick(qText)}
-                    className="card"
-                    style={{
-                      padding: '12px 14px',
-                      cursor: 'pointer',
-                      fontSize: '12.5px',
-                      color: 'var(--tx)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'border-color 0.15s ease, background-color 0.15s ease'
-                    }}
-                  >
-                    <span>{qText}</span>
-                    <ArrowUpRight size={14} style={{ color: 'var(--mu)', flexShrink: 0 }} />
-                  </div>
-                ))}
-              </div>
+            {/* Headline & Subtitle */}
+            <h1 className="study-hero-title">
+              What would you like to know about your documents?
+            </h1>
+            <p className="study-hero-subtitle">
+              Upload your documents and explore their contents using intelligent hybrid retrieval.
+            </p>
+
+            {/* Quick Action Chips (New Interactive Element) */}
+            <div className="quick-action-chips">
+              {quickActionChips.map((chip, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleCardClick(chip.prompt)}
+                  className="action-chip-pill"
+                >
+                  <Sparkles size={13} style={{ color: 'var(--ac)' }} />
+                  <span>{chip.label}</span>
+                </button>
+              ))}
             </div>
-          )}
 
-          {/* Messages trajectory */}
-          <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <motion.div
-                key={msg.id || Math.random()}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
+            {/* Interactive Mode Tab Switcher */}
+            <div className="study-mode-tabs-container">
+              <button
+                type="button"
+                onClick={() => setStudyMode('deep')}
+                className={`study-mode-tab-btn ${studyMode === 'deep' ? 'active' : ''}`}
               >
-                {msg.role === 'user' ? (
-                  /* User Message: Right aligned bubble */
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <BookOpen size={13} />
+                <span>Document Q&A</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStudyMode('flashcards')}
+                className={`study-mode-tab-btn ${studyMode === 'flashcards' ? 'active' : ''}`}
+              >
+                <Zap size={13} />
+                <span>Hybrid Retrieval</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStudyMode('quiz')}
+                className={`study-mode-tab-btn ${studyMode === 'quiz' ? 'active' : ''}`}
+              >
+                <Target size={13} />
+                <span>Citation Verification</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStudyMode('summary')}
+                className={`study-mode-tab-btn ${studyMode === 'summary' ? 'active' : ''}`}
+              >
+                <FileCheck size={13} />
+                <span>Document Summary</span>
+              </button>
+            </div>
+
+            {/* 2x2 Quick Prompt Cards Grid */}
+            <div className="study-prompt-grid">
+              {activeCards.map((card, idx) => (
+                <motion.div
+                  key={`${studyMode}-${idx}`}
+                  whileHover={{ y: -3, scale: 1.015 }}
+                  transition={{ duration: 0.18 }}
+                  onClick={() => handleCardClick(card.prompt)}
+                  className="study-prompt-card"
+                >
+                  <div className="study-prompt-title">
+                    <span>{card.title}</span>
+                    <ArrowUpRight size={13} style={{ opacity: 0.6, marginLeft: 'auto' }} />
+                  </div>
+                  <div className="study-prompt-desc">
+                    {card.desc}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* ========================================================
+             ACTIVE CONVERSATION THREAD
+             ======================================================== */
+          <div style={{ width: '100%', maxWidth: '740px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+            <AnimatePresence initial={false}>
+              {messages.map((msg) => (
+                <motion.div
+                  key={msg.id || Math.random()}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                    width: '100%'
+                  }}
+                >
+                  {msg.role === 'user' ? (
+                    /* User Message Bubble */
                     <div
                       style={{
-                        maxWidth: '88%',
-                        padding: '10px 14px',
-                        backgroundColor: 'var(--s1)',
-                        border: '1px solid var(--bd)',
-                        borderRadius: '12px 12px 2px 12px',
-                        color: 'var(--tx)',
-                        fontSize: '13px',
-                        lineHeight: 1.55
+                        maxWidth: '82%',
+                        padding: '12px 18px',
+                        backgroundColor: 'var(--ac)',
+                        color: '#FFFFFF',
+                        borderRadius: '18px 18px 4px 18px',
+                        fontSize: '13.5px',
+                        lineHeight: 1.5,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
                       }}
                     >
                       {msg.text}
                     </div>
-                  </div>
-                ) : (
-                  /* AI Message: Structured non-bubble content */
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {/* Status counts bar */}
-                    {msg.meta && (
-                      <div
-                        style={{
-                          fontSize: '11.5px',
-                          color: 'var(--t2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontWeight: 500
-                        }}
-                      >
-                        <Check size={13} style={{ color: 'var(--ok)' }} />
-                        <span>
-                          Searched {msg.meta.searchedDocuments || documents.length || 2} documents ·{' '}
-                          {msg.meta.passagesFound || 14} passages found ·{' '}
-                          {msg.meta.citations?.length || msg.meta.citedCount || 2} cited
-                        </span>
+                  ) : (
+                    /* AI Assistant Message */
+                    <div style={{ display: 'flex', gap: '12px', maxWidth: '94%', width: '100%' }}>
+                      {/* Mascot Mini Avatar MADDY */}
+                      <div style={{ flexShrink: 0, marginTop: '2px' }}>
+                        <RobotMascot size="sm" />
                       </div>
-                    )}
 
-                    {/* Main Answer paragraph */}
-                    <div className="answer-body">
-                      {renderFormattedAnswer(msg.text, msg.meta?.citations)}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {/* Meta status bar if citations/confidence available */}
+                        {msg.meta && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            {msg.meta.confidence > 0 && (
+                              <VerifiedPill
+                                score={msg.meta.confidence}
+                                verification={msg.meta.verification}
+                              />
+                            )}
+                            {msg.meta.citations?.length > 0 && (
+                              <span style={{ fontSize: '11px', color: 'var(--mu)', fontWeight: 500 }}>
+                                Grounded in {msg.meta.citations.length} sources
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Answer text container */}
+                        <div
+                          style={{
+                            backgroundColor: 'var(--s1)',
+                            border: '1px solid var(--bd)',
+                            borderRadius: '4px 18px 18px 18px',
+                            padding: '14px 18px',
+                            fontSize: '13.5px',
+                            lineHeight: 1.6,
+                            color: 'var(--tx)',
+                            boxShadow: 'var(--shadow-card)',
+                            whiteSpace: 'pre-wrap'
+                          }}
+                        >
+                          {renderFormattedAnswer(msg.text, msg.meta?.citations || [])}
+                        </div>
+                      </div>
                     </div>
-
-                    {/* Verification status pill */}
-                    {msg.meta?.verification && (
-                      <div style={{ marginTop: '4px' }}>
-                        <VerifiedPill verification={msg.meta.verification} />
-                      </div>
-                    )}
-
-                    {/* Follow-up suggestions */}
-                    {msg.meta?.citations?.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                        <button
-                          type="button"
-                          className="suggestion-chip"
-                          onClick={() => handleSuggestionClick("Can you expand on citation verification details?")}
-                        >
-                          Expand verification details
-                        </button>
-                        <button
-                          type="button"
-                          className="suggestion-chip"
-                          onClick={() => handleSuggestionClick("Show retrieval pipeline confidence scores.")}
-                        >
-                          View confidence breakdown
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {/* Loading Skeleton & Progress State */}
-          {isQuerying && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ac)', fontSize: '12.5px', fontWeight: 500 }}>
-                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-                  <Loader size={14} />
+                  )}
                 </motion.div>
-                <span>Searching documents → Ranking passages → Writing answer → Verifying sources...</span>
-              </div>
-              <div style={{ height: '12px', width: '85%', borderRadius: '4px', backgroundColor: 'var(--s2)' }} className="animate-shimmer" />
-              <div style={{ height: '12px', width: '65%', borderRadius: '4px', backgroundColor: 'var(--s2)' }} className="animate-shimmer" />
-            </div>
-          )}
+              ))}
+            </AnimatePresence>
 
-          <div ref={bottomRef} />
+            {/* Querying Spinner */}
+            {isQuerying && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--mu)', fontSize: '12.5px' }}
+              >
+                <RobotMascot size="sm" />
+                <span className="animate-pulse">MADDY is searching your documents and verifying citations...</span>
+              </motion.div>
+            )}
+
+            <div ref={bottomRef} style={{ height: '40px' }} />
+          </div>
+        )}
+      </div>
+
+      {/* Floating Bottom Input Composer */}
+      <StudyComposer
+        queryInput={queryInput}
+        setQueryInput={setQueryInput}
+        isQuerying={isQuerying}
+        handleSendQuery={handleSendQuery}
+        documents={documents}
+        selectedDocId={selectedDocId}
+        setSelectedDocId={setSelectedDocId}
+      />
+
+      {/* Floating Bottom-Right Companion Mascot ("Ask MADDY...") */}
+      <div
+        className="floating-corner-bot"
+        onClick={() => {
+          const textarea = document.querySelector('.study-composer-textarea');
+          if (textarea) textarea.focus();
+        }}
+        title="MADDY — AI Document Assistant"
+      >
+        <div className="floating-bot-bubble">
+          Ask MADDY...
         </div>
-
-        {/* Pinned Composer */}
-        <Composer
-          queryInput={queryInput}
-          setQueryInput={setQueryInput}
-          isQuerying={isQuerying}
-          handleSendQuery={handleSendQuery}
-          documents={documents}
-          selectedDocId={selectedDocId}
-          setSelectedDocId={setSelectedDocId}
-        />
+        <RobotMascot size="sm" />
       </div>
 
-      {/* ============================================================
-         RIGHT DOCUMENT VIEWER COLUMN (Desktop only, hidden on <=960px)
-         ============================================================ */}
-      <div className="ask-viewer-desktop">
-        <DocumentViewer
-          citations={currentCitations}
-          activeCitationId={activeCitationId}
-          onSelectCitation={(id) => setActiveCitationId(id)}
-        />
-      </div>
-
-      {/* Mobile Slide-Over Panel (<960px) */}
-      {isMobileViewerOpen && (
-        <div className="sheet-overlay" onClick={() => setIsMobileViewerOpen(false)}>
-          <div 
-            className="sheet-content" 
-            onClick={(e) => e.stopPropagation()} 
-            style={{ 
-              padding: 0, 
-              width: '100%', 
-              maxWidth: '560px',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column'
+      {/* Citation Evidence Sheet Modal (When citation badge is clicked) */}
+      {activeEvidenceModal && activeCitation && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 70,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setActiveEvidenceModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--s1)',
+              border: '1px solid var(--bd)',
+              borderRadius: 'var(--r-xl)',
+              maxWidth: '520px',
+              width: '100%',
+              padding: '22px',
+              boxShadow: 'var(--shadow-lg)',
+              animation: 'fadeIn 0.2s ease-out'
             }}
           >
-            <DocumentViewer
-              citations={currentCitations}
-              activeCitationId={activeCitationId}
-              onSelectCitation={(id) => setActiveCitationId(id)}
-              onCloseMobile={() => setIsMobileViewerOpen(false)}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="badge badge-cyan" style={{ fontSize: '12px' }}>
+                  Citation [{activeCitation.index || 1}]
+                </span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tx)' }}>
+                  {activeCitation.document_title || activeCitation.file_name || 'Grounding Source'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveEvidenceModal(false)}
+                className="icon-button"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: 'var(--s2)',
+                padding: '14px',
+                borderRadius: 'var(--r-md)',
+                fontSize: '13px',
+                lineHeight: 1.55,
+                color: 'var(--tx)',
+                maxHeight: '260px',
+                overflowY: 'auto',
+                borderLeft: '3px solid var(--ac)'
+              }}
+            >
+              {activeCitation.text || activeCitation.excerpt || activeCitation.chunk_text || 'Source excerpt text'}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', fontSize: '11.5px', color: 'var(--mu)' }}>
+              <span>Page / Section: {activeCitation.page || activeCitation.section || 'N/A'}</span>
+              <span>Relevance Score: {activeCitation.score ? `${Math.round(activeCitation.score * 100)}%` : 'Verified'}</span>
+            </div>
           </div>
         </div>
       )}

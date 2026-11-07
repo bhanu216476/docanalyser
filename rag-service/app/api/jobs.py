@@ -24,8 +24,9 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.api.auth import verify_internal_token
 from app.core.config import settings
 from app.jobs.exceptions import (
     IngestionJobError,
@@ -42,7 +43,11 @@ from app.jobs.service import IngestionJobService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/ingestion", tags=["ingestion"])
+router = APIRouter(
+    prefix="/api/v1/ingestion",
+    tags=["ingestion"],
+    dependencies=[Depends(verify_internal_token)],
+)
 
 # Global job service instance (injected or default)
 _job_service: IngestionJobService | None = None

@@ -155,6 +155,18 @@ export function AuthProvider({ children }) {
     throw new Error(errMessage);
   };
 
+  const loginAsGuest = (guestName = 'Student') => {
+    const guestUser = {
+      id: `usr-guest-${Date.now().toString().slice(-4)}`,
+      name: guestName,
+      email: `${guestName.toLowerCase()}@docanalyser.com`,
+      role: 'USER'
+    };
+    setUser(guestUser);
+    localStorage.setItem('token', 'guest-demo-token');
+    localStorage.setItem('docanalyser_user', JSON.stringify(guestUser));
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('docanalyser_user');
@@ -162,7 +174,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, loginAsGuest, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

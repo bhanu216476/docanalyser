@@ -202,6 +202,14 @@ class Settings(BaseSettings):
     # Once exceeded, the oldest terminal jobs are evicted first.
     ingestion_job_history_size: int = 500
 
+    # ------------------------------------------------------------------
+    # Internal Authentication (n8n & internal service calls)
+    # ------------------------------------------------------------------
+    # Optional shared internal token for authenticating internal requests
+    # from n8n or Spring Boot (via X-Internal-Token header).
+    # If empty, internal token checks are disabled for backward compatibility.
+    n8n_ingestion_token: str = ""
+
     @field_validator("bm25_k1")
     @classmethod
     def validate_bm25_k1(cls, v: float) -> float:

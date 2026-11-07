@@ -1,0 +1,400 @@
+{
+  "name": "DocAnalyser - Production RAG Ingestion Pipeline",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingest-document",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook - Ingestion Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 1: Validate incoming payload and normalize attributes for FastAPI contract\nconst item = $input.first().json;\nconst body = item.body || item;\n\nconst documentId = (body.document_id || body.documentId || '').trim();\nconst fileName = (body.file_name || body.fileName || '').trim();\nconst sourceUrl = (body.source_url || body.sourceUrl || body.fileUrl || '').trim();\nconst operation = (body.operation || 'ADD').toUpperCase();\n\nif (!documentId) {\n  throw new Error('Validation failed: document_id (or documentId) is required and must not be blank');\n}\n\nif (!fileName && operation !== 'DELETE') {\n  throw new Error('Validation failed: file_name (or fileName) is required for ADD/UPDATE operations');\n}\n\nif (!sourceUrl && operation !== 'DELETE') {\n  throw new Error('Validation failed: source_url (or sourceUrl/fileUrl) is required for ADD/UPDATE operations');\n}\n\nconst fileType = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : 'txt';\nconst defaultContentType = fileType === 'pdf' ? 'application/pdf' : (fileType === 'md' ? 'text/markdown' : 'text/plain');\nconst contentType = body.content_type || body.contentType || body.mimeType || defaultContentType;\n\nconst metadata = Object.assign({}, body.metadata || {}, {\n  ingested_by: 'n8n-automation',\n  source: body.source || 'n8n',\n  file_type: fileType\n});\n\nreturn [{\n  json: {\n    document_id: documentId,\n    file_name: fileName,\n    source_url: sourceUrl,\n    content_type: contentType,\n    operation: operation,\n    metadata: metadata,\n    poll_count: 0,\n    max_polls: 15\n  }\n}];"
+      },
+      "id": "node-validate-payload",
+      "name": "Validate & Normalize Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://docanalyser-rag.onrender.com/api/v1/ingestion/jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.N8N_INGESTION_TOKEN || 'docanalyser-n8n-internal-token-secret' }}"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{ $json.document_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  operation: $json.operation,\n  document_id: $json.document_id,\n  file_name: $json.file_name,\n  source_url: $json.source_url,\n  content_type: $json.content_type,\n  metadata: $json.metadata\n}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-submit-job",
+      "name": "Submit Job to FastAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "COMPLETED"
+            }
+          ]
+        }
+      },
+      "id": "node-check-immediate",
+      "name": "Check Immediate State",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "id": "node-wait-polling",
+      "name": "Wait 3 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://docanalyser-rag.onrender.com/api/v1/ingestion/jobs/{{ $json.job_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.N8N_INGESTION_TOKEN || 'docanalyser-n8n-internal-token-secret' }}"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{ $json.document_id }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "node-poll-status",
+      "name": "Poll Job Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1260,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Increment poll counter and evaluate terminal conditions\nconst item = $input.first().json;\nconst prevPollCount = ($node['Validate & Normalize Request'].json.poll_count || 0) + 1;\n$node['Validate & Normalize Request'].json.poll_count = prevPollCount;\n\nreturn [{\n  json: Object.assign({}, item, {\n    poll_count: prevPollCount,\n    is_terminal: (item.status === 'COMPLETED' || item.status === 'FAILED'),\n    is_timeout: (prevPollCount >= 15 && item.status !== 'COMPLETED' && item.status !== 'FAILED')\n  })\n}];"
+      },
+      "id": "node-eval-poll",
+      "name": "Evaluate Poll Condition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_terminal }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-check-terminal",
+      "name": "Is Job Terminal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "COMPLETED"
+            }
+          ]
+        }
+      },
+      "id": "node-check-status-success",
+      "name": "Is Status COMPLETED?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        },
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  document_id: $json.document_id,\n  job_id: $json.job_id,\n  status: $json.status,\n  chunk_count: $json.chunk_count || 0,\n  deduplicated: $json.deduplicated || false,\n  operation: $json.operation,\n  execution_timestamp: new Date().toISOString()\n}) }}"
+      },
+      "id": "node-respond-success",
+      "name": "Respond - Success 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2120,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 500
+        },
+        "responseBody": "={{ JSON.stringify({\n  success: false,\n  document_id: $json.document_id,\n  job_id: $json.job_id || null,\n  status: $json.status || 'FAILED',\n  error: $json.error || 'Ingestion processing failed on RAG engine',\n  error_type: $json.error_type || 'IngestionError',\n  execution_timestamp: new Date().toISOString()\n}) }}"
+      },
+      "id": "node-respond-failure",
+      "name": "Respond - Ingestion Error 500",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2120,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_timeout }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-check-timeout",
+      "name": "Is Polling Timeout?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 504
+        },
+        "responseBody": "={{ JSON.stringify({\n  success: false,\n  document_id: $json.document_id,\n  job_id: $json.job_id,\n  status: 'TIMEOUT',\n  error: 'Ingestion polling timed out after 15 attempts (45 seconds). Job is still processing in background.',\n  execution_timestamp: new Date().toISOString()\n}) }}"
+      },
+      "id": "node-respond-timeout",
+      "name": "Respond - Timeout 504",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2120,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Ingestion Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate & Normalize Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Normalize Request": {
+      "main": [
+        [
+          {
+            "node": "Submit Job to FastAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Job to FastAPI": {
+      "main": [
+        [
+          {
+            "node": "Check Immediate State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Immediate State": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 3 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Poll Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Job Status": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Poll Condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Poll Condition": {
+      "main": [
+        [
+          {
+            "node": "Is Job Terminal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Job Terminal?": {
+      "main": [
+        [
+          {
+            "node": "Is Status COMPLETED?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Polling Timeout?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Status COMPLETED?": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Ingestion Error 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Polling Timeout?": {
+      "main": [
+        [
+          {
+            "node": "Respond - Timeout 504",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 3 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

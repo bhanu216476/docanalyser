@@ -5,15 +5,20 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Protocol
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.api.auth import verify_internal_token
 from app.pipeline.document_lifecycle import (
     DocumentLifecycleError,
     DocumentLifecycleService,
 )
 
-router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+router = APIRouter(
+    prefix="/api/v1/documents",
+    tags=["documents"],
+    dependencies=[Depends(verify_internal_token)],
+)
 
 
 class DocumentLifecycleHandler(Protocol):
