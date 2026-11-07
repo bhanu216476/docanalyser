@@ -274,11 +274,19 @@ Check the n8n execution log for the `Validate Format & Size` node output.
 
 ## n8n Deployment Options (for Production)
 
-Since n8n is not included in `render.yaml` (Render does not support persistent
-disk on the free tier, which n8n requires for credential storage), you have
-three options:
+### Option A: Render (Recommended — Included in Blueprint)
+n8n is configured directly in `render.yaml` as the `docanalyser-n8n` web service backed by Render PostgreSQL (`docanalyser-postgres`).
 
-### Option A: Fly.io (Recommended)
+Because n8n uses PostgreSQL for credential, workflow, and execution storage instead of local SQLite files, **no persistent disk is required**, making it 100% compatible with Render's Free tier.
+
+1. Push your latest code containing `render.yaml` to GitHub.
+2. In the Render Dashboard, open your Blueprint / Environment.
+3. Render automatically provisions the `docanalyser-n8n` service at:
+   `https://docanalyser-n8n.onrender.com`
+4. Set the `N8N_INGESTION_TOKEN` environment variable in the Render Dashboard (matching Spring Boot's token).
+5. Render automatically generates and persists `N8N_ENCRYPTION_KEY`.
+
+### Option B: Fly.io
 ```bash
 # Install Fly CLI
 # https://fly.io/docs/hands-on/install-flyctl/
@@ -299,13 +307,13 @@ Configure the volume mount in `fly.toml`:
   destination = "/home/node/.n8n"
 ```
 
-### Option B: Railway
+### Option C: Railway
 1. Create a new project on [Railway](https://railway.app).
 2. Add a service from the Docker image `n8nio/n8n`.
 3. Add a persistent volume mounted at `/home/node/.n8n`.
 4. Set the same environment variables listed above.
 
-### Option C: Local Docker Compose (Development Only)
+### Option D: Local Docker Compose (Development Only)
 The `infrastructure/docker-compose.yml` already includes an n8n service.
 Run:
 ```bash

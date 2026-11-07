@@ -71,7 +71,8 @@ Qdrant Vector Store + BM25 Index
 | `IngestionController` update logic | ✅ Updated | Handles DOCUMENT_UPDATED (new hash → re-index) |
 | RAG `rag.py` `document_id` param | ✅ Updated | Accepts optional `document_id` form field |
 | `rag_pipeline.py` pre-ingest cleanup | ✅ Updated | Deletes old Qdrant vectors + BM25 entries before re-index |
-| `application.yml` multipart limits | ✅ Updated | 25 MB max file size + request size |
+| `application.yml` multipart limits | ✅ Updated | 70 MB max form/multipart size for 50MB documents |
+| n8n Render deployment | ✅ Configured | `render.yaml` includes `docanalyser-n8n` web service (PostgreSQL-backed) |
 | Google OAuth2 credentials | ⏳ Pending | Manual step — follow the OAuth2 setup guide |
 | End-to-end verification | ⏳ Pending | Requires OAuth credentials and running n8n |
 

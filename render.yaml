@@ -1,5 +1,64 @@
 services:
   - type: web
+    name: docanalyser-n8n
+    env: docker
+    region: oregon
+    plan: free
+    image:
+      url: docker.io/n8nio/n8n:latest
+    envVars:
+      - key: N8N_PORT
+        value: "5678"
+      - key: PORT
+        value: "5678"
+      - key: N8N_PROTOCOL
+        value: https
+      - key: N8N_HOST
+        value: docanalyser-n8n.onrender.com
+      - key: WEBHOOK_URL
+        value: https://docanalyser-n8n.onrender.com
+      - key: N8N_ENCRYPTION_KEY
+        generateValue: true
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_HOST
+        fromDatabase:
+          name: docanalyser-postgres
+          property: host
+      - key: DB_POSTGRESDB_PORT
+        fromDatabase:
+          name: docanalyser-postgres
+          property: port
+      - key: DB_POSTGRESDB_DATABASE
+        fromDatabase:
+          name: docanalyser-postgres
+          property: database
+      - key: DB_POSTGRESDB_USER
+        fromDatabase:
+          name: docanalyser-postgres
+          property: user
+      - key: DB_POSTGRESDB_PASSWORD
+        fromDatabase:
+          name: docanalyser-postgres
+          property: password
+      - key: DB_POSTGRESDB_SCHEMA
+        value: public
+      - key: N8N_INGESTION_TOKEN
+        sync: false
+      - key: SPRING_BOOT_URL
+        value: https://docanalyser-backend.onrender.com
+      - key: GOOGLE_DRIVE_FOLDER_ID
+        sync: false
+      - key: EXECUTIONS_DATA_PRUNE
+        value: "true"
+      - key: EXECUTIONS_DATA_MAX_AGE
+        value: "168"
+      - key: GENERIC_TIMEZONE
+        value: Asia/Kolkata
+      - key: N8N_LOG_LEVEL
+        value: info
+
+  - type: web
     name: docanalyser-backend
     env: docker
     region: oregon
