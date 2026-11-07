@@ -111,13 +111,51 @@ function AppShell() {
 
     try {
       const token = localStorage.getItem('token');
-      let chunkCount = 12;
-      let docId = `doc-${Date.now().toString().slice(-4)}`;
 
-      // 1. Attempt direct FastAPI RAG multipart file upload
+      // Convert file to base64 Data URI so Spring Boot can decode the actual binary content
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      let chunkCount = 12;
+      let docId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `doc-${Date.now()}`;
+      let uploadSucceeded = false;
+
+      // 1. Primary path: Send binary to Spring Boot internal ingestion endpoint
       try {
+        const res = await fetch(`${API_BASE}/api/internal/documents/ingest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            documentId: docId,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type || 'application/pdf',
+            source: 'Uploaded Document',
+            fileData: base64Data
+          })
+        });
+
+        if (res.ok || res.status === 202) {
+          const data = await res.json();
+          docId = data.documentId || docId;
+          uploadSucceeded = true;
+        }
+      } catch (springErr) {
+        console.warn('Spring Boot ingest failed, falling back to direct FastAPI upload:', springErr);
+      }
+
+      // 2. Direct FastAPI fallback if Spring Boot was unreachable
+      if (!uploadSucceeded) {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('document_id', docId);
         const ragRes = await fetch(`${RAG_BASE}/api/v1/rag/ingest`, {
           method: 'POST',
           headers: {
@@ -129,27 +167,9 @@ function AppShell() {
           const ragData = await ragRes.json();
           chunkCount = ragData.chunk_count || chunkCount;
           docId = ragData.document_id || docId;
+          uploadSucceeded = true;
         }
-      } catch (ragErr) {
-        console.warn('FastAPI direct upload bypassed:', ragErr);
       }
-
-      // 2. Also register in Spring Boot Document Repository if online
-      try {
-        await fetch(`${API_BASE}/api/internal/documents/ingest`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            documentId: docId,
-            fileName: file.name,
-            source: 'Document Ingestion',
-            fileUrl: file.name
-          })
-        });
-      } catch (_) {}
 
       const cleanTitle = file.name.replace(/\.[^/.]+$/, "");
       const newDoc = {
@@ -162,10 +182,10 @@ function AppShell() {
         uploadedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
       };
 
-      setDocuments(prev => [newDoc, ...prev]);
+      setDocuments(prev => [newDoc, ...prev.filter(d => d.id !== docId)]);
       setSelectedDocId(newDoc.id);
       setUploadMessage({ type: 'success', text: `"${file.name}" successfully indexed!` });
-      fetchDocuments();
+      await fetchDocuments();
     } catch (err) {
       setUploadMessage({ type: 'error', text: 'Upload failed: ' + err.message });
     } finally {
@@ -344,6 +364,16 @@ function AppShell() {
           top_k: 5 
         };
         if (selectedDocId !== 'all') {
+          const activeDoc = documents.find(d => d.id === selectedDocId);
+          if (activeDoc && (activeDoc.status === 'FAILED' || activeDoc.status === 'ERROR')) {
+            setMessages(prev => [...prev, {
+              id: `assistant-${Date.now()}`,
+              role: 'assistant',
+              text: `⚠️ Document "${activeDoc.title || activeDoc.fileName}" failed during ingestion and has no indexed content. Click "Clear filter" above the document list to search all available documents, or re-upload this document.`
+            }]);
+            setIsQuerying(false);
+            return;
+          }
           payload.filters = { document_id: selectedDocId };
         }
 
