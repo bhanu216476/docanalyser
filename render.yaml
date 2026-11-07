@@ -4,9 +4,11 @@ services:
     env: docker
     region: oregon
     plan: free
-    image:
-      url: docker.io/n8nio/n8n:latest
+    branch: main
+    rootDir: ./infrastructure/n8n
+    dockerfilePath: ./Dockerfile
     envVars:
+      - fromGroup: docanalyser-shared-secrets
       - key: N8N_PORT
         value: "5678"
       - key: PORT
@@ -43,12 +45,12 @@ services:
           property: password
       - key: DB_POSTGRESDB_SCHEMA
         value: public
-      - key: N8N_INGESTION_TOKEN
-        sync: false
+      - key: DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED
+        value: "false"
       - key: SPRING_BOOT_URL
         value: https://docanalyser-backend.onrender.com
       - key: GOOGLE_DRIVE_FOLDER_ID
-        sync: false
+        value: ""
       - key: EXECUTIONS_DATA_PRUNE
         value: "true"
       - key: EXECUTIONS_DATA_MAX_AGE
@@ -67,12 +69,11 @@ services:
     rootDir: ./backend
     dockerfilePath: ./Dockerfile
     envVars:
+      - fromGroup: docanalyser-shared-secrets
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: RAG_SERVICE_URL
         value: https://docanalyser-rag.onrender.com
-      - key: N8N_INGESTION_TOKEN
-        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRATION
@@ -102,6 +103,7 @@ services:
     rootDir: ./rag-service
     dockerfilePath: ./Dockerfile
     envVars:
+      - fromGroup: docanalyser-shared-secrets
       - key: PORT
         value: "8000"
       - key: OPENAI_API_KEY
@@ -115,8 +117,6 @@ services:
           type: redis
           name: docanalyser-redis
           property: connectionString
-      - key: N8N_INGESTION_TOKEN
-        sync: false
 
   - type: web
     name: docanalyser-frontend
@@ -148,3 +148,9 @@ databases:
     region: oregon
     plan: free
     ipAllowList: []
+
+envVarGroups:
+  - name: docanalyser-shared-secrets
+    envVars:
+      - key: N8N_INGESTION_TOKEN
+        generateValue: true

@@ -283,8 +283,8 @@ Because n8n uses PostgreSQL for credential, workflow, and execution storage inst
 2. In the Render Dashboard, open your Blueprint / Environment.
 3. Render automatically provisions the `docanalyser-n8n` service at:
    `https://docanalyser-n8n.onrender.com`
-4. Set the `N8N_INGESTION_TOKEN` environment variable in the Render Dashboard (matching Spring Boot's token).
-5. Render automatically generates and persists `N8N_ENCRYPTION_KEY`.
+4. Render automatically generates and shares `N8N_INGESTION_TOKEN` across Spring Boot, FastAPI, and n8n via a shared Environment Group (`envVarGroups`).
+5. Render automatically generates and persists `N8N_ENCRYPTION_KEY`. No manual token configuration is needed!
 
 ### Option B: Fly.io
 ```bash
