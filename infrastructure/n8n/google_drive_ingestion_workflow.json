@@ -1,0 +1,329 @@
+{
+  "name": "DocAnalyser - Google Drive OAuth2 Ingestion Workflow",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "folder",
+        "folderId": "={{ $env.GOOGLE_DRIVE_FOLDER_ID || 'root' }}",
+        "event": "fileCreatedOrUpdated"
+      },
+      "id": "node-gdrive-trigger",
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        180,
+        280
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "googleDriveOAuth2",
+          "name": "Google Drive OAuth2 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingest-google-drive-test",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "node-manual-webhook-trigger",
+      "name": "Manual / Test Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        180,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{ $json.id }}",
+        "binaryPropertyName": "data"
+      },
+      "id": "node-gdrive-download",
+      "name": "Download Drive File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 2,
+      "position": [
+        420,
+        280
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "googleDriveOAuth2",
+          "name": "Google Drive OAuth2 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 3: Validate file extension, MIME type, and size constraints\nconst item = $input.first();\nconst driveMeta = item.json;\nconst fileName = (driveMeta.name || driveMeta.fileName || '').trim();\nconst extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';\n\nconst supportedExtensions = ['pdf', 'txt', 'md', 'markdown', 'text'];\nconst maxSizeBytes = 15 * 1024 * 1024; // 15MB maximum\n\nconst binaryProperty = item.binary?.data;\nconst actualSize = binaryProperty?.data ? Buffer.byteLength(binaryProperty.data, 'base64') : (driveMeta.size || 0);\n\nlet isValid = true;\nlet validationError = null;\n\nif (!fileName) {\n  isValid = false;\n  validationError = 'Validation Error: File name is missing.';\n} else if (!supportedExtensions.includes(extension)) {\n  isValid = false;\n  validationError = `Validation Error: Unsupported file format .${extension}. Only PDF, TXT, and Markdown files are supported.`;\n} else if (actualSize > maxSizeBytes) {\n  isValid = false;\n  validationError = `Validation Error: File size (${Math.round(actualSize / 1024 / 1024 * 10) / 10}MB) exceeds the 15MB limit.`;\n}\n\nreturn [{\n  json: Object.assign({}, driveMeta, {\n    is_valid: isValid,\n    validation_error: validationError,\n    file_name: fileName,\n    file_type: extension === 'markdown' ? 'md' : (extension === 'text' ? 'txt' : extension),\n    file_size_bytes: actualSize\n  }),\n  binary: item.binary\n}];"
+      },
+      "id": "node-validate-file",
+      "name": "Validate Format & Size",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_valid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-check-valid",
+      "name": "Is File Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        860,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 4 & 5: Extract file metadata, generate deterministic UUID, compute SHA-256 hash\nconst crypto = require('crypto');\nconst item = $input.first();\nconst json = item.json;\nconst binaryData = item.binary?.data?.data || '';\n\nif (!binaryData) {\n  throw new Error('Fatal: No binary payload available for hashing and transmission.');\n}\n\nconst buffer = Buffer.from(binaryData, 'base64');\nconst sha256Hash = 'sha256:' + crypto.createHash('sha256').update(buffer).digest('hex');\n\n// Generate deterministic UUID v4 structure from Google Drive fileId or name\nconst fileIdentifier = json.id || json.fileId || json.file_name;\nconst md5Hex = crypto.createHash('md5').update('gdrive:' + fileIdentifier).digest('hex');\nconst deterministicDocId = [\n  md5Hex.substring(0, 8),\n  md5Hex.substring(8, 12),\n  '4' + md5Hex.substring(13, 16),\n  '8' + md5Hex.substring(17, 20),\n  md5Hex.substring(20, 32)\n].join('-');\n\nconst mimeType = json.mimeType || item.binary?.data?.mimeType || (json.file_type === 'pdf' ? 'application/pdf' : 'text/plain');\nconst dataUri = `data:${mimeType};base64,${binaryData}`;\n\nreturn [{\n  json: {\n    documentId: deterministicDocId,\n    fileName: json.file_name,\n    fileType: json.file_type,\n    mimeType: mimeType,\n    source: 'google-drive',\n    fileUrl: dataUri,\n    contentHash: sha256Hash,\n    fileSize: buffer.length,\n    googleDriveFileId: json.id || null,\n    modifiedTime: json.modifiedTime || new Date().toISOString(),\n    driveWebLink: json.webViewLink || `https://drive.google.com/file/d/${json.id}/view`\n  }\n}];"
+      },
+      "id": "node-extract-hash",
+      "name": "Extract Metadata & Compute SHA-256",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SPRING_BOOT_URL || 'http://backend:8080' }}/api/internal/documents/ingest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.N8N_INGESTION_TOKEN || 'docanalyser-n8n-internal-token-secret' }}"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{ $json.documentId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  documentId: $json.documentId,\n  fileName: $json.fileName,\n  source: $json.source,\n  fileUrl: $json.fileUrl,\n  contentHash: $json.contentHash,\n  fileSize: $json.fileSize,\n  mimeType: $json.mimeType\n}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "node-spring-boot-ingest",
+      "name": "Send to Spring Boot Ingestion API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1340,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "INDEXED"
+            },
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "READY"
+            },
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "PROCESSING"
+            }
+          ]
+        },
+        "combinator": "any"
+      },
+      "id": "node-check-ingest-status",
+      "name": "Check Ingestion Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1580,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format successful ingestion report\nconst response = $input.first().json;\nconst meta = $node['Extract Metadata & Compute SHA-256'].json;\n\nreturn [{\n  json: {\n    success: true,\n    status: response.status || 'INDEXED',\n    documentId: meta.documentId,\n    fileName: meta.fileName,\n    fileSize: meta.fileSize,\n    contentHash: meta.contentHash,\n    googleDriveFileId: meta.googleDriveFileId,\n    driveLink: meta.driveWebLink,\n    message: response.message || 'Document successfully indexed into DocAnalyser Hybrid RAG',\n    details: response.details || null,\n    processedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-format-success",
+      "name": "Format Success Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format error report for failed backend ingestion\nconst response = $input.first().json;\nconst meta = $node['Extract Metadata & Compute SHA-256'].json;\n\nreturn [{\n  json: {\n    success: false,\n    status: response.status || 'FAILED',\n    documentId: meta.documentId,\n    fileName: meta.fileName,\n    error: response.error || response.message || 'Ingestion rejected by Spring Boot gateway',\n    googleDriveFileId: meta.googleDriveFileId,\n    failedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-format-ingest-failure",
+      "name": "Format Ingestion Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format rejection report for invalid file format or size limits\nconst item = $input.first().json;\n\nreturn [{\n  json: {\n    success: false,\n    status: 'REJECTED',\n    fileName: item.file_name || 'unknown',\n    error: item.validation_error || 'File validation failed',\n    fileSize: item.file_size_bytes || 0,\n    rejectedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-format-validation-failure",
+      "name": "Format Validation Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        480
+      ]
+    }
+  ],
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download Drive File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual / Test Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Format & Size",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Drive File": {
+      "main": [
+        [
+          {
+            "node": "Validate Format & Size",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Format & Size": {
+      "main": [
+        [
+          {
+            "node": "Is File Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is File Valid?": {
+      "main": [
+        [
+          {
+            "node": "Extract Metadata & Compute SHA-256",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Validation Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Metadata & Compute SHA-256": {
+      "main": [
+        [
+          {
+            "node": "Send to Spring Boot Ingestion API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Spring Boot Ingestion API": {
+      "main": [
+        [
+          {
+            "node": "Check Ingestion Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Ingestion Status": {
+      "main": [
+        [
+          {
+            "node": "Format Success Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Ingestion Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

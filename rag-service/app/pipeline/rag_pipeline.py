@@ -382,6 +382,16 @@ class RAGPipeline:
                 except Exception:  # noqa: BLE001  # noqa: BLE001
                     doc_id = path.stem
 
+            if doc_id:
+                try:
+                    self.vector_store.delete_by_document_id(doc_id)
+                except Exception:  # noqa: BLE001
+                    pass
+                try:
+                    self.bm25_index.remove_by_document_id(doc_id)
+                except Exception:  # noqa: BLE001
+                    pass
+
             if not chunks:
                 logger.warning("Ingestion produced 0 chunks for document '%s'", doc_id)
                 latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0

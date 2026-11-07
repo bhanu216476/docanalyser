@@ -13,7 +13,7 @@ services:
       - key: RAG_SERVICE_URL
         value: https://docanalyser-rag.onrender.com
       - key: N8N_INGESTION_TOKEN
-        value: docanalyser-n8n-internal-token-secret
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRATION
@@ -57,7 +57,7 @@ services:
           name: docanalyser-redis
           property: connectionString
       - key: N8N_INGESTION_TOKEN
-        value: docanalyser-n8n-internal-token-secret
+        sync: false
 
   - type: web
     name: docanalyser-frontend

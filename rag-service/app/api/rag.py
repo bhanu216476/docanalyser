@@ -63,6 +63,7 @@ class FilePathIngestRequest(BaseModel):
 async def ingest_document(
     file: UploadFile | None = File(default=None),  # noqa: B008
     file_path: str | None = Form(default=None),
+    document_id: str | None = Form(default=None),
 ) -> IngestionResponse:
     """
     Ingest a document from either a multipart file upload or local file path.
@@ -85,7 +86,7 @@ async def ingest_document(
             tmp_path.write_bytes(content)
 
             try:
-                return pipeline.ingest(tmp_path)
+                return pipeline.ingest(tmp_path, document_id=document_id)
             except IngestionError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -100,7 +101,7 @@ async def ingest_document(
                 detail=f"File not found: {file_path}",
             )
         try:
-            return pipeline.ingest(path)
+            return pipeline.ingest(path, document_id=document_id)
         except IngestionError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

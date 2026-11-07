@@ -201,6 +201,9 @@ services:
       - WEBHOOK_URL=${N8N_PROTOCOL:-http}://${N8N_HOST:-localhost}:${N8N_PORT:-5678}/
       - GENERIC_TIMEZONE=${TIMEZONE:-UTC}
       - N8N_METRICS=${N8N_METRICS:-true}
+      - SPRING_BOOT_URL=http://backend:8080
+      - N8N_INGESTION_TOKEN=${N8N_INGESTION_TOKEN:-docanalyser-n8n-internal-token-secret}
+      - GOOGLE_DRIVE_FOLDER_ID=${GOOGLE_DRIVE_FOLDER_ID:-}
     volumes:
       - n8n_data:/home/node/.n8n
     healthcheck:

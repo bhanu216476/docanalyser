@@ -140,7 +140,6 @@ function AppShell() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Internal-Token': 'docanalyser-n8n-internal-token-secret',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({

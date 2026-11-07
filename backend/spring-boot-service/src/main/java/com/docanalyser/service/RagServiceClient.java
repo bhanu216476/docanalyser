@@ -119,11 +119,19 @@ public class RagServiceClient {
     @SuppressWarnings("unchecked")
     public Map<String, Object> ingestDocument(IngestionRequest ingestionRequest) {
         String fileUrl = ingestionRequest.getFileUrl();
+        String fileData = ingestionRequest.getFileData();
         String fileName = ingestionRequest.getFileName() != null ? ingestionRequest.getFileName() : "document.bin";
 
-        // Step 1: Download the file bytes from the remote URL or treat as raw text
+        // Step 1: Decode or download the file bytes
         byte[] fileBytes;
-        if (fileUrl != null && (fileUrl.startsWith("http://") || fileUrl.startsWith("https://"))) {
+        if (fileData != null && !fileData.isBlank()) {
+            log.info("Processing document from explicit fileData base64 payload");
+            String rawBase64 = fileData.trim();
+            if (rawBase64.startsWith("data:") && rawBase64.contains(",")) {
+                rawBase64 = rawBase64.substring(rawBase64.indexOf(',') + 1);
+            }
+            fileBytes = java.util.Base64.getMimeDecoder().decode(rawBase64.replaceAll("\\s+", ""));
+        } else if (fileUrl != null && (fileUrl.startsWith("http://") || fileUrl.startsWith("https://"))) {
             try {
                 log.info("Downloading document for ingestion from: {}", fileUrl);
                 HttpClient httpClient = HttpClient.newBuilder()
@@ -150,8 +158,8 @@ public class RagServiceClient {
             log.info("Processing document as base64 data URI");
             int commaIndex = fileUrl.indexOf(',');
             if (commaIndex != -1) {
-                String base64Data = fileUrl.substring(commaIndex + 1);
-                fileBytes = java.util.Base64.getDecoder().decode(base64Data);
+                String base64Data = fileUrl.substring(commaIndex + 1).replaceAll("\\s+", "");
+                fileBytes = java.util.Base64.getMimeDecoder().decode(base64Data);
             } else {
                 fileBytes = new byte[0];
             }
@@ -173,6 +181,9 @@ public class RagServiceClient {
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", fileResource);
+        if (ingestionRequest.getDocumentId() != null && !ingestionRequest.getDocumentId().isBlank()) {
+            body.add("document_id", ingestionRequest.getDocumentId());
+        }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
