@@ -85,9 +85,9 @@ function AppShell() {
   // Chat state
   const [messages, setMessages] = useState([
     {
-      id: 'msg-welcome',
+      id: 'msg-welcome-maddy',
       role: 'assistant',
-      text: 'Welcome to DocAnalyser! Ask any question grounded in your ingested enterprise documents, or upload new files to expand the knowledge base.',
+      text: "Hey there! ✨ I'm Maddy, your friendly AI companion in DocAnalyser. Ask me anything about your uploaded documents, explore concepts, or let's chat about any topic you're curious about! 💕",
       meta: null
     }
   ]);
@@ -344,10 +344,45 @@ function AppShell() {
     }
   };
 
+  const handleRegenerateQuery = () => {
+    if (isQuerying) return;
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return;
+    setMessages(prev => {
+      const lastIdx = prev.length - 1;
+      if (lastIdx >= 0 && prev[lastIdx].role === 'assistant') {
+        return prev.slice(0, lastIdx);
+      }
+      return prev;
+    });
+    handleSendQuery(null, lastUserMsg.text);
+  };
+
+  const handleClearChat = () => {
+    setMessages([
+      {
+        id: `msg-welcome-${Date.now()}`,
+        role: 'assistant',
+        text: "Hey there! ✨ I'm Maddy, your friendly AI companion in DocAnalyser. Ask me anything about your uploaded documents, explore concepts, or let's chat about any topic you're curious about! 💕",
+        meta: null
+      }
+    ]);
+    setSelectedDocId('all');
+  };
+
   const handleSendQuery = async (e, textOverride = null) => {
     e?.preventDefault();
     const userText = (textOverride || queryInput).trim();
     if (!userText || isQuerying) return;
+
+    // Build multi-turn conversation history turns
+    const history = messages
+      .filter(m => m.text && (m.role === 'user' || m.role === 'assistant'))
+      .slice(-8)
+      .map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.text
+      }));
 
     setQueryInput('');
     setMessages(prev => [...prev, { id: `user-${Date.now()}`, role: 'user', text: userText }]);
@@ -357,23 +392,28 @@ function AppShell() {
       const token = localStorage.getItem('token');
       let ragResponse = null;
 
+      // Check if user has filtered to a document that failed ingestion
+      if (selectedDocId !== 'all') {
+        const activeDoc = documents.find(d => d.id === selectedDocId);
+        if (activeDoc && (activeDoc.status === 'FAILED' || activeDoc.status === 'ERROR')) {
+          setMessages(prev => [...prev, {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            text: `⚠️ Hey! It looks like **"${activeDoc.title || activeDoc.fileName}"** ran into an issue during upload and has no indexed content yet.\n\nYou can click **"Clear filter"** above the document list to search across your other indexed documents, or re-upload this file so I can process it for you! 💕`
+          }]);
+          setIsQuerying(false);
+          return;
+        }
+      }
+
       // Try RAG endpoint
       try {
         const payload = { 
           query: userText, 
-          top_k: 5 
+          top_k: 5,
+          conversation_history: history
         };
         if (selectedDocId !== 'all') {
-          const activeDoc = documents.find(d => d.id === selectedDocId);
-          if (activeDoc && (activeDoc.status === 'FAILED' || activeDoc.status === 'ERROR')) {
-            setMessages(prev => [...prev, {
-              id: `assistant-${Date.now()}`,
-              role: 'assistant',
-              text: `⚠️ Document "${activeDoc.title || activeDoc.fileName}" failed during ingestion and has no indexed content. Click "Clear filter" above the document list to search all available documents, or re-upload this document.`
-            }]);
-            setIsQuerying(false);
-            return;
-          }
           payload.filters = { document_id: selectedDocId };
         }
 
@@ -404,7 +444,7 @@ function AppShell() {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
               },
-              body: JSON.stringify({ query: userText, top_k: 5 })
+              body: JSON.stringify({ query: userText, top_k: 5, conversation_history: history })
             });
             if (fallbackRes.ok) ragResponse = await fallbackRes.json();
           } catch (_) {}
@@ -425,11 +465,11 @@ function AppShell() {
           }
         }]);
       } else {
-        // Safe fallback if no context or answer is returned
+        // Safe friendly fallback for Maddy
         setMessages(prev => [...prev, {
           id: `ai-${Date.now()}`,
           role: 'assistant',
-          text: errorMessage || `I couldn't find enough information in the uploaded documents to answer this question.`,
+          text: errorMessage || "I looked closely through the knowledge base, but couldn't find specific details addressing that question. ✨ Feel free to rephrase or ask any general question! 😊",
           meta: null
         }]);
       }
@@ -486,6 +526,8 @@ function AppShell() {
                     setQueryInput={setQueryInput}
                     isQuerying={isQuerying}
                     handleSendQuery={handleSendQuery}
+                    handleRegenerateQuery={handleRegenerateQuery}
+                    handleClearChat={handleClearChat}
                     documents={documents}
                     selectedDocId={selectedDocId}
                     setSelectedDocId={setSelectedDocId}

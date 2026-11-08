@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, Bot, FileText, CheckCircle2, 
   HelpCircle, ChevronRight, X, ArrowUpRight,
-  BookOpen, Zap, Target, FileCheck, Lightbulb
+  BookOpen, Zap, Target, FileCheck, Lightbulb,
+  Copy, Check, RotateCcw, Trash2
 } from 'lucide-react';
 import RobotMascot from '../components/RobotMascot';
 import StudyComposer from '../components/StudyComposer';
 import CitationBadge from '../components/CitationBadge';
 import VerifiedPill from '../components/VerifiedPill';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 
 export default function AskAI({
   messages = [],
@@ -16,6 +18,8 @@ export default function AskAI({
   setQueryInput,
   isQuerying,
   handleSendQuery,
+  handleRegenerateQuery,
+  handleClearChat,
   documents = [],
   selectedDocId = 'all',
   setSelectedDocId
@@ -23,6 +27,7 @@ export default function AskAI({
   const [activeCitation, setActiveCitation] = useState(null);
   const [activeEvidenceModal, setActiveEvidenceModal] = useState(false);
   const [studyMode, setStudyMode] = useState('deep'); // 'deep' | 'flashcards' | 'quiz' | 'summary'
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
   const bottomRef = useRef(null);
 
   // Dynamic quick prompt cards based on active mode
@@ -135,35 +140,18 @@ export default function AskAI({
     handleSendQuery(null, promptText);
   };
 
-  // Helper to parse answer text and turn [1], [2] into interactive CitationBadges
-  const renderFormattedAnswer = (text, citations = []) => {
-    if (!text) return null;
-    const parts = text.split(/(\[\d+\])/g);
-
-    return parts.map((part, index) => {
-      const match = part.match(/^\[(\d+)\]$/);
-      if (match) {
-        const citationNum = parseInt(match[1], 10);
-        const citationObj = citations.find(c => c.index === citationNum || c.id === citationNum);
-        return (
-          <CitationBadge
-            key={index}
-            index={citationNum}
-            label={part}
-            isActive={activeCitation?.index === citationNum}
-            onClick={() => {
-              setActiveCitation(citationObj || { index: citationNum, text: `Passage reference [${citationNum}]` });
-              setActiveEvidenceModal(true);
-            }}
-          />
-        );
-      }
-      return <span key={index}>{part}</span>;
-    });
+  const handleCopyMessage = (text, id) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedMsgId(id);
+      setTimeout(() => setCopiedMsgId(null), 2000);
+    }).catch(err => console.warn('Copy failed', err));
   };
 
   const hasUserMessages = messages.some(m => m.role === 'user');
   const activeCards = cardsByMode[studyMode] || cardsByMode.deep;
+  const activeDoc = selectedDocId !== 'all' ? documents.find(d => d.id === selectedDocId) : null;
+  const isDocFailed = activeDoc && (activeDoc.status === 'FAILED' || activeDoc.status === 'ERROR');
 
   return (
     <div className="study-main-area">
@@ -265,6 +253,89 @@ export default function AskAI({
              ACTIVE CONVERSATION THREAD
              ======================================================== */
           <div style={{ width: '100%', maxWidth: '740px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+            {/* Header controls bar */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 14px',
+                backgroundColor: 'var(--s1)',
+                borderRadius: '10px',
+                border: '1px solid var(--bd)',
+                marginBottom: '4px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 600 }}>
+                <Sparkles size={14} style={{ color: 'var(--ac)' }} />
+                <span>Chatting with Maddy AI</span>
+                <span style={{ fontSize: '11px', color: 'var(--mu)', fontWeight: 400 }}>• Natural AI Companion</span>
+              </div>
+              {handleClearChat && (
+                <button
+                  type="button"
+                  onClick={handleClearChat}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--mu)',
+                    fontSize: '11.5px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 8px',
+                    borderRadius: '6px'
+                  }}
+                  title="Clear chat and start fresh"
+                >
+                  <Trash2 size={12} />
+                  <span>Clear chat</span>
+                </button>
+              )}
+            </div>
+
+            {/* Warning if filtered to a failed document */}
+            {isDocFailed && (
+              <div
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  fontSize: '12.5px',
+                  color: '#EF4444'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <HelpCircle size={15} />
+                  <span>
+                    <strong>{activeDoc.title || activeDoc.fileName}</strong> failed during ingestion and has no indexed content.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDocId('all')}
+                  style={{
+                    background: '#EF4444',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Clear Filter
+                </button>
+              </div>
+            )}
+
             <AnimatePresence initial={false}>
               {messages.map((msg) => (
                 <motion.div
@@ -321,7 +392,7 @@ export default function AskAI({
                           </div>
                         )}
 
-                        {/* Answer text container */}
+                        {/* Answer text container with Rich Markdown rendering */}
                         <div
                           style={{
                             backgroundColor: 'var(--s1)',
@@ -331,11 +402,77 @@ export default function AskAI({
                             fontSize: '13.5px',
                             lineHeight: 1.6,
                             color: 'var(--tx)',
-                            boxShadow: 'var(--shadow-card)',
-                            whiteSpace: 'pre-wrap'
+                            boxShadow: 'var(--shadow-card)'
                           }}
                         >
-                          {renderFormattedAnswer(msg.text, msg.meta?.citations || [])}
+                          <MarkdownRenderer
+                            content={msg.text}
+                            citations={msg.meta?.citations || []}
+                            activeCitation={activeCitation}
+                            onCitationClick={(cit) => {
+                              setActiveCitation(cit);
+                              setActiveEvidenceModal(true);
+                            }}
+                          />
+                        </div>
+
+                        {/* Action buttons below assistant response */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '2px', fontSize: '11.5px', color: 'var(--mu)' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyMessage(msg.text, msg.id)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: copiedMsgId === msg.id ? '#10B981' : 'var(--mu)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 6px',
+                              borderRadius: '4px'
+                            }}
+                            title="Copy answer"
+                          >
+                            {copiedMsgId === msg.id ? (
+                              <>
+                                <Check size={12} />
+                                <span>Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={12} />
+                                <span>Copy answer</span>
+                              </>
+                            )}
+                          </button>
+
+                          {handleRegenerateQuery && (
+                            <button
+                              type="button"
+                              onClick={handleRegenerateQuery}
+                              disabled={isQuerying}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--mu)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 6px',
+                                borderRadius: '4px'
+                              }}
+                              title="Regenerate this response"
+                            >
+                              <RotateCcw size={12} />
+                              <span>Regenerate</span>
+                            </button>
+                          )}
+
+                          <span style={{ marginLeft: 'auto', fontSize: '10.5px', opacity: 0.7 }}>
+                            Maddy AI • Friendly Companion
+                          </span>
                         </div>
                       </div>
                     </div>

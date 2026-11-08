@@ -48,6 +48,14 @@ _META_INSPECTION_TOKENS = {
     "explain",
     "everything",
     "all",
+    "extract",
+    "about",
+    "describe",
+    "detail",
+    "details",
+    "info",
+    "information",
+    "anything",
 }
 
 

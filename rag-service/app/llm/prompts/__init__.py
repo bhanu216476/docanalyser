@@ -9,6 +9,7 @@ from app.llm.prompts.models import MessageRole, Prompt, PromptMessage, PromptVer
 from app.llm.prompts.v1 import V1PromptTemplate
 from app.llm.prompts.v2 import V2PromptTemplate
 from app.llm.prompts.v3 import V3PromptTemplate
+from app.llm.prompts.maddy import MaddyPromptTemplate
 
 __all__ = [
     # Base
@@ -22,4 +23,5 @@ __all__ = [
     "V1PromptTemplate",
     "V2PromptTemplate",
     "V3PromptTemplate",
+    "MaddyPromptTemplate",
 ]

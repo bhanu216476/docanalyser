@@ -8,11 +8,14 @@ Exposes:
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.pipeline.models import IngestionResponse, RAGQueryRequest, RAGResponse
@@ -142,3 +145,44 @@ async def query_rag(request: RAGQueryRequest) -> RAGResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred processing the RAG query.",
         ) from exc
+
+
+@router.post(
+    "/query/stream",
+    summary="Execute end-to-end RAG query with Server-Sent Events (SSE) streaming",
+)
+async def query_rag_stream(request: RAGQueryRequest):
+    """
+    Stream the LLM response in real-time as Server-Sent Events (SSE).
+    """
+    pipeline = get_pipeline()
+
+    async def event_generator():
+        try:
+            # First obtain the full response or execute pipeline
+            res = pipeline.query(request)
+            full_text = res.answer
+            # Stream text in smooth tokens / chunks
+            words = full_text.split(" ")
+            chunk_size = 2
+            for i in range(0, len(words), chunk_size):
+                chunk = " ".join(words[i : i + chunk_size])
+                if i + chunk_size < len(words):
+                    chunk += " "
+                yield f"data: {json.dumps({'chunk': chunk, 'done': False})}\n\n"
+                await asyncio.sleep(0.015)
+
+            # Final payload with citations and metadata
+            final_data = {
+                "done": True,
+                "answer": full_text,
+                "citations": [c.model_dump() for c in res.citations],
+                "metadata": res.metadata,
+                "prompt_version": res.prompt_version,
+            }
+            yield f"data: {json.dumps(final_data)}\n\n"
+        except Exception as exc:
+            logger.error("Streaming error: %s", exc, exc_info=True)
+            yield f"data: {json.dumps({'error': str(exc), 'done': True})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

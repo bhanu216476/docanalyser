@@ -86,6 +86,20 @@ public class ChatService {
     public ChatMessage sendMessage(UUID sessionId, String content, UserDetailsImpl userDetails) {
         ChatSession session = getSession(sessionId, userDetails);
 
+        // Fetch recent conversation history turns before appending the new user message
+        List<ChatMessage> priorMessages = messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
+        java.util.List<Map<String, String>> historyList = new java.util.ArrayList<>();
+        if (priorMessages != null && !priorMessages.isEmpty()) {
+            int startIdx = Math.max(0, priorMessages.size() - 8);
+            for (int i = startIdx; i < priorMessages.size(); i++) {
+                ChatMessage m = priorMessages.get(i);
+                String roleStr = m.getRole() == ChatRole.USER ? "user" : "assistant";
+                if (m.getContent() != null && !m.getContent().isBlank()) {
+                    historyList.add(Map.of("role", roleStr, "content", m.getContent()));
+                }
+            }
+        }
+
         // Save user message
         ChatMessage userMessage = new ChatMessage(session.getId(), ChatRole.USER, content);
         messageRepository.save(userMessage);
@@ -93,7 +107,7 @@ public class ChatService {
         // Call RAG python service and extract the answer
         String assistantReply;
         try {
-            Map<String, Object> ragResponse = ragServiceClient.queryRagService(content);
+            Map<String, Object> ragResponse = ragServiceClient.queryRagService(content, null, historyList);
             assistantReply = (String) ragResponse.getOrDefault("answer", "No answer provided");
         } catch (ResponseStatusException e) {
             log.warn("RAG service request failed for session {}: {}", sessionId, e.getReason());

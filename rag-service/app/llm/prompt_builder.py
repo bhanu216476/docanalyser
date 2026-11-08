@@ -21,6 +21,7 @@ from app.llm.prompts.models import Prompt, PromptVersion
 from app.llm.prompts.v1 import V1PromptTemplate
 from app.llm.prompts.v2 import V2PromptTemplate
 from app.llm.prompts.v3 import V3PromptTemplate
+from app.llm.prompts.maddy import MaddyPromptTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ _DEFAULT_REGISTRY: dict[PromptVersion, BasePromptTemplate] = {
     PromptVersion.V1: V1PromptTemplate(),
     PromptVersion.V2: V2PromptTemplate(),
     PromptVersion.V3: V3PromptTemplate(),
+    PromptVersion.MADDY: MaddyPromptTemplate(),
 }
 
 
@@ -49,15 +51,15 @@ class PromptBuilder:
 
     Args:
         registry: Optional mapping of PromptVersion to template instances.
-                  Defaults to the standard V1/V2/V3 registry.
+                  Defaults to the standard V1/V2/V3/MADDY registry.
         default_version: Version to use when none is specified in build().
-                         Defaults to V2 (production-grade grounding).
+                         Defaults to MADDY (friendly, intelligent conversational companion).
     """
 
     def __init__(
         self,
         registry: dict[PromptVersion, BasePromptTemplate] | None = None,
-        default_version: PromptVersion | str = PromptVersion.V2,
+        default_version: PromptVersion | str = PromptVersion.MADDY,
     ) -> None:
         self._registry: dict[PromptVersion, BasePromptTemplate] = (
             registry if registry is not None else dict(_DEFAULT_REGISTRY)
@@ -77,6 +79,7 @@ class PromptBuilder:
         query: str,
         context: BuiltContext,
         version: PromptVersion | str | None = None,
+        conversation_history: list[dict[str, str]] | None = None,
     ) -> Prompt:
         """
         Assemble a Prompt for the given query and context.
@@ -115,6 +118,9 @@ class PromptBuilder:
             context.token_count,
         )
 
+        import inspect
+        if "conversation_history" in inspect.signature(template.build).parameters:
+            return template.build(query=query, context=context, conversation_history=conversation_history)
         return template.build(query=query, context=context)
 
     def registered_versions(self) -> list[PromptVersion]:

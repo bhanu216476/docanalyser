@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import re
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -573,18 +574,25 @@ class RAGPipeline:
         query: str,
         built_context: BuiltContext,
         version: str | None = None,
+        conversation_history: list[dict[str, str]] | None = None,
     ) -> Prompt:
         """
-        Assemble a versioned Prompt from the user query and built context.
+        Assemble a versioned Prompt from the user query, built context, and conversation history.
         """
         prompt_ver = version or settings.prompt_version
         return self.prompt_builder.build(
             query=query,
             context=built_context,
             version=prompt_ver,
+            conversation_history=conversation_history,
         )
 
-    def generate(self, prompt: Prompt) -> LLMResponse:
+    def generate(
+        self,
+        prompt: Prompt,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> LLMResponse:
         """
         Generate grounded answer text via the LLM provider.
         """
@@ -594,15 +602,114 @@ class RAGPipeline:
             f"User Question:\n{prompt.query}"
         )
         generate = self.llm_provider.generate
+        temp = temperature if temperature is not None else settings.llm_temperature
+        max_out = max_tokens if max_tokens is not None else settings.llm_max_output_tokens
+
         if "model" not in inspect.signature(generate).parameters:
             return generate(prompt)  # type: ignore[call-arg]
 
-        return generate(
-            prompt_text,
-            model=settings.llm_model,
-            temperature=settings.llm_temperature,
-            max_output_tokens=settings.llm_max_output_tokens,
-        )
+        try:
+            return generate(
+                prompt,
+                model=settings.llm_model,
+                temperature=temp,
+                max_output_tokens=max_out,
+            )
+        except Exception:
+            return generate(
+                prompt_text,
+                model=settings.llm_model,
+                temperature=temp,
+                max_output_tokens=max_out,
+            )
+
+    def _is_conversational_query(
+        self,
+        query: str,
+        filters: RetrievalFilter | None,
+        mode: str | None,
+    ) -> bool:
+        """
+        Determine if a query is a general conversational greeting or chit-chat
+        that should bypass document retrieval.
+        """
+        if mode == "chat":
+            return True
+        if mode == "rag":
+            return False
+        if filters is not None:
+            return False
+
+        q_lower = query.strip().lower()
+        clean_q = re.sub(r"[^\w\s]", "", q_lower).strip()
+
+        conversational_openers = {
+            "hi", "hello", "hey", "hiya", "howdy", "hola",
+            "good morning", "good afternoon", "good evening", "good day",
+            "how are you", "how r u", "how are you doing", "hows it going",
+            "who are you", "what is your name", "what are you",
+            "tell me about yourself", "who made you", "who created you",
+            "what can you do", "help me", "what do you do",
+            "thanks", "thank you", "thx", "appreciate it",
+            "bye", "goodbye", "cya", "see you", "good night",
+            "tell me a joke", "make me laugh", "are you an ai",
+            "are you real", "nice to meet you"
+        }
+
+        if clean_q in conversational_openers:
+            return True
+
+        if len(clean_q.split()) <= 3 and any(
+            clean_q.startswith(g) for g in ("hi ", "hello ", "hey ", "good ")
+        ):
+            return True
+
+        return False
+
+    def _rewrite_query_for_retrieval(
+        self, query: str, conversation_history: list[dict[str, str]] | None
+    ) -> str:
+        """
+        Expand follow-up queries that contain ambiguous pronouns or references
+        by incorporating context from recent user messages.
+        """
+        if not conversation_history:
+            return query
+
+        triggers = {
+            "it", "its", "they", "them", "their", "that", "this", "these", "those",
+            "second", "first", "third", "last", "more", "expand", "elaborate",
+            "why", "how", "details", "explain", "summarize", "again"
+        }
+
+        query_words = set(re.findall(r"\b[a-zA-Z]+\b", query.lower()))
+        needs_rewrite = bool(query_words & triggers) or len(query.split()) <= 4
+
+        if not needs_rewrite:
+            return query
+
+        recent_user_queries = [
+            turn["content"]
+            for turn in reversed(conversation_history)
+            if turn.get("role") == "user" and turn.get("content", "").strip()
+        ]
+
+        if not recent_user_queries:
+            return query
+
+        prev_query = recent_user_queries[0].strip()
+        clean_prev = re.sub(
+            r"^(what is|what are|explain|tell me about|how to|describe)\s+",
+            "",
+            prev_query,
+            flags=re.IGNORECASE,
+        ).strip(" ?.")
+
+        if clean_prev and clean_prev.lower() not in query.lower():
+            logger.info("Contextual query rewritten from '%s' to '%s %s'", query, clean_prev, query)
+            return f"{clean_prev} {query}"
+
+        return query
 
     def _generate_extractive_fallback(
         self, built_context: BuiltContext, query: str
@@ -678,9 +785,57 @@ class RAGPipeline:
         metadata: dict[str, Any] = {}
         t_total_start = time.perf_counter()
 
+        conversation_history = (
+            getattr(request, "conversation_history", None)
+            if not isinstance(request, str)
+            else None
+        )
+        requested_mode = (
+            getattr(request, "mode", None) if not isinstance(request, str) else None
+        )
+        temperature_override = (
+            getattr(request, "temperature", None)
+            if not isinstance(request, str)
+            else None
+        )
+        max_tokens_override = (
+            getattr(request, "max_tokens", None)
+            if not isinstance(request, str)
+            else None
+        )
+
         tracer = get_tracer()
         with tracer.start_as_current_span("rag.pipeline") as span:
             span.set_attribute("rag.prompt_version", str(req_version))
+
+            # General Conversation Mode: bypass document retrieval for greetings and general chit-chat
+            if self._is_conversational_query(query_str, req_filters, requested_mode):
+                latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
+                prompt = self.build_prompt(
+                    query=query_str,
+                    built_context=BuiltContext(context_text="", selected_chunks=[]),
+                    version=req_version,
+                    conversation_history=conversation_history,
+                )
+                llm_response = self.generate(
+                    prompt,
+                    temperature=temperature_override or 0.7,
+                    max_tokens=max_tokens_override or 1500,
+                )
+                return RAGResponse(
+                    query=query_str,
+                    answer=llm_response.response_text,
+                    citations=[],
+                    prompt_version=str(req_version),
+                    latency_breakdown_ms=latencies,
+                    metadata={
+                        "mode": "conversational",
+                        "model_id": getattr(llm_response, "model_id", settings.llm_model),
+                    },
+                )
+
+            # Contextual query rewriting for follow-up questions
+            retrieval_query = self._rewrite_query_for_retrieval(query_str, conversation_history)
 
             # Step 1: Retrieval (Dense & BM25)
             t0 = time.perf_counter()
@@ -688,7 +843,7 @@ class RAGPipeline:
             bm25_top_k = settings.hybrid_bm25_top_k
             try:
                 dense_results = self.dense_retriever.retrieve(
-                    query=query_str,
+                    query=retrieval_query,
                     top_k=dense_top_k,
                     filters=req_filters,
                 )
@@ -702,7 +857,7 @@ class RAGPipeline:
 
                 t0_bm = time.perf_counter()
                 bm25_results = self.bm25_retriever.retrieve(
-                    query=query_str,
+                    query=retrieval_query,
                     top_k=bm25_top_k,
                     filters=req_filters,
                 )
@@ -758,7 +913,7 @@ class RAGPipeline:
             rerank_top_k = req_top_k or settings.rerank_top_k
             try:
                 reranked_results = self.rerank(
-                    query=query_str,
+                    query=retrieval_query,
                     candidates=fused_candidates,
                     top_k=rerank_top_k,
                 )
@@ -804,6 +959,37 @@ class RAGPipeline:
                 RagMetrics().record_no_answer(is_no_answer=True)
                 total_dur_s = time.perf_counter() - t_total_start
                 RagMetrics().record_pipeline_duration(total_dur_s, outcome="success")
+
+                # If prompt is Maddy, provide a helpful conversational explanation rather than cold refusal
+                if str(req_version).lower() == "maddy":
+                    prompt = self.build_prompt(
+                        query=query_str,
+                        built_context=built_context,
+                        version=req_version,
+                        conversation_history=conversation_history,
+                    )
+                    try:
+                        llm_response = self.generate(
+                            prompt,
+                            temperature=temperature_override or 0.6,
+                            max_tokens=max_tokens_override or 1500,
+                        )
+                        ans_text = llm_response.response_text
+                    except Exception:
+                        ans_text = (
+                            "I searched through the uploaded documents, but couldn't find specific details "
+                            "addressing that question. Feel free to rephrase or clear the document filter "
+                            "if you'd like a general explanation! 😊"
+                        )
+                    return RAGResponse(
+                        query=query_str,
+                        answer=ans_text,
+                        citations=[],
+                        prompt_version=str(req_version),
+                        latency_breakdown_ms=latencies,
+                        metadata=metadata,
+                    )
+
                 return RAGResponse(
                     query=query_str,
                     answer="I don't have enough information in the provided documents.",
@@ -820,6 +1006,7 @@ class RAGPipeline:
                     query=query_str,
                     built_context=built_context,
                     version=req_version,
+                    conversation_history=conversation_history,
                 )
             except Exception as exc:
                 logger.error("Prompt assembly failed: %s", exc)
@@ -841,7 +1028,11 @@ class RAGPipeline:
             )
             metadata["is_mock_llm"] = is_mock
             try:
-                llm_response = self.generate(prompt)
+                llm_response = self.generate(
+                    prompt,
+                    temperature=temperature_override,
+                    max_tokens=max_tokens_override,
+                )
                 llm_dur = time.perf_counter() - t5
                 model_name = (
                     getattr(llm_response, "model_id", settings.llm_model) or "default"

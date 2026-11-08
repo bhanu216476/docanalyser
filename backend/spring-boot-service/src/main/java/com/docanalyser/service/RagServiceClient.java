@@ -61,15 +61,23 @@ public class RagServiceClient {
      * Python endpoint: POST /api/v1/rag/query
      */
     public Map<String, Object> queryRagService(String query) {
-        return queryRagService(query, null);
+        return queryRagService(query, null, null);
     }
 
     /**
      * Sends a query to the Python RAG service with document or metadata filters.
      * Python endpoint: POST /api/v1/rag/query
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> queryRagService(String query, Map<String, Object> filters) {
+        return queryRagService(query, filters, null);
+    }
+
+    /**
+     * Sends a query to the Python RAG service with filters and multi-turn conversation history.
+     * Python endpoint: POST /api/v1/rag/query
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> queryRagService(String query, Map<String, Object> filters, java.util.List<Map<String, String>> conversationHistory) {
         String url = ragServiceUrl + "/api/v1/rag/query";
 
         HttpHeaders headers = new HttpHeaders();
@@ -86,6 +94,9 @@ public class RagServiceClient {
         requestBody.put("query", query);
         if (filters != null && !filters.isEmpty()) {
             requestBody.put("filters", filters);
+        }
+        if (conversationHistory != null && !conversationHistory.isEmpty()) {
+            requestBody.put("conversation_history", conversationHistory);
         }
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);

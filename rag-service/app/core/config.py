@@ -59,9 +59,9 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Override with LLM_MODEL in .env for deployments using another model.
     llm_model: str = "gpt-4o-mini"
-    llm_temperature: float = 0.2
+    llm_temperature: float = 0.6
     llm_max_input_tokens: int = 12000
-    llm_max_output_tokens: int = 1500
+    llm_max_output_tokens: int = 2500
     llm_timeout: float = 60.0
     llm_max_retries: int = 3
     llm_retry_base_delay: float = 1.0
@@ -152,8 +152,8 @@ class Settings(BaseSettings):
     # Prompt Engineering Configuration
     # ------------------------------------------------------------------
     # Default prompt version to use for LLM context assembly.
-    # Valid values: 'v1' (baseline), 'v2' (grounded+citation), 'v3' (structured).
-    prompt_version: str = "v2"
+    # Valid values: 'v1' (baseline), 'v2' (grounded+citation), 'v3' (structured), 'maddy' (conversational companion).
+    prompt_version: str = "maddy"
 
     # ------------------------------------------------------------------
     # Citation Verification Configuration
@@ -307,9 +307,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_prompt_version(cls, v: str) -> str:
         normalized = v.strip().lower()
-        if normalized not in ("v1", "v2", "v3"):
+        if normalized not in ("v1", "v2", "v3", "maddy"):
             raise ValueError(
-                f"prompt_version must be one of 'v1', 'v2', 'v3', got '{v}'"
+                f"prompt_version must be one of 'v1', 'v2', 'v3', 'maddy', got '{v}'"
             )
         return normalized
 

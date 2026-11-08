@@ -65,26 +65,44 @@ class FakeLLMProvider(LLMProvider):
         if legacy_version in self._custom_responses:
             text = self._custom_responses[legacy_version]
         else:
-            # Keep mock output deterministic while using available evidence context.
             prompt_str = str(prompt)
-            if "Evidence Context:\n" in prompt_str:
-                context_part = (
-                    prompt_str.split("Evidence Context:\n", 1)[1]
-                    .split("User Question:", 1)[0]
-                    .strip()
-                )
+            if "Evidence Context:\n" in prompt_str or "<context>" in prompt_str:
+                context_part = ""
+                if "<context>" in prompt_str:
+                    context_part = prompt_str.split("<context>", 1)[1].split("</context>", 1)[0].strip()
+                elif "Evidence Context:\n" in prompt_str:
+                    context_part = (
+                        prompt_str.split("Evidence Context:\n", 1)[1]
+                        .split("User Question:", 1)[0]
+                        .strip()
+                    )
                 if context_part and len(context_part) > 10:
+                    first_line = context_part.splitlines()[0][:200].strip()
                     text = (
-                        "Based on the provided documents, here is the answer: "
-                        f"The document states '{context_part[:150]}...' [1]"
+                        f"Here is what I found in your documents! ✨\n\n"
+                        f"{first_line} [1]\n\n"
+                        "Let me know if you would like me to explain anything in more detail! 😊"
                     )
                 else:
-                    text = (
-                        "I couldn't find enough information in the uploaded "
-                        "documents to answer this question."
-                    )
+                    if legacy_version == "maddy" or "maddy" in prompt_str.lower():
+                        text = (
+                            "I searched through the uploaded documents, but couldn't find specific details "
+                            "addressing that question. Feel free to rephrase or clear the document filter "
+                            "if you'd like to ask a general question! 😊"
+                        )
+                    else:
+                        text = (
+                            "I couldn't find enough information in the uploaded "
+                            "documents to answer this question."
+                        )
+            elif any(g in prompt_str.lower() for g in ("hi", "hello", "hey", "who are you")):
+                text = (
+                    "Hello! ✨ I'm Maddy, your friendly AI document assistant and conversational companion. "
+                    "You can ask me questions about your uploaded documents, request summaries, or chat about "
+                    "any topic you'd like to explore. How can I help you today? 😊"
+                )
             else:
-                text = f"FAKE_RESPONSE[{prompt_str}]"
+                text = f"I'd be happy to help with that! ✨ Here is what I can share regarding your question: {prompt_str[:120]}"
 
         response = LLMResponse(
             text=text,
@@ -119,15 +137,33 @@ class OpenAILLMProvider(LLMProvider):
 
     def generate(
         self,
-        prompt: str,
+        prompt: str | object,
         *,
         model: str,
         temperature: float,
         max_output_tokens: int,
+        messages: list[dict[str, str]] | None = None,
     ) -> LLMResponse:
         chosen_model = model
         if not chosen_model or chosen_model in ("gpt-5.6-luna", "default"):
             chosen_model = "gpt-4o-mini"
+
+        # Build chat messages array
+        chat_messages: list[dict[str, str]]
+        if messages:
+            chat_messages = messages
+        elif hasattr(prompt, "messages") and isinstance(prompt.messages, list) and prompt.messages:
+            chat_messages = [
+                {
+                    "role": m.role.value if hasattr(m.role, "value") else str(m.role),
+                    "content": m.content,
+                }
+                for m in prompt.messages
+            ]
+        else:
+            chat_messages = [{"role": "user", "content": str(prompt)}]
+
+        prompt_str = str(prompt)
 
         try:
             # Prefer standard chat completions API if available on client
@@ -135,7 +171,7 @@ class OpenAILLMProvider(LLMProvider):
                 try:
                     response = self._client.chat.completions.create(
                         model=chosen_model,
-                        messages=[{"role": "user", "content": prompt}],
+                        messages=chat_messages,
                         temperature=temperature,
                         max_tokens=max_output_tokens,
                     )
@@ -155,7 +191,7 @@ class OpenAILLMProvider(LLMProvider):
 
             response = self._client.responses.create(
                 model=chosen_model,
-                input=prompt,
+                input=prompt_str,
                 temperature=temperature,
                 max_output_tokens=max_output_tokens,
             )
@@ -203,6 +239,60 @@ class OpenAILLMProvider(LLMProvider):
             raise LLMProviderError(
                 "Unexpected OpenAI generation failure", is_transient=True
             ) from exc
+
+    def generate_stream(
+        self,
+        prompt: str | object,
+        *,
+        model: str,
+        temperature: float,
+        max_output_tokens: int,
+        messages: list[dict[str, str]] | None = None,
+    ):
+        """Yield real-time text chunks using OpenAI chat completion streaming."""
+        chosen_model = model
+        if not chosen_model or chosen_model in ("gpt-5.6-luna", "default"):
+            chosen_model = "gpt-4o-mini"
+
+        if messages:
+            chat_messages = messages
+        elif hasattr(prompt, "messages") and isinstance(prompt.messages, list) and prompt.messages:
+            chat_messages = [
+                {
+                    "role": m.role.value if hasattr(m.role, "value") else str(m.role),
+                    "content": m.content,
+                }
+                for m in prompt.messages
+            ]
+        else:
+            chat_messages = [{"role": "user", "content": str(prompt)}]
+
+        try:
+            stream = self._client.chat.completions.create(
+                model=chosen_model,
+                messages=chat_messages,
+                temperature=temperature,
+                max_tokens=max_output_tokens,
+                stream=True,
+            )
+            for chunk in stream:
+                content = (
+                    chunk.choices[0].delta.content
+                    if chunk.choices and hasattr(chunk.choices[0], "delta")
+                    else ""
+                )
+                if content:
+                    yield content
+        except Exception as exc:
+            logger.warning("Streaming failed (%s); returning batch fallback", exc)
+            fallback = self.generate(
+                prompt,
+                model=chosen_model,
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+                messages=messages,
+            )
+            yield fallback.response_text
 
 
 def _usage_value(usage: Any, name: str) -> int | None:

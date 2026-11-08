@@ -28,6 +28,7 @@ class PromptVersion(str, Enum):
     V1 = "v1"
     V2 = "v2"
     V3 = "v3"
+    MADDY = "maddy"
 
     @classmethod
     def from_string(cls, value: str) -> PromptVersion:
@@ -56,6 +57,7 @@ class MessageRole(str, Enum):
 
     SYSTEM = "system"
     USER = "user"
+    ASSISTANT = "assistant"
 
 
 class PromptMessage(BaseModel):

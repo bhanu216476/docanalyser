@@ -72,6 +72,29 @@ class RAGQueryRequest(BaseModel):
         default=None,
         description="Optional metadata filters for dense and BM25 retrievers.",
     )
+    conversation_history: list[dict[str, str]] | None = Field(
+        default=None,
+        description="Multi-turn conversation history turns [{'role': 'user', 'content': '...'}].",
+    )
+    session_id: str | None = Field(
+        default=None,
+        description="Session identifier for multi-turn conversation tracking.",
+    )
+    mode: str | None = Field(
+        default=None,
+        description="Response mode override ('auto', 'chat', 'rag').",
+    )
+    temperature: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=2.0,
+        description="Generation temperature override.",
+    )
+    max_tokens: int | None = Field(
+        default=None,
+        ge=1,
+        description="Maximum generation output tokens.",
+    )
 
     model_config = ConfigDict(frozen=True)
 
