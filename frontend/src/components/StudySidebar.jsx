@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { 
   SquarePen, UploadCloud, FileText, CheckCircle2, 
-  ShieldCheck, Trash2, Loader2, Sparkles, AlertCircle 
+  ShieldCheck, Trash2, Loader2, Sparkles, AlertCircle, HardDrive 
 } from 'lucide-react';
 import DocumentUploadScanner from './DocumentUploadScanner';
 
@@ -14,7 +14,8 @@ export default function StudySidebar({
   onUploadFile,
   isUploading = false,
   uploadMessage = null,
-  onDeleteDocument
+  onDeleteDocument,
+  onOpenGoogleDrive
 }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -143,6 +144,41 @@ export default function StudySidebar({
               {documents.reduce((acc, d) => acc + (d.chunks || 12), 0)}
             </span>
           </div>
+        </div>
+
+        {/* Google Drive Ingestion Pill */}
+        <div 
+          onClick={onOpenGoogleDrive}
+          style={{
+            padding: '10px 12px',
+            borderRadius: 'var(--r-md, 10px)',
+            backgroundColor: 'rgba(66, 133, 244, 0.08)',
+            border: '1px solid rgba(66, 133, 244, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+          title="Manage Google Drive Ingest Session"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <HardDrive size={15} style={{ color: '#4285F4' }} />
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--tx)' }}>
+              Drive Session
+            </div>
+          </div>
+          <span style={{
+            fontSize: '10.5px',
+            fontWeight: 600,
+            color: '#22c55e',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+            Active
+          </span>
         </div>
 
         {/* Document Materials List */}

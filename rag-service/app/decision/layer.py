@@ -56,6 +56,25 @@ _META_INSPECTION_TOKENS = {
     "info",
     "information",
     "anything",
+    "questions",
+    "question",
+    "quiz",
+    "test",
+    "comprehension",
+    "explore",
+    "material",
+    "key",
+    "points",
+    "takeaways",
+    "study",
+    "notes",
+    "topics",
+    "generate",
+    "create",
+    "review",
+    "analysis",
+    "insights",
+    "read",
 }
 
 
@@ -110,6 +129,12 @@ class DecisionLayer:
                     should_answer=True,
                     reason="sufficient_evidence",
                     confidence=confidence,
+                )
+            if context.selected_chunks and len(evidence_tokens) >= 3:
+                return DecisionResult(
+                    should_answer=True,
+                    reason="sufficient_evidence",
+                    confidence=0.75,
                 )
             return DecisionResult(
                 should_answer=False,

@@ -142,7 +142,7 @@ class FakeLLMProvider(LLMProvider):
 class OpenAILLMProvider(LLMProvider):
     """OpenAI Responses API adapter with no retry orchestration."""
 
-    def __init__(self, api_key: str, *, timeout: float = 60.0) -> None:
+    def __init__(self, api_key: str, *, timeout: float = 15.0) -> None:
         try:
             import openai
         except ImportError as exc:
@@ -155,7 +155,7 @@ class OpenAILLMProvider(LLMProvider):
                 "OPENAI_API_KEY is not configured", is_transient=False
             )
         self._openai = openai
-        self._client = openai.OpenAI(api_key=api_key, timeout=timeout)
+        self._client = openai.OpenAI(api_key=api_key, timeout=timeout, max_retries=1)
         logger.info("OpenAILLMProvider initialised")
 
     def generate(

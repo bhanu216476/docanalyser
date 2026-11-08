@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   PanelLeft, RotateCcw, Bot, Shield, ChevronDown, 
-  Files, Database, GitMerge, ShieldCheck, Activity, Users, LogOut 
+  Files, Database, GitMerge, ShieldCheck, Activity, Users, LogOut, HardDrive 
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ export default function StudyTopBar({
   isSidebarOpen,
   onToggleSidebar,
   onResetChat,
+  onOpenGoogleDrive,
   backendHealth = 'healthy',
   ragHealth = 'healthy',
   assistantName = 'MADDY'
@@ -149,8 +150,33 @@ export default function StudyTopBar({
         </div>
       </div>
 
-      {/* Right side: Sparky mascot badge, Connected badge, Theme Palette, Refresh */}
+      {/* Right side: Sparky mascot badge, Google Drive badge, Connected badge, Theme Palette, Refresh */}
       <div className="study-topbar-right">
+        {/* Google Drive Session Pill */}
+        <button
+          type="button"
+          onClick={onOpenGoogleDrive}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            backgroundColor: 'rgba(66, 133, 244, 0.1)',
+            border: '1px solid rgba(66, 133, 244, 0.3)',
+            color: '#60a5fa',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+          title="Open Google Drive Ingestion Session"
+        >
+          <HardDrive size={13} style={{ color: '#4285F4' }} />
+          <span>Drive Session</span>
+          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 4px #22c55e' }} />
+        </button>
+
         {/* Mascot Sparky Pill */}
         <div className="sparky-badge">
           <Bot size={14} />

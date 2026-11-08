@@ -62,9 +62,9 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.6
     llm_max_input_tokens: int = 12000
     llm_max_output_tokens: int = 2500
-    llm_timeout: float = 60.0
-    llm_max_retries: int = 3
-    llm_retry_base_delay: float = 1.0
+    llm_timeout: float = 15.0
+    llm_max_retries: int = 1
+    llm_retry_base_delay: float = 0.5
 
     # ------------------------------------------------------------------
     # Dense Retrieval Configuration

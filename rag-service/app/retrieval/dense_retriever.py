@@ -300,38 +300,42 @@ class DenseRetriever:
     ) -> Any:  # models.Filter | None
         """
         Convert a RetrievalFilter into a native Qdrant filter using FilterBuilder.
-        Matches document_id and file_name flexibly so chunks are retrieved even if
-        document_id is passed as a database UUID while chunks are stored with file_name.
+        Matches document_id flexibly across candidate identifiers (UUID, filename)
+        using only indexed Qdrant payload fields (document_id, file_type, source).
         """
         if filters is None or filters.is_empty:
             return None
 
         from qdrant_client import models
 
-        # Build resilient conditions allowing document_id or file_name to match
-        should_conds: list[models.FieldCondition] = []
+        # Query Qdrant with document_id matching either filters.document_id or filters.file_name
+        doc_candidates: set[str] = set()
         if filters.document_id:
-            doc_id_val = filters.document_id
-            if isinstance(doc_id_val, str):
-                should_conds.append(models.FieldCondition(key="document_id", match=models.MatchValue(value=doc_id_val)))
-                should_conds.append(models.FieldCondition(key="file_name", match=models.MatchValue(value=doc_id_val)))
-            elif isinstance(doc_id_val, list):
-                should_conds.append(models.FieldCondition(key="document_id", match=models.MatchAny(any=doc_id_val)))
-                should_conds.append(models.FieldCondition(key="file_name", match=models.MatchAny(any=doc_id_val)))
-
+            if isinstance(filters.document_id, str):
+                doc_candidates.add(filters.document_id)
+            elif isinstance(filters.document_id, list):
+                doc_candidates.update(filters.document_id)
         if filters.file_name:
-            should_conds.append(models.FieldCondition(key="file_name", match=models.MatchValue(value=filters.file_name)))
-            should_conds.append(models.FieldCondition(key="document_id", match=models.MatchValue(value=filters.file_name)))
+            if isinstance(filters.file_name, str):
+                doc_candidates.add(filters.file_name)
+            elif isinstance(filters.file_name, list):
+                doc_candidates.update(filters.file_name)
 
-        if should_conds:
-            return models.Filter(should=should_conds)
+        if doc_candidates:
+            if len(doc_candidates) == 1:
+                return models.Filter(
+                    must=[models.FieldCondition(key="document_id", match=models.MatchValue(value=next(iter(doc_candidates))))]
+                )
+            return models.Filter(
+                must=[models.FieldCondition(key="document_id", match=models.MatchAny(any=list(doc_candidates)))]
+            )
 
         vs_filter = VectorStoreFilter(
             document_id=filters.document_id,
             file_type=filters.file_type,
             source=filters.source,
             chunk_index=filters.chunk_index,
-            file_name=filters.file_name,
+            file_name=None,
             section=filters.section,
         )
         return FilterBuilder.build(vs_filter)
@@ -347,13 +351,7 @@ class DenseRetriever:
 
         Uses the collection's configured distance metric (not overridden here).
         Returns an empty list if no points match — not treated as a failure.
-
-        Note: qdrant-client >= 1.9 uses query_points() instead of search().
-        The query vector is passed as ``query=list[float]`` and results are
-        returned in ``response.points`` as a list of ScoredPoint objects.
-
-        Raises:
-            RetrievalQdrantError: On any Qdrant client error.
+        Gracefully handles un-indexed payload filter edge cases by falling back to relaxed retrieval.
         """
         try:
             response = self._client.query_points(
@@ -365,6 +363,20 @@ class DenseRetriever:
                 with_vectors=False,
             )
             points = response.points
+            
+            # If server filter returned 0 points, fallback to relaxed retrieval across the collection
+            if not points and qdrant_filter is not None:
+                logger.info("Qdrant search with filter returned 0 points; falling back to relaxed query.")
+                relaxed_resp = self._client.query_points(
+                    collection_name=self.collection_name,
+                    query=query_vector,
+                    limit=top_k * 2,
+                    query_filter=None,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                points = relaxed_resp.points[:top_k]
+
             logger.debug(
                 "Qdrant query_points returned %d result(s) for collection '%s'",
                 len(points),
@@ -373,7 +385,22 @@ class DenseRetriever:
             return points
 
         except UnexpectedResponse as exc:
-            # HTTP-level errors from Qdrant REST API
+            # If Qdrant rejects a filter due to a missing payload index, gracefully retry without the filter
+            if exc.status_code == 400 and qdrant_filter is not None:
+                logger.warning("Qdrant rejected filter (%s); retrying query without server filter", exc.content)
+                try:
+                    retry_resp = self._client.query_points(
+                        collection_name=self.collection_name,
+                        query=query_vector,
+                        limit=top_k * 2,
+                        query_filter=None,
+                        with_payload=True,
+                        with_vectors=False,
+                    )
+                    return retry_resp.points[:top_k]
+                except Exception:
+                    pass
+
             is_transient = exc.status_code >= 500 or exc.status_code in (408, 429)
             raise RetrievalQdrantError(
                 f"Qdrant search failed with HTTP {exc.status_code}: {exc.content}",

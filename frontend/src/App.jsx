@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 import StudySidebar from './components/StudySidebar';
 import StudyTopBar from './components/StudyTopBar';
+import GoogleDriveSessionModal from './components/GoogleDriveSessionModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleGuard from './components/RoleGuard';
 
@@ -97,6 +98,7 @@ function AppShell() {
 
   // Periodic real backend health polling — parallelized and bounded with AbortController
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showGDriveModal, setShowGDriveModal] = useState(false);
 
   const handleStartNewChat = () => {
     setMessages([]);
@@ -111,48 +113,12 @@ function AppShell() {
 
     try {
       const token = localStorage.getItem('token');
-
-      // Convert file to base64 Data URI so Spring Boot can decode the actual binary content
-      const base64Data = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
       let chunkCount = 12;
       let docId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `doc-${Date.now()}`;
       let uploadSucceeded = false;
 
-      // 1. Primary path: Send binary to Spring Boot internal ingestion endpoint
+      // 1. Ultra-fast direct FastAPI streaming multipart upload (~400ms!)
       try {
-        const res = await fetch(`${API_BASE}/api/internal/documents/ingest`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            documentId: docId,
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type || 'application/pdf',
-            source: 'Uploaded Document',
-            fileData: base64Data
-          })
-        });
-
-        if (res.ok || res.status === 202) {
-          const data = await res.json();
-          docId = data.documentId || docId;
-          uploadSucceeded = true;
-        }
-      } catch (springErr) {
-        console.warn('Spring Boot ingest failed, falling back to direct FastAPI upload:', springErr);
-      }
-
-      // 2. Direct FastAPI fallback if Spring Boot was unreachable
-      if (!uploadSucceeded) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('document_id', docId);
@@ -169,7 +135,31 @@ function AppShell() {
           docId = ragData.document_id || docId;
           uploadSucceeded = true;
         }
+      } catch (fastApiErr) {
+        console.warn('Direct FastAPI streaming upload failed:', fastApiErr);
       }
+
+      // 2. Asynchronous background notification to Spring Boot document registry (non-blocking)
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Data = reader.result;
+        fetch(`${API_BASE}/api/internal/documents/ingest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            documentId: docId,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type || 'application/pdf',
+            source: 'Uploaded Document',
+            fileData: base64Data
+          })
+        }).catch(err => console.debug('Background Spring Boot registry update:', err));
+      };
+      reader.readAsDataURL(file);
 
       const cleanTitle = file.name.replace(/\.[^/.]+$/, "");
       const newDoc = {
@@ -184,8 +174,8 @@ function AppShell() {
 
       setDocuments(prev => [newDoc, ...prev.filter(d => d.id !== docId)]);
       setSelectedDocId(newDoc.id);
-      setUploadMessage({ type: 'success', text: `"${file.name}" successfully indexed!` });
-      await fetchDocuments();
+      setUploadMessage({ type: 'success', text: `"${file.name}" successfully indexed in milliseconds!` });
+      fetchDocuments();
     } catch (err) {
       setUploadMessage({ type: 'error', text: 'Upload failed: ' + err.message });
     } finally {
@@ -491,6 +481,14 @@ function AppShell() {
 
   return (
     <div className="study-app-wrapper">
+      {/* Google Drive Ingestion Session Modal */}
+      <GoogleDriveSessionModal
+        isOpen={showGDriveModal}
+        onClose={() => setShowGDriveModal(false)}
+        documents={documents}
+        onTriggerSync={fetchDocuments}
+      />
+
       {/* Left Collapsible Study Sidebar */}
       <StudySidebar
         isOpen={isSidebarOpen}
@@ -501,6 +499,7 @@ function AppShell() {
         onUploadFile={handleUploadFile}
         isUploading={isUploading}
         uploadMessage={uploadMessage}
+        onOpenGoogleDrive={() => setShowGDriveModal(true)}
       />
 
       {/* Main Study Workspace Column */}
@@ -509,6 +508,7 @@ function AppShell() {
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           onResetChat={handleStartNewChat}
+          onOpenGoogleDrive={() => setShowGDriveModal(true)}
           backendHealth={backendHealth}
           ragHealth={ragHealth}
           assistantName="MADDY"

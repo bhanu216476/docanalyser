@@ -66,3 +66,4 @@ export default function DocumentUploadScanner({ fileName = 'Document' }) {
     </div>
   );
 }
+

@@ -274,6 +274,8 @@ class QdrantVectorStore:
             actual_size,
             actual_distance,
         )
+        # Ensure all required payload indexes exist on existing collection
+        self._create_payload_indexes(collection_name)
 
     def _create_payload_indexes(self, collection_name: str) -> None:
         """Create indexes on fields frequently used in metadata filtering."""
@@ -281,6 +283,7 @@ class QdrantVectorStore:
 
         indexed_fields = [
             ("document_id", models.PayloadSchemaType.KEYWORD),
+            ("file_name", models.PayloadSchemaType.KEYWORD),
             ("file_type", models.PayloadSchemaType.KEYWORD),
             ("source", models.PayloadSchemaType.KEYWORD),
         ]
