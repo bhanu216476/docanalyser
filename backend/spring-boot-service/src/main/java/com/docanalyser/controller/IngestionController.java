@@ -86,7 +86,7 @@ public class IngestionController {
                 // Updated file content or retry of previously failed/processing document
                 document.setContentHash(contentHash);
                 if (request.getFileName() != null && !request.getFileName().isBlank()) {
-                    document.setTitle(request.getFileName());
+                    document.setFileName(request.getFileName());
                 }
                 if (request.getFileSize() != null && request.getFileSize() > 0) {
                     document.setFileSize(request.getFileSize());

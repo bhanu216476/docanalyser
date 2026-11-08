@@ -141,6 +141,14 @@ public class Document {
         this.fileName = fileName;
     }
 
+    public String getTitle() {
+        return fileName;
+    }
+
+    public void setTitle(String title) {
+        this.fileName = title;
+    }
+
     public String getFileType() {
         return fileType;
     }
