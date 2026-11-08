@@ -408,3 +408,4 @@ export default function MarkdownRenderer({
 
   return <div className="maddy-markdown-container">{renderBlocks()}</div>;
 }
+

@@ -300,12 +300,31 @@ class DenseRetriever:
     ) -> Any:  # models.Filter | None
         """
         Convert a RetrievalFilter into a native Qdrant filter using FilterBuilder.
-
-        Returns None when no filter conditions are set.
-        Push-down is performed by Qdrant — no Python-side filtering.
+        Matches document_id and file_name flexibly so chunks are retrieved even if
+        document_id is passed as a database UUID while chunks are stored with file_name.
         """
         if filters is None or filters.is_empty:
             return None
+
+        from qdrant_client import models
+
+        # Build resilient conditions allowing document_id or file_name to match
+        should_conds: list[models.FieldCondition] = []
+        if filters.document_id:
+            doc_id_val = filters.document_id
+            if isinstance(doc_id_val, str):
+                should_conds.append(models.FieldCondition(key="document_id", match=models.MatchValue(value=doc_id_val)))
+                should_conds.append(models.FieldCondition(key="file_name", match=models.MatchValue(value=doc_id_val)))
+            elif isinstance(doc_id_val, list):
+                should_conds.append(models.FieldCondition(key="document_id", match=models.MatchAny(any=doc_id_val)))
+                should_conds.append(models.FieldCondition(key="file_name", match=models.MatchAny(any=doc_id_val)))
+
+        if filters.file_name:
+            should_conds.append(models.FieldCondition(key="file_name", match=models.MatchValue(value=filters.file_name)))
+            should_conds.append(models.FieldCondition(key="document_id", match=models.MatchValue(value=filters.file_name)))
+
+        if should_conds:
+            return models.Filter(should=should_conds)
 
         vs_filter = VectorStoreFilter(
             document_id=filters.document_id,

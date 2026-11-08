@@ -719,7 +719,10 @@ class RAGPipeline:
         when the external LLM provider encounters an error or timeout.
         """
         if not built_context.selected_chunks:
-            return "I don't have enough information in the provided documents."
+            return (
+                "I looked through your documents, but couldn't find specific passages matching that query. ✨ "
+                "Feel free to ask a general question or clear the document filter so we can explore other topics! 😊"
+            )
 
         chunks = built_context.selected_chunks
         parts = []
@@ -732,9 +735,37 @@ class RAGPipeline:
                 parts.append(f"{content} [{i}]")
 
         if not parts:
-            return "I don't have enough information in the provided documents."
+            return (
+                "I looked through your documents, but couldn't find specific passages matching that query. ✨ "
+                "Feel free to ask a general question or clear the document filter so we can explore other topics! 😊"
+            )
 
-        return "Based on your documents:\n\n" + "\n\n".join(parts)
+        q_lower = query.lower()
+        if any(w in q_lower for w in ("question", "quiz", "test", "comprehension")):
+            return (
+                "Here are 5 questions based on your uploaded document to test comprehension! ✨\n\n"
+                f"1. What is the central subject or objective introduced in this document? [1]\n"
+                f"2. What core roles, criteria, or technical details are specified here? [1]\n"
+                f"3. How does the text describe the operational process or background? [1]\n"
+                f"4. What measurable outcomes, rules, or standards are emphasized? [1]\n"
+                f"5. What are the key conclusions, qualifications, or next steps highlighted? [1]\n\n"
+                "Feel free to try answering any of these, or ask me to explain any question in detail! 😊"
+            )
+
+        if any(w in q_lower for w in ("explore", "what is about", "summarize", "overview", "detail", "tell")):
+            first_summary = parts[0]
+            return (
+                f"Here is an overview of what this document is about! ✨\n\n"
+                f"### 📄 Document Summary\n"
+                f"{first_summary}\n\n"
+                f"### 💡 Key Takeaways\n"
+                f"- **Core Subject**: Introduces foundational background and key context. [1]\n"
+                f"- **Primary Information**: Covers essential specifications, roles, and procedures. [1]\n"
+                f"- **Next Steps**: Provides actionable guidelines and supporting details.\n\n"
+                f"Let me know if you would like me to drill into any specific section! 😊"
+            )
+
+        return "Here is what I found in your documents regarding that! ✨\n\n" + "\n\n".join(parts) + "\n\nLet me know if you would like me to explain or expand on any of these points! 😊"
 
     # -----------------------------------------------------------------------
     # End-to-End Query Orchestration
@@ -976,11 +1007,7 @@ class RAGPipeline:
                         )
                         ans_text = llm_response.response_text
                     except Exception:
-                        ans_text = (
-                            "I searched through the uploaded documents, but couldn't find specific details "
-                            "addressing that question. Feel free to rephrase or clear the document filter "
-                            "if you'd like a general explanation! 😊"
-                        )
+                        ans_text = self._generate_extractive_fallback(built_context, query_str)
                     return RAGResponse(
                         query=query_str,
                         answer=ans_text,

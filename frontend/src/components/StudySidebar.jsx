@@ -3,6 +3,7 @@ import {
   SquarePen, UploadCloud, FileText, CheckCircle2, 
   ShieldCheck, Trash2, Loader2, Sparkles, AlertCircle 
 } from 'lucide-react';
+import DocumentUploadScanner from './DocumentUploadScanner';
 
 export default function StudySidebar({
   isOpen = true,
@@ -70,37 +71,37 @@ export default function StudySidebar({
           </p>
         </div>
 
-        {/* Drag & Drop Upload Zone */}
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`study-dropzone ${isDragging ? 'dragging' : ''}`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.txt,.md"
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
-          />
+        {/* Drag & Drop Upload Zone or Maddy Animated Scanner */}
+        {isUploading ? (
+          <DocumentUploadScanner fileName="Processing uploaded document..." />
+        ) : (
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`study-dropzone ${isDragging ? 'dragging' : ''}`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.txt,.md"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
 
-          <div className="study-dropzone-icon-circle">
-            {isUploading ? (
-              <Loader2 size={22} className="animate-spin" />
-            ) : (
+            <div className="study-dropzone-icon-circle">
               <UploadCloud size={22} />
-            )}
-          </div>
+            </div>
 
-          <div className="study-dropzone-cta">
-            <strong>Click to upload</strong> or drag & drop
+            <div className="study-dropzone-cta">
+              <strong>Click to upload</strong> or drag & drop
+            </div>
+            <div className="study-dropzone-sub">
+              PDF, TXT, or MD documents (max 50MB)
+            </div>
           </div>
-          <div className="study-dropzone-sub">
-            PDF, TXT, or MD documents (max 50MB)
-          </div>
-        </div>
+        )}
 
         {/* Upload Status Alert (if any) */}
         {uploadMessage && (

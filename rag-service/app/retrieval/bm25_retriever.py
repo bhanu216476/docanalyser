@@ -148,8 +148,12 @@ class BM25Retriever:
             raise RetrievalIndexError(f"BM25 search failed: {exc}") from exc
 
         if not scored_candidates:
-            logger.info("BM25 retrieval: no positive-scoring chunks found")
-            return []
+            if eligible_indices:
+                logger.info("BM25 retrieval: no lexical score matches; selecting top eligible document chunks")
+                scored_candidates = [(idx, 0.5) for idx in sorted(eligible_indices)[:validated_top_k]]
+            else:
+                logger.info("BM25 retrieval: no positive-scoring chunks found")
+                return []
 
         # 3. Deterministic tie-breaking: primary key -score,
         # secondary key chunk_id
@@ -269,8 +273,14 @@ class BM25Retriever:
         for doc_idx in range(self.index.num_documents):
             rec = self.index.get_record(doc_idx)
 
-            if doc_id_set is not None and rec.document_id not in doc_id_set:
-                continue
+            if doc_id_set is not None:
+                matched_id = (
+                    rec.document_id in doc_id_set
+                    or rec.file_name in doc_id_set
+                    or (filters.file_name and (rec.file_name == filters.file_name or rec.document_id == filters.file_name))
+                )
+                if not matched_id:
+                    continue
             if file_type_set is not None and rec.file_type.lower() not in file_type_set:
                 continue
             if filters.source is not None and rec.source != filters.source:

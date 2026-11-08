@@ -117,3 +117,4 @@ class MaddyPromptTemplate(BasePromptTemplate):
             messages=messages,
             citation_ids=citation_ids,
         )
+

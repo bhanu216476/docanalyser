@@ -28,7 +28,26 @@ export default function AskAI({
   const [activeEvidenceModal, setActiveEvidenceModal] = useState(false);
   const [studyMode, setStudyMode] = useState('deep'); // 'deep' | 'flashcards' | 'quiz' | 'summary'
   const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const [thinkingStepIdx, setThinkingStepIdx] = useState(0);
   const bottomRef = useRef(null);
+
+  const thinkingSteps = [
+    "Searching across indexed document passages... 🔍",
+    "Analyzing semantic context & verifying citations... 📖",
+    "Synthesizing key insights & structuring findings... 💡",
+    "Writing a clear, natural explanation for you... ✨"
+  ];
+
+  useEffect(() => {
+    if (!isQuerying) {
+      setThinkingStepIdx(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setThinkingStepIdx(prev => (prev + 1) % thinkingSteps.length);
+    }, 1800);
+    return () => clearInterval(timer);
+  }, [isQuerying, thinkingSteps.length]);
 
   // Dynamic quick prompt cards based on active mode
   const cardsByMode = {
@@ -162,10 +181,11 @@ export default function AskAI({
              HERO EMPTY STATE WITH MADDY & ENHANCED ELEMENTS
              ======================================================== */
           <div className="study-hero-state">
-            {/* Animated Floating Robot Mascot MADDY */}
+            {/* Animated Floating Robot Mascot MADDY (Hero Waving Mode) */}
             <RobotMascot
-              size="lg"
-              speech="Hi! I'm MADDY..."
+              size="hero"
+              mode="hero"
+              speech="Hi! I'm Maddy ✨"
             />
 
             {/* Headline & Subtitle */}
@@ -481,15 +501,24 @@ export default function AskAI({
               ))}
             </AnimatePresence>
 
-            {/* Querying Spinner */}
+            {/* Animated Thinking Maddy Card (Active during response generation) */}
             {isQuerying && (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--mu)', fontSize: '12.5px' }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="maddy-thinking-card"
               >
-                <RobotMascot size="sm" />
-                <span className="animate-pulse">MADDY is searching your documents and verifying citations...</span>
+                <RobotMascot size="sm" mode="thinking" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: 'var(--tx)' }}>
+                    <span>Maddy is thinking...</span>
+                    <span style={{ fontSize: '11px', color: 'var(--ac)' }}>✨ Active</span>
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--mu)', minHeight: '18px', transition: 'all 0.3s ease' }}>
+                    {thinkingSteps[thinkingStepIdx]}
+                  </div>
+                </div>
               </motion.div>
             )}
 

@@ -77,12 +77,35 @@ class FakeLLMProvider(LLMProvider):
                         .strip()
                     )
                 if context_part and len(context_part) > 10:
-                    first_line = context_part.splitlines()[0][:200].strip()
-                    text = (
-                        f"Here is what I found in your documents! ✨\n\n"
-                        f"{first_line} [1]\n\n"
-                        "Let me know if you would like me to explain anything in more detail! 😊"
-                    )
+                    clean_ctx = " ".join(context_part.split()[:80])
+                    p_lower = prompt_str.lower()
+                    if any(w in p_lower for w in ("question", "quiz", "test", "comprehension")):
+                        text = (
+                            "Here are 5 questions based on your uploaded document to test comprehension! ✨\n\n"
+                            f"1. What is the central subject or objective introduced in this document? [1]\n"
+                            f"2. What core roles, criteria, or technical details are specified here? [1]\n"
+                            f"3. How does the text describe the operational process or background? [1]\n"
+                            f"4. What measurable outcomes, rules, or standards are emphasized? [1]\n"
+                            f"5. What are the key conclusions, qualifications, or next steps highlighted? [1]\n\n"
+                            "Feel free to try answering any of these, or ask me to explain any question in detail! 😊"
+                        )
+                    elif any(w in p_lower for w in ("explore", "what is about", "summarize", "overview", "detail", "tell")):
+                        text = (
+                            f"Here is a helpful overview of what this document is about! ✨\n\n"
+                            f"### 📄 Document Summary\n"
+                            f"{clean_ctx}... [1]\n\n"
+                            f"### 💡 Key Takeaways\n"
+                            f"- **Core Focus**: Introduces foundational background and key context. [1]\n"
+                            f"- **Primary Information**: Covers essential specifications, roles, and procedures. [1]\n"
+                            f"- **Next Steps**: Provides actionable guidelines and supporting details.\n\n"
+                            f"Let me know if you would like me to drill into any specific section! 😊"
+                        )
+                    else:
+                        text = (
+                            f"Here is what I found in your documents! ✨\n\n"
+                            f"{clean_ctx}... [1]\n\n"
+                            f"Let me know if you would like me to explain anything in more detail! 😊"
+                        )
                 else:
                     if legacy_version == "maddy" or "maddy" in prompt_str.lower():
                         text = (

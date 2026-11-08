@@ -2264,5 +2264,130 @@ mark.cited-highlight {
   box-shadow: 0 4px 12px rgba(13, 148, 136, 0.08);
 }
 
+/* ============================================================
+   ADVANCED MADDY ROBOT ANIMATIONS
+   - Site Open / Hero Greeting (Wave & Sparkle)
+   - Document Uploading Scanner (Laser Hologram)
+   - Thinking & Response Generation (Active Eye Scan & Thought Bubbles)
+   ============================================================ */
+
+/* Waving Hand / Arm for Maddy Hero Greeting */
+@keyframes maddyArmWave {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-28deg); }
+  40% { transform: rotate(-10deg); }
+  60% { transform: rotate(-28deg); }
+  80% { transform: rotate(-12deg); }
+}
+
+.maddy-waving-arm {
+  transform-origin: 78px 52px;
+  animation: maddyArmWave 2.8s ease-in-out infinite;
+}
+
+/* Eye Scan Animation for Thinking / Reading Documents */
+@keyframes maddyEyeScan {
+  0%, 100% { transform: translateX(0px); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(0px); }
+  75% { transform: translateX(4px); }
+}
+
+.maddy-eyes-scanning {
+  animation: maddyEyeScan 2.2s ease-in-out infinite;
+}
+
+/* Orbiting Data Particles around Maddy */
+@keyframes maddyOrbit {
+  0% { transform: rotate(0deg) translateX(36px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(36px) rotate(-360deg); }
+}
+
+.maddy-orbit-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--ac);
+  box-shadow: 0 0 8px var(--ac);
+  pointer-events: none;
+  animation: maddyOrbit 3.5s linear infinite;
+}
+
+/* Pulsing Aura Ring */
+@keyframes maddyAuraPulse {
+  0%, 100% { transform: scale(1); opacity: 0.35; }
+  50% { transform: scale(1.18); opacity: 0.7; }
+}
+
+.maddy-aura-pulse {
+  animation: maddyAuraPulse 2.8s ease-in-out infinite;
+}
+
+/* Document Upload Scanner Laser Line */
+@keyframes maddyLaserSweep {
+  0% { top: 4px; opacity: 0.2; }
+  20% { opacity: 0.95; }
+  80% { opacity: 0.95; }
+  100% { top: calc(100% - 6px); opacity: 0.2; }
+}
+
+.maddy-scan-laser {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--ac), #38BDF8, transparent);
+  box-shadow: 0 0 10px var(--ac), 0 0 18px #38BDF8;
+  border-radius: 2px;
+  animation: maddyLaserSweep 1.8s ease-in-out infinite alternate;
+}
+
+/* Thinking Indicator Container in Chat Thread */
+.maddy-thinking-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: var(--s1);
+  border: 1px solid var(--bd);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+  max-width: 580px;
+  position: relative;
+  overflow: hidden;
+}
+
+.maddy-thinking-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ac), #38BDF8, transparent);
+  animation: maddyShimmer 2s ease-in-out infinite;
+}
+
+@keyframes maddyShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Uploading Scanner Box in Sidebar */
+.maddy-upload-scanner-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  background: var(--s2);
+  border: 1px dashed var(--ac);
+  border-radius: var(--r-lg);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 20px var(--mascot-glow);
+}
+
+
 
 

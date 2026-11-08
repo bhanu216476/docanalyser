@@ -414,7 +414,11 @@ function AppShell() {
           conversation_history: history
         };
         if (selectedDocId !== 'all') {
-          payload.filters = { document_id: selectedDocId };
+          const activeDoc = documents.find(d => d.id === selectedDocId);
+          payload.filters = { 
+            document_id: selectedDocId,
+            file_name: activeDoc?.fileName || activeDoc?.title
+          };
         }
 
         const res = await fetch(`${RAG_BASE}/api/v1/rag/query`, {
