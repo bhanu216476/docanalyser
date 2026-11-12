@@ -300,7 +300,7 @@ function AppShell() {
           let errorData = {};
           try {
             errorData = await res.json();
-          } catch (jsonErr) {}
+          } catch (jsonErr) { }
           throw new Error(errorData.error || errorData.message || `Ingestion failed (Status: ${res.status})`);
         }
       } catch (e) {
@@ -310,7 +310,7 @@ function AppShell() {
       // Add to document state using real API response
       const finalStatus = apiData?.status === 'INDEXED' ? 'PROCESSED' : (apiData?.status || 'PROCESSING');
       const realDocId = apiData?.documentId || newDocId;
-      
+
       const newDoc = {
         id: realDocId,
         title: uploadTitle || fileName,
@@ -398,14 +398,15 @@ function AppShell() {
 
       // Try RAG endpoint
       try {
-        const payload = { 
-          query: userText, 
+        const payload = {
+          query: userText,
           top_k: 5,
+          prompt_version: 'maddy',
           conversation_history: history
         };
         if (selectedDocId !== 'all') {
           const activeDoc = documents.find(d => d.id === selectedDocId);
-          payload.filters = { 
+          payload.filters = {
             document_id: selectedDocId,
             file_name: activeDoc?.fileName || activeDoc?.title
           };
@@ -428,7 +429,7 @@ function AppShell() {
             if (errJson && errJson.detail) {
               errorMessage = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
             }
-          } catch (_) {}
+          } catch (_) { }
 
           // Fallback legacy endpoint check
           try {
@@ -441,9 +442,9 @@ function AppShell() {
               body: JSON.stringify({ query: userText, top_k: 5, conversation_history: history })
             });
             if (fallbackRes.ok) ragResponse = await fallbackRes.json();
-          } catch (_) {}
+          } catch (_) { }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       if (ragResponse && ragResponse.answer) {
         setMessages(prev => [...prev, {

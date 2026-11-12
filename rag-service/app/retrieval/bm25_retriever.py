@@ -241,6 +241,37 @@ class BM25Retriever:
             )
         return top_k
 
+    def retrieve_by_document(
+        self,
+        filters: RetrievalFilter,
+        top_k: int = 10,
+    ) -> list[RetrievalResult]:
+        """Directly retrieve chunks belonging to a filtered document."""
+        eligible_indices = self._filter_eligible_indices(filters)
+        if not eligible_indices:
+            return []
+        results: list[RetrievalResult] = []
+        for rank, idx in enumerate(sorted(eligible_indices)[:top_k], start=1):
+            record = self.index.get_record(idx)
+            results.append(
+                RetrievalResult(
+                    chunk_id=record.chunk_id,
+                    content=record.content,
+                    score=0.9,
+                    rank=rank,
+                    metadata=dict(record.metadata),
+                    document_id=record.document_id,
+                    chunk_index=record.chunk_index,
+                    file_name=record.file_name,
+                    file_type=record.file_type,
+                    source=record.source,
+                    section=record.section,
+                    start_char=record.start_char,
+                    end_char=record.end_char,
+                )
+            )
+        return results
+
     def _filter_eligible_indices(
         self,
         filters: RetrievalFilter | None,
@@ -254,14 +285,35 @@ class BM25Retriever:
         if filters is None or filters.is_empty:
             return None
 
-        eligible: set[int] = set()
-        doc_id_set = (
-            {filters.document_id}
-            if isinstance(filters.document_id, str)
-            else set(filters.document_id)
-            if filters.document_id is not None
-            else None
-        )
+        from pathlib import Path
+
+        # Gather all candidate names (UUID, full filename, stem)
+        target_names: set[str] = set()
+        if filters.document_id:
+            if isinstance(filters.document_id, str):
+                target_names.add(filters.document_id.lower())
+                stem = Path(filters.document_id).stem.lower()
+                if stem:
+                    target_names.add(stem)
+            elif isinstance(filters.document_id, list):
+                for d in filters.document_id:
+                    target_names.add(d.lower())
+                    stem = Path(d).stem.lower()
+                    if stem:
+                        target_names.add(stem)
+        if filters.file_name:
+            if isinstance(filters.file_name, str):
+                target_names.add(filters.file_name.lower())
+                stem = Path(filters.file_name).stem.lower()
+                if stem:
+                    target_names.add(stem)
+            elif isinstance(filters.file_name, list):
+                for fn in filters.file_name:
+                    target_names.add(fn.lower())
+                    stem = Path(fn).stem.lower()
+                    if stem:
+                        target_names.add(stem)
+
         file_type_set = (
             {filters.file_type.lower()}
             if isinstance(filters.file_type, str)
@@ -270,14 +322,24 @@ class BM25Retriever:
             else None
         )
 
+        eligible: set[int] = set()
         for doc_idx in range(self.index.num_documents):
             rec = self.index.get_record(doc_idx)
 
-            if doc_id_set is not None:
+            if target_names:
+                rec_doc_id = (rec.document_id or "").lower()
+                rec_fn = (rec.file_name or "").lower()
+                rec_stem = Path(rec_fn).stem.lower() if rec_fn else ""
+
                 matched_id = (
-                    rec.document_id in doc_id_set
-                    or rec.file_name in doc_id_set
-                    or (filters.file_name and (rec.file_name == filters.file_name or rec.document_id == filters.file_name))
+                    rec_doc_id in target_names
+                    or rec_fn in target_names
+                    or rec_stem in target_names
+                    or any(
+                        t in rec_fn or t in rec_doc_id
+                        for t in target_names
+                        if len(t) >= 4
+                    )
                 )
                 if not matched_id:
                     continue
@@ -289,8 +351,6 @@ class BM25Retriever:
                 filters.chunk_index is not None
                 and rec.chunk_index != filters.chunk_index
             ):
-                continue
-            if filters.file_name is not None and rec.file_name != filters.file_name:
                 continue
             if filters.section is not None and rec.section != filters.section:
                 continue

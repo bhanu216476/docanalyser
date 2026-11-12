@@ -18,6 +18,9 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.evaluation.runner import EvaluationRunner
+from app.multidoc.models import MultiDocComparisonRequest, MultiDocComparisonResponse
+from app.multidoc.service import MultiDocumentIntelligenceService
 from app.pipeline.models import IngestionResponse, RAGQueryRequest, RAGResponse
 from app.pipeline.rag_pipeline import (
     IngestionError,
@@ -186,3 +189,66 @@ async def query_rag_stream(request: RAGQueryRequest):
             yield f"data: {json.dumps({'error': str(exc), 'done': True})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.post(
+    "/multidoc/compare",
+    response_model=MultiDocComparisonResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Compare multiple documents, identify contrasts and detect conflicts",
+)
+async def compare_multiple_documents(request: MultiDocComparisonRequest) -> MultiDocComparisonResponse:
+    """
+    Execute deep multi-document comparative analysis.
+    Identifies common themes, dimension-by-dimension differences, and conflicting claims.
+    """
+    pipeline = get_pipeline()
+    service = MultiDocumentIntelligenceService(pipeline)
+    try:
+        return service.compare_documents(request)
+    except Exception as exc:
+        logger.error("Multi-document comparison failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to compare documents: {exc}",
+        ) from exc
+
+
+@router.post(
+    "/evaluation/run",
+    status_code=status.HTTP_200_OK,
+    summary="Execute automated RAG evaluation suite",
+)
+async def run_automated_rag_evaluation(dataset_name: str = "production_eval") -> dict[str, Any]:
+    """
+    Run automated RAG evaluation measuring HitRate@K, Recall@K, Context Precision,
+    Faithfulness, Answer Relevance, and Latency.
+    """
+    pipeline = get_pipeline()
+    from app.evaluation.dataset import EvaluationCase
+
+    sample_cases = [
+        EvaluationCase(
+            id="eval-001",
+            question="What is the architecture of DocAnalyser RAG system?",
+            expected_answer="DocAnalyser uses hybrid retrieval with dense Qdrant, sparse BM25, and cross-encoder reranking.",
+            category="architecture",
+        ),
+        EvaluationCase(
+            id="eval-002",
+            question="What databases and persistence stores are used?",
+            expected_answer="PostgreSQL, Redis, and Qdrant cloud vector store.",
+            category="storage",
+        ),
+        EvaluationCase(
+            id="eval-003",
+            question="How does citation verification work in DocAnalyser?",
+            expected_answer="Citations are mapped to chunk offsets and verified with claim extraction.",
+            category="verification",
+        ),
+    ]
+
+    runner = EvaluationRunner(dataset=sample_cases, pipeline=pipeline, dataset_name=dataset_name)
+    report = runner.run()
+    return report.model_dump(mode="json")
+

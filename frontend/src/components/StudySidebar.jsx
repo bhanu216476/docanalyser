@@ -233,8 +233,12 @@ export default function StudySidebar({
                         }}>
                           {doc.title || doc.fileName}
                         </div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--mu)' }}>
-                          {doc.chunks ? `${doc.chunks} chunks` : 'Indexed'} • {doc.status || 'Ready'}
+                        <div style={{ fontSize: '10.5px', color: doc.status === 'FAILED' ? '#ef4444' : 'var(--mu)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>{doc.chunks ? `${doc.chunks} chunks` : 'Indexed'}</span>
+                          <span>•</span>
+                          <span style={{ fontWeight: doc.status === 'FAILED' ? 700 : 400 }}>
+                            {doc.status === 'FAILED' ? '⚠️ FAILED' : (doc.status || 'Ready')}
+                          </span>
                         </div>
                       </div>
                     </div>

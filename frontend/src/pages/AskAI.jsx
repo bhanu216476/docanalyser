@@ -409,6 +409,39 @@ export default function AskAI({
                                 Grounded in {msg.meta.citations.length} sources
                               </span>
                             )}
+                            {/* Query Intent Badge */}
+                            {msg.meta.metadata?.query_analysis?.intent && (
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: 600,
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                color: 'var(--ac, #3b82f6)',
+                                border: '1px solid rgba(59, 130, 246, 0.25)'
+                              }}>
+                                {msg.meta.metadata.query_analysis.intent === 'COMPARISON' ? '⚖️ Comparison' :
+                                 msg.meta.metadata.query_analysis.intent === 'SUMMARY' ? '📝 Summary' :
+                                 msg.meta.metadata.query_analysis.intent === 'EXPLORATION' ? '✨ Quiz & Exploration' :
+                                 msg.meta.metadata.query_analysis.intent === 'CONCEPTUAL' ? '🧠 Conceptual' :
+                                 msg.meta.metadata.query_analysis.intent === 'MULTI_PART' ? '🔀 Multi-Part' :
+                                 '🎯 Factual'}
+                              </span>
+                            )}
+                            {/* Online Faithfulness Score */}
+                            {msg.meta.metadata?.evaluation?.faithfulness !== undefined && (
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: 600,
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                color: '#22c55e',
+                                border: '1px solid rgba(34, 197, 94, 0.25)'
+                              }}>
+                                {Math.round(msg.meta.metadata.evaluation.faithfulness * 100)}% Faithfulness
+                              </span>
+                            )}
                           </div>
                         )}
 

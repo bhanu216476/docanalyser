@@ -137,6 +137,10 @@ class GroundedCitation(BaseModel):
         ge=0,
         description="0-based sequential chunk index within document.",
     )
+    passage: str | None = Field(
+        default=None,
+        description="Exact supporting passage excerpt from authoritative source.",
+    )
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional custom chunk metadata.",
@@ -177,6 +181,10 @@ class GroundedCitation(BaseModel):
             digits = "".join(filter(str.isdigit, citation.citation_id))
             resolved_id = int(digits) if digits else 1
 
+        passage_val = getattr(citation, "passage", "") or citation.metadata.get("content") or None
+        if isinstance(passage_val, str) and len(passage_val) > 450:
+            passage_val = passage_val[:450] + "..."
+
         return cls(
             id=resolved_id,
             document=doc_name,
@@ -187,6 +195,7 @@ class GroundedCitation(BaseModel):
             file_name=citation.file_name or None,
             section=citation.section or None,
             chunk_index=citation.chunk_index,
+            passage=passage_val,
             metadata=dict(citation.metadata),
         )
 

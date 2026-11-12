@@ -40,6 +40,11 @@ from app.core.config import settings
 from app.decision.layer import DecisionLayer
 from app.embeddings.providers import FakeEmbeddingProvider
 from app.embeddings.service import EmbeddingService
+from app.evaluation.metrics import (
+    compute_answer_relevance,
+    compute_citation_accuracy,
+    compute_faithfulness,
+)
 from app.ingestion.base import BaseLoader
 from app.ingestion.chunking import BaseChunker, RecursiveChunker
 from app.ingestion.markdown_loader import MarkdownLoader
@@ -48,12 +53,15 @@ from app.ingestion.txt_loader import TxtLoader
 from app.llm.prompt_builder import PromptBuilder
 from app.llm.prompts.models import Prompt
 from app.llm.providers import FakeLLMProvider, LLMProvider, LLMResponse
+from app.memory.buffer import TokenBudgetedMemoryBuffer
 from app.observability import get_tracer
 from app.observability.metrics import RagMetrics
 from app.pipeline.models import IngestionResponse, RAGQueryRequest, RAGResponse
+from app.query.intelligence import QueryIntelligenceService
 from app.reranking.base import BaseReranker
 from app.reranking.mock_reranker import MockReranker
 from app.reranking.models import RerankedResult
+from app.retrieval.adaptive import deduplicate_chunks, merge_subquery_results
 from app.retrieval.bm25_index import BM25Index
 from app.retrieval.bm25_retriever import BM25Retriever
 from app.retrieval.dense_retriever import DenseRetriever
@@ -125,9 +133,31 @@ class RAGPipeline:
             in_memory: If True, forces in-memory Qdrant client for local testing.
         """
         # 1. Embedding service & dimension
-        self.embedding_service = embedding_service or EmbeddingService(
-            provider=FakeEmbeddingProvider(dimension=settings.qdrant_vector_size)
-        )
+        if embedding_service is not None:
+            self.embedding_service = embedding_service
+        elif getattr(settings, "openai_api_key", "").strip():
+            try:
+                from app.embeddings.providers import OpenAIEmbeddingProvider
+
+                self.embedding_service = EmbeddingService(
+                    provider=OpenAIEmbeddingProvider(
+                        api_key=settings.openai_api_key.strip(),
+                        model=settings.embedding_model,
+                    ),
+                    batch_size=settings.embedding_batch_size,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to initialize OpenAIEmbeddingProvider (%s); falling back to FakeEmbeddingProvider.",
+                    exc,
+                )
+                self.embedding_service = EmbeddingService(
+                    provider=FakeEmbeddingProvider(dimension=settings.qdrant_vector_size)
+                )
+        else:
+            self.embedding_service = EmbeddingService(
+                provider=FakeEmbeddingProvider(dimension=settings.qdrant_vector_size)
+            )
         vector_size = getattr(
             self.embedding_service, "vector_size", settings.qdrant_vector_size
         )
@@ -266,6 +296,10 @@ class RAGPipeline:
 
         # 12. Confidence Calculator
         self.confidence_calculator = confidence_calculator or ConfidenceCalculator()
+
+        # 13. Advanced Query Intelligence & Conversational Memory
+        self.query_intelligence = QueryIntelligenceService()
+        self.memory_buffer = TokenBudgetedMemoryBuffer(max_tokens=2000)
 
         logger.info(
             "RAGPipeline initialized successfully (collection=%s, vector_size=%d, in_memory=%s)",
@@ -578,13 +612,19 @@ class RAGPipeline:
     ) -> Prompt:
         """
         Assemble a versioned Prompt from the user query, built context, and conversation history.
+        Enforces token-aware sliding window budgeting on conversational history turns.
         """
         prompt_ver = version or settings.prompt_version
+        budgeted_history = (
+            self.memory_buffer.format_history_for_llm(conversation_history, max_budget=1500)
+            if conversation_history
+            else None
+        )
         return self.prompt_builder.build(
             query=query,
             context=built_context,
             version=prompt_ver,
-            conversation_history=conversation_history,
+            conversation_history=budgeted_history,
         )
 
     def generate(
@@ -839,8 +879,17 @@ class RAGPipeline:
         with tracer.start_as_current_span("rag.pipeline") as span:
             span.set_attribute("rag.prompt_version", str(req_version))
 
-            # General Conversation Mode: bypass document retrieval for greetings and general chit-chat
-            if self._is_conversational_query(query_str, req_filters, requested_mode):
+            # Advanced Query Intelligence: intent classification, contextual resolution & decomposition
+            has_doc_filter = bool(req_filters and not req_filters.is_empty)
+            query_analysis = self.query_intelligence.analyze(
+                query=query_str,
+                conversation_history=conversation_history,
+                has_document_filters=has_doc_filter,
+            )
+            metadata["query_analysis"] = query_analysis.model_dump()
+
+            # General Conversation Mode: bypass document retrieval for casual greetings / chitchat
+            if not query_analysis.requires_retrieval and not has_doc_filter:
                 latencies["total_ms"] = (time.perf_counter() - t_total_start) * 1000.0
                 prompt = self.build_prompt(
                     query=query_str,
@@ -861,44 +910,63 @@ class RAGPipeline:
                     latency_breakdown_ms=latencies,
                     metadata={
                         "mode": "conversational",
+                        "intent": query_analysis.intent.value,
                         "model_id": getattr(llm_response, "model_id", settings.llm_model),
                     },
                 )
 
-            # Contextual query rewriting for follow-up questions
-            retrieval_query = self._rewrite_query_for_retrieval(query_str, conversation_history)
-
-            # Step 1: Retrieval (Dense & BM25)
+            # Step 1: Adaptive Retrieval (Dense & BM25 with multi-query decomposition)
             t0 = time.perf_counter()
-            dense_top_k = settings.hybrid_dense_top_k
-            bm25_top_k = settings.hybrid_bm25_top_k
-            try:
-                dense_results = self.dense_retriever.retrieve(
-                    query=retrieval_query,
-                    top_k=dense_top_k,
-                    filters=req_filters,
-                )
-                dense_dur = time.perf_counter() - t0
-                RagMetrics().record_retrieval_latency(
-                    dense_dur, method="dense", outcome="success"
-                )
-                RagMetrics().record_retrieval_scores(
-                    [r.score for r in dense_results], method="dense"
-                )
+            dense_top_k = req_top_k or query_analysis.recommended_top_k or settings.hybrid_dense_top_k
+            bm25_top_k = req_top_k or query_analysis.recommended_top_k or settings.hybrid_bm25_top_k
 
-                t0_bm = time.perf_counter()
-                bm25_results = self.bm25_retriever.retrieve(
-                    query=retrieval_query,
-                    top_k=bm25_top_k,
-                    filters=req_filters,
-                )
-                bm25_dur = time.perf_counter() - t0_bm
-                RagMetrics().record_retrieval_latency(
-                    bm25_dur, method="bm25", outcome="success"
-                )
-                RagMetrics().record_retrieval_scores(
-                    [r.score for r in bm25_results], method="bm25"
-                )
+            subqueries_to_search = (
+                query_analysis.subqueries
+                if len(query_analysis.subqueries) > 1
+                else [query_analysis.rewritten_query]
+            )
+
+            # If technical synonym expansion is present and query is single, include expansion search
+            if query_analysis.expanded_terms and len(subqueries_to_search) == 1:
+                expansion_str = " ".join(query_analysis.expanded_terms[:3])
+                subqueries_to_search = [
+                    query_analysis.rewritten_query,
+                    f"{query_analysis.rewritten_query} {expansion_str}",
+                ]
+
+            all_fused_candidate_lists: list[list[RetrievalResult]] = []
+
+            try:
+                for sq in subqueries_to_search:
+                    t_sq0 = time.perf_counter()
+                    dense_results = self.dense_retriever.retrieve(
+                        query=sq,
+                        top_k=dense_top_k,
+                        filters=req_filters,
+                    )
+                    dense_dur = time.perf_counter() - t_sq0
+                    RagMetrics().record_retrieval_latency(
+                        dense_dur, method="dense", outcome="success"
+                    )
+
+                    t_sq_bm = time.perf_counter()
+                    bm25_results = self.bm25_retriever.retrieve(
+                        query=sq,
+                        top_k=bm25_top_k,
+                        filters=req_filters,
+                    )
+                    bm25_dur = time.perf_counter() - t_sq_bm
+                    RagMetrics().record_retrieval_latency(
+                        bm25_dur, method="bm25", outcome="success"
+                    )
+
+                    sq_fused = self.fuse(
+                        dense_results=dense_results,
+                        bm25_results=bm25_results,
+                        top_k=settings.hybrid_candidate_top_k,
+                    )
+                    all_fused_candidate_lists.append(sq_fused)
+
             except Exception as exc:
                 logger.error("Retrieval stage failed: %s", exc)
                 RagMetrics().record_retrieval_latency(
@@ -909,42 +977,58 @@ class RAGPipeline:
                     time.perf_counter() - t_total_start, outcome="failure"
                 )
                 raise QueryPipelineError(f"Retrieval stage failed: {exc}") from exc
-            latencies["retrieval_ms"] = (time.perf_counter() - t0) * 1000.0
-            metadata["dense_candidates_count"] = len(dense_results)
-            metadata["bm25_candidates_count"] = len(bm25_results)
 
-            # Step 2: Reciprocal Rank Fusion (RRF)
+            latencies["retrieval_ms"] = (time.perf_counter() - t0) * 1000.0
+
+            # Step 2: Multi-Query Fusion & Semantic Chunk Deduplication
             t1 = time.perf_counter()
             try:
-                candidate_pool_limit = settings.hybrid_candidate_top_k
-                fused_candidates = self.fuse(
-                    dense_results=dense_results,
-                    bm25_results=bm25_results,
-                    top_k=candidate_pool_limit,
-                )
+                if len(all_fused_candidate_lists) > 1:
+                    fused_candidates = merge_subquery_results(
+                        all_fused_candidate_lists,
+                        top_k=settings.hybrid_candidate_top_k,
+                        rrf_k=settings.rrf_k,
+                    )
+                elif all_fused_candidate_lists:
+                    fused_candidates = deduplicate_chunks(
+                        all_fused_candidate_lists[0],
+                        similarity_threshold=0.75,
+                    )
+                else:
+                    fused_candidates = []
+
+                # Adaptive Document Fallback: If 0 chunks retrieved with a document filter, directly retrieve document content
+                if not fused_candidates:
+                    if has_doc_filter and req_filters:
+                        logger.info("Adaptive Fallback: zero search matches with document filter; retrieving document chunks directly.")
+                        bm_fallback = self.bm25_retriever.retrieve_by_document(req_filters, top_k=dense_top_k)
+                        dense_fallback = self.dense_retriever.retrieve_by_document(req_filters, top_k=dense_top_k)
+                        fused_candidates = bm_fallback or dense_fallback
+                    elif query_analysis.intent in (QueryIntent.SUMMARY, QueryIntent.EXPLORATION):
+                        logger.info("Adaptive Fallback: summary/exploration query with zero matches; retrieving top corpus chunks.")
+                        fused_candidates = self.bm25_retriever.retrieve(query="document summary overview content", top_k=dense_top_k)
+
                 fusion_dur = time.perf_counter() - t1
                 RagMetrics().record_retrieval_latency(
                     fusion_dur, method="fusion", outcome="success"
                 )
-                RagMetrics().record_retrieval_scores(
-                    [r.score for r in fused_candidates], method="hybrid"
-                )
             except Exception as exc:
-                logger.error("Fusion stage failed: %s", exc)
+                logger.error("Fusion / deduplication stage failed: %s", exc)
                 RagMetrics().record_pipeline_failure("retrieval")
                 RagMetrics().record_pipeline_duration(
                     time.perf_counter() - t_total_start, outcome="failure"
                 )
                 raise QueryPipelineError(f"Fusion stage failed: {exc}") from exc
+
             latencies["fusion_ms"] = (time.perf_counter() - t1) * 1000.0
             metadata["fused_candidates_count"] = len(fused_candidates)
 
             # Step 3: Candidate Reranking
             t2 = time.perf_counter()
-            rerank_top_k = req_top_k or settings.rerank_top_k
+            rerank_top_k = req_top_k or query_analysis.recommended_top_k or settings.rerank_top_k
             try:
                 reranked_results = self.rerank(
-                    query=retrieval_query,
+                    query=query_analysis.rewritten_query,
                     candidates=fused_candidates,
                     top_k=rerank_top_k,
                 )
@@ -991,37 +1075,27 @@ class RAGPipeline:
                 total_dur_s = time.perf_counter() - t_total_start
                 RagMetrics().record_pipeline_duration(total_dur_s, outcome="success")
 
-                # If prompt is Maddy, provide a helpful conversational explanation rather than cold refusal
-                if str(req_version).lower() == "maddy":
-                    prompt = self.build_prompt(
-                        query=query_str,
-                        built_context=built_context,
-                        version=req_version,
-                        conversation_history=conversation_history,
+                # Provide a helpful, warm conversational explanation rather than cold refusal
+                prompt = self.build_prompt(
+                    query=query_str,
+                    built_context=built_context,
+                    version=req_version,
+                    conversation_history=conversation_history,
+                )
+                try:
+                    llm_response = self.generate(
+                        prompt,
+                        temperature=temperature_override or 0.6,
+                        max_tokens=max_tokens_override or 1500,
                     )
-                    try:
-                        llm_response = self.generate(
-                            prompt,
-                            temperature=temperature_override or 0.6,
-                            max_tokens=max_tokens_override or 1500,
-                        )
-                        ans_text = llm_response.response_text
-                    except Exception:
-                        ans_text = self._generate_extractive_fallback(built_context, query_str)
-                    return RAGResponse(
-                        query=query_str,
-                        answer=ans_text,
-                        citations=[],
-                        prompt_version=str(req_version),
-                        latency_breakdown_ms=latencies,
-                        metadata=metadata,
-                    )
-
+                    ans_text = llm_response.response_text
+                except Exception:
+                    ans_text = self._generate_extractive_fallback(built_context, query_str)
                 return RAGResponse(
                     query=query_str,
-                    answer="I don't have enough information in the provided documents.",
+                    answer=ans_text,
                     citations=[],
-                    prompt_version=req_version,
+                    prompt_version=str(req_version),
                     latency_breakdown_ms=latencies,
                     metadata=metadata,
                 )
@@ -1170,6 +1244,28 @@ class RAGPipeline:
                 confidence_result.citation_support_signal,
                 confidence_result.answerability_signal,
             )
+
+            # Step 10: Online RAG Quality Metrics (Faithfulness, Relevance, Citation Accuracy)
+            claims_seq = getattr(verification_result, "claims", [])
+            supp_cnt = getattr(verification_result, "supported_count", 0)
+            faithfulness_val = compute_faithfulness(claims_seq, supp_cnt)
+            relevance_val = compute_answer_relevance(query_str, llm_response.response_text)
+
+            cited_ints = [c.id for c in verified_citations if getattr(c, "id", None) is not None]
+            registry_ints = [
+                int("".join(filter(str.isdigit, str(k))))
+                for k in built_context.citation_registry.keys()
+                if any(ch.isdigit() for ch in str(k))
+            ]
+            citation_acc_val = compute_citation_accuracy(cited_ints, registry_ints)
+
+            metadata["evaluation"] = {
+                "faithfulness": round(faithfulness_val, 4),
+                "answer_relevance": round(relevance_val, 4),
+                "citation_accuracy": round(citation_acc_val, 4),
+                "total_claims": len(claims_seq),
+                "supported_claims": supp_cnt,
+            }
 
         return RAGResponse(
             query=query_str,

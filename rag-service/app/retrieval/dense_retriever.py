@@ -300,35 +300,55 @@ class DenseRetriever:
     ) -> Any:  # models.Filter | None
         """
         Convert a RetrievalFilter into a native Qdrant filter using FilterBuilder.
-        Matches document_id flexibly across candidate identifiers (UUID, filename)
-        using only indexed Qdrant payload fields (document_id, file_type, source).
+        Matches document_id and file_name flexibly across candidate identifiers
+        (UUID, full filename, and filename stem) using indexed Qdrant payload fields.
         """
         if filters is None or filters.is_empty:
             return None
 
+        from pathlib import Path
         from qdrant_client import models
 
-        # Query Qdrant with document_id matching either filters.document_id or filters.file_name
+        # Gather all plausible candidate identifiers (UUID, filename, stem)
         doc_candidates: set[str] = set()
         if filters.document_id:
             if isinstance(filters.document_id, str):
                 doc_candidates.add(filters.document_id)
+                stem = Path(filters.document_id).stem
+                if stem:
+                    doc_candidates.add(stem)
             elif isinstance(filters.document_id, list):
-                doc_candidates.update(filters.document_id)
+                for d in filters.document_id:
+                    doc_candidates.add(d)
+                    stem = Path(d).stem
+                    if stem:
+                        doc_candidates.add(stem)
         if filters.file_name:
             if isinstance(filters.file_name, str):
                 doc_candidates.add(filters.file_name)
+                stem = Path(filters.file_name).stem
+                if stem:
+                    doc_candidates.add(stem)
             elif isinstance(filters.file_name, list):
-                doc_candidates.update(filters.file_name)
+                for fn in filters.file_name:
+                    doc_candidates.add(fn)
+                    stem = Path(fn).stem
+                    if stem:
+                        doc_candidates.add(stem)
 
-        if doc_candidates:
-            if len(doc_candidates) == 1:
-                return models.Filter(
-                    must=[models.FieldCondition(key="document_id", match=models.MatchValue(value=next(iter(doc_candidates))))]
+        # Filter out empty strings
+        clean_candidates = [c for c in doc_candidates if c and c.strip()]
+
+        if clean_candidates:
+            should_conditions: list[Any] = []
+            for candidate in clean_candidates:
+                should_conditions.append(
+                    models.FieldCondition(key="document_id", match=models.MatchValue(value=candidate))
                 )
-            return models.Filter(
-                must=[models.FieldCondition(key="document_id", match=models.MatchAny(any=list(doc_candidates)))]
-            )
+                should_conditions.append(
+                    models.FieldCondition(key="file_name", match=models.MatchValue(value=candidate))
+                )
+            return models.Filter(should=should_conditions)
 
         vs_filter = VectorStoreFilter(
             document_id=filters.document_id,
@@ -339,6 +359,49 @@ class DenseRetriever:
             section=filters.section,
         )
         return FilterBuilder.build(vs_filter)
+
+    def retrieve_by_document(
+        self,
+        filters: RetrievalFilter,
+        top_k: int = 10,
+    ) -> list[RetrievalResult]:
+        """
+        Directly scroll and retrieve document chunks matching the filter from Qdrant
+        without requiring vector similarity scoring.
+        """
+        qdrant_filter = self._build_qdrant_filter(filters)
+        if not qdrant_filter:
+            return []
+        try:
+            records, _ = self._client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=qdrant_filter,
+                limit=top_k,
+                with_payload=True,
+                with_vectors=False,
+            )
+            results: list[RetrievalResult] = []
+            for rank, record in enumerate(records, start=1):
+                payload = record.payload or {}
+                results.append(
+                    RetrievalResult(
+                        chunk_id=str(record.id),
+                        content=payload.get("content", ""),
+                        score=0.9,
+                        rank=rank,
+                        metadata=payload.get("metadata", {}),
+                        document_id=payload.get("document_id", ""),
+                        chunk_index=payload.get("chunk_index"),
+                        file_name=payload.get("file_name", ""),
+                        file_type=payload.get("file_type", ""),
+                        source=payload.get("source", ""),
+                        section=payload.get("section"),
+                    )
+                )
+            return results
+        except Exception as exc:
+            logger.warning("DenseRetriever.retrieve_by_document failed: %s", exc)
+            return []
 
     def _search_qdrant(
         self,

@@ -55,6 +55,13 @@ Exceptions:
 
 from __future__ import annotations
 
+from app.retrieval.adaptive import (
+    deduplicate_chunks,
+    filter_by_relevance_floor,
+    merge_subquery_results,
+    normalize_bm25_score,
+    normalize_dense_score,
+)
 from app.retrieval.benchmark import (
     BenchmarkComparison,
     BenchmarkQuery,

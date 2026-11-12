@@ -75,12 +75,24 @@ public class IngestionController {
             Optional<Document> existing = documentRepository.findById(docId);
             if (existing.isPresent()) {
                 document = existing.get();
-                if (document.getStatus() == DocumentStatus.INDEXED || document.getStatus() == DocumentStatus.READY) {
+                if ((document.getStatus() == DocumentStatus.INDEXED || document.getStatus() == DocumentStatus.READY)
+                        && contentHash.equals(document.getContentHash())) {
                     return ResponseEntity.ok(Map.of(
                             "documentId", document.getId().toString(),
                             "status", document.getStatus().name(),
                             "message", "Document already indexed"
                     ));
+                }
+                // Updated file content or retry of previously failed/processing document
+                document.setContentHash(contentHash);
+                if (request.getFileName() != null && !request.getFileName().isBlank()) {
+                    document.setFileName(request.getFileName());
+                }
+                if (request.getFileSize() != null && request.getFileSize() > 0) {
+                    document.setFileSize(request.getFileSize());
+                }
+                if (request.getMimeType() != null && !request.getMimeType().isBlank()) {
+                    document.setMimeType(request.getMimeType());
                 }
             } else {
                 Optional<Document> duplicate = documentRepository.findByContentHash(contentHash);
@@ -95,12 +107,14 @@ public class IngestionController {
 
                 String fileName = request.getFileName() != null ? request.getFileName() : "unknown";
                 String fileType = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf('.') + 1) : "unknown";
+                long size = request.getFileSize() != null ? request.getFileSize() : 0L;
+                String mime = request.getMimeType() != null && !request.getMimeType().isBlank() ? request.getMimeType() : "application/octet-stream";
                 document = new Document(
                         fileName,
                         fileType,
-                        "application/octet-stream",
+                        mime,
                         request.getSource() != null ? request.getSource() : "internal",
-                        0L,
+                        size,
                         contentHash,
                         DocumentStatus.UPLOADED
                 );

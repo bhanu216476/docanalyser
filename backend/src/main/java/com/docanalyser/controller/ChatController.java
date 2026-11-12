@@ -32,7 +32,7 @@ public class ChatController {
 
     @PostMapping("/sessions")
     public ResponseEntity<ChatSession> createSession(@Valid @RequestBody SessionRequest request,
-                                                     @AuthenticationPrincipal UserDetailsImpl userDetails) {
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(chatService.createSession(request.getTitle(), userDetails));
     }
 
@@ -42,25 +42,28 @@ public class ChatController {
     }
 
     @GetMapping("/sessions/{id}")
-    public ResponseEntity<ChatSession> getSession(@PathVariable UUID id, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+    public ResponseEntity<ChatSession> getSession(@PathVariable UUID id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(chatService.getSession(id, userDetails));
     }
 
     @DeleteMapping("/sessions/{id}")
-    public ResponseEntity<?> deleteSession(@PathVariable UUID id, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+    public ResponseEntity<?> deleteSession(@PathVariable UUID id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         chatService.deleteSession(id, userDetails);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/sessions/{id}/messages")
     public ResponseEntity<ChatMessage> sendMessage(@PathVariable UUID id,
-                                                   @Valid @RequestBody MessageRequest request,
-                                                   @AuthenticationPrincipal UserDetailsImpl userDetails) {
+            @Valid @RequestBody MessageRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(chatService.sendMessage(id, request.getContent(), userDetails));
     }
-    
+
     @GetMapping("/sessions/{id}/messages")
-    public ResponseEntity<List<ChatMessage>> getMessages(@PathVariable UUID id, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+    public ResponseEntity<List<ChatMessage>> getMessages(@PathVariable UUID id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(chatService.getMessages(id, userDetails));
     }
 }

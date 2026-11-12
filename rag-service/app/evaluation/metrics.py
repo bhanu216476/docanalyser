@@ -165,3 +165,98 @@ def _percentile(values: Sequence[float], percentile: float) -> float:
     left = values[lower]
     right = values[upper]
     return float(left + (right - left) * weight)
+
+
+def compute_faithfulness(
+    claims: Sequence[Any],
+    supported_claims_count: int,
+) -> float:
+    """
+    Compute Faithfulness metric: ratio of answer claims grounded in retrieved context.
+    Score in [0.0, 1.0].
+    """
+    total = len(claims)
+    if total == 0:
+        return 1.0
+    return max(0.0, min(1.0, supported_claims_count / total))
+
+
+def compute_answer_relevance(
+    question: str,
+    answer: str,
+) -> float:
+    """
+    Compute Answer Relevance: lexical and key-term alignment between question and response.
+    Score in [0.0, 1.0].
+    """
+    import re
+    q_words = set(re.findall(r"\b[a-zA-Z0-9]{3,}\b", question.lower()))
+    stopwords = {"what", "when", "where", "which", "with", "from", "that", "this", "have", "been", "does", "explain"}
+    informative_q = q_words - stopwords
+    if not informative_q:
+        return 1.0
+
+    a_words = set(re.findall(r"\b[a-zA-Z0-9]{3,}\b", answer.lower()))
+    overlap = len(informative_q & a_words)
+    return min(1.0, overlap / len(informative_q))
+
+
+def compute_context_precision(
+    retrieved_chunk_ids: Sequence[str],
+    relevant_chunk_ids: Sequence[str],
+    k: int | None = None,
+) -> float:
+    """
+    Compute Context Precision@K: evaluates whether relevant chunks appear near the top.
+    Score in [0.0, 1.0].
+    """
+    if not relevant_chunk_ids:
+        return 1.0
+
+    top_k = k or len(retrieved_chunk_ids)
+    candidates = list(retrieved_chunk_ids)[:top_k]
+    if not candidates:
+        return 0.0
+
+    relevant_set = set(relevant_chunk_ids)
+    hits = 0
+    precision_sum = 0.0
+
+    for rank, cid in enumerate(candidates, start=1):
+        if cid in relevant_set:
+            hits += 1
+            precision_sum += hits / rank
+
+    return precision_sum / max(1, len(relevant_set))
+
+
+def compute_context_recall(
+    retrieved_chunk_ids: Sequence[str],
+    ground_truth_chunk_ids: Sequence[str],
+) -> float:
+    """
+    Compute Context Recall: evaluates if all essential ground-truth chunks were retrieved.
+    Score in [0.0, 1.0].
+    """
+    if not ground_truth_chunk_ids:
+        return 1.0
+    retrieved_set = set(retrieved_chunk_ids)
+    gt_set = set(ground_truth_chunk_ids)
+    recalled = len(retrieved_set & gt_set)
+    return recalled / len(gt_set)
+
+
+def compute_citation_accuracy(
+    cited_ids: Sequence[int],
+    valid_ids: Sequence[int],
+) -> float:
+    """
+    Compute Citation Accuracy: ratio of citations in the answer that point to valid sources.
+    Score in [0.0, 1.0].
+    """
+    if not cited_ids:
+        return 1.0
+    valid_set = set(valid_ids)
+    accurate = sum(1 for cid in cited_ids if cid in valid_set)
+    return accurate / len(cited_ids)
+
